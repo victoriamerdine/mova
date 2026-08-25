@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import {
   BarChart3,
   ClipboardList,
@@ -13,12 +14,12 @@ import { EXERCISES } from '@/lib/data/library'
 import { cn } from '@/lib/utils'
 
 const nav = [
-  { label: 'Dashboard', icon: LayoutDashboard },
-  { label: 'Alumnos', icon: Users, count: 24 },
-  { label: 'Biblioteca', icon: LibraryBig, count: EXERCISES.length },
-  { label: 'Planes', icon: ClipboardList, count: 21 },
-  { label: 'Analítica', icon: BarChart3 },
-  { label: 'Configuración', icon: Settings },
+  { label: 'Dashboard', icon: LayoutDashboard, href: '/' },
+  { label: 'Alumnos', icon: Users, count: 24, href: '#' },
+  { label: 'Biblioteca', icon: LibraryBig, count: EXERCISES.length, href: '/biblioteca' },
+  { label: 'Planes', icon: ClipboardList, count: 21, href: '/constructor' },
+  { label: 'Analítica', icon: BarChart3, href: '#' },
+  { label: 'Configuración', icon: Settings, href: '#' },
 ]
 
 export function AppSidebar({ active = 'Dashboard' }: { active?: string }) {
@@ -44,9 +45,9 @@ export function AppSidebar({ active = 'Dashboard' }: { active?: string }) {
           Gestión
         </p>
         {nav.map((item) => (
-          <a
+          <Link
             key={item.label}
-            href="#"
+            href={item.href}
             aria-current={item.label === active ? 'page' : undefined}
             className={cn(
               'group relative flex items-center gap-3 rounded-md px-2.5 py-2 text-sm font-medium transition-colors',
@@ -68,7 +69,7 @@ export function AppSidebar({ active = 'Dashboard' }: { active?: string }) {
                 {item.count}
               </span>
             ) : null}
-          </a>
+          </Link>
         ))}
       </nav>
 

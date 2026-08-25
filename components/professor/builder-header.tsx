@@ -1,10 +1,10 @@
 'use client'
 
-import { ChevronLeft, Save } from 'lucide-react'
+import { ChevronLeft, Gauge, Save } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 
-export function BuilderHeader() {
+export function BuilderHeader({ onOpenAnalysis }: { onOpenAnalysis?: () => void }) {
   return (
     <header className="bg-surface/85 sticky top-0 z-30 border-b border-border backdrop-blur">
       <div className="flex h-16 items-center gap-3 px-6">
@@ -27,6 +27,10 @@ export function BuilderHeader() {
         </div>
 
         <div className="ml-auto flex items-center gap-3">
+          <Button variant="outline" size="sm" onClick={onOpenAnalysis}>
+            <Gauge data-icon="inline-start" />
+            Análisis de carga
+          </Button>
           <Button size="sm">
             <Save data-icon="inline-start" />
             Guardar plan
