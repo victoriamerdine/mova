@@ -10,19 +10,32 @@ import {
 } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
-import { EXERCISES } from '@/lib/data/library'
 import { cn } from '@/lib/utils'
 
-const nav = [
-  { label: 'Dashboard', icon: LayoutDashboard, href: '/' },
-  { label: 'Alumnos', icon: Users, count: 24, href: '#' },
-  { label: 'Biblioteca', icon: LibraryBig, count: EXERCISES.length, href: '/biblioteca' },
-  { label: 'Planes', icon: ClipboardList, count: 21, href: '/constructor' },
-  { label: 'Analítica', icon: BarChart3, href: '#' },
-  { label: 'Configuración', icon: Settings, href: '#' },
-]
+// Fallback estático: se usa hasta que la pantalla que renderiza el sidebar
+// pase el conteo real por prop (hoy solo /biblioteca lo hace, vía
+// libraryCount — ver app/biblioteca/page.tsx). Evita además importar acá
+// el array completo de ejercicios solo para contar su .length, que ya no
+// existe como array estático de todos modos (la biblioteca real vive en
+// Supabase desde la Fase 2).
+const FALLBACK_LIBRARY_COUNT = 1362
 
-export function AppSidebar({ active = 'Dashboard' }: { active?: string }) {
+export function AppSidebar({
+  active = 'Dashboard',
+  libraryCount = FALLBACK_LIBRARY_COUNT,
+}: {
+  active?: string
+  libraryCount?: number
+}) {
+  const nav = [
+    { label: 'Dashboard', icon: LayoutDashboard, href: '/' },
+    { label: 'Alumnos', icon: Users, count: 24, href: '#' },
+    { label: 'Biblioteca', icon: LibraryBig, count: libraryCount, href: '/biblioteca' },
+    { label: 'Planes', icon: ClipboardList, count: 21, href: '/constructor' },
+    { label: 'Analítica', icon: BarChart3, href: '#' },
+    { label: 'Configuración', icon: Settings, href: '#' },
+  ]
+
   return (
     <aside className="bg-sidebar text-sidebar-foreground hidden w-64 shrink-0 flex-col border-r border-sidebar-border lg:flex">
       <div className="flex h-16 items-center gap-2.5 border-b border-sidebar-border px-5">
@@ -30,7 +43,7 @@ export function AppSidebar({ active = 'Dashboard' }: { active?: string }) {
           <Dumbbell className="size-4.5" />
         </span>
         <span className="text-sidebar-accent-foreground text-base font-semibold tracking-tight">
-          Nucleo
+          MOVA
         </span>
         <Badge
           variant="outline"

@@ -6,11 +6,11 @@ import { Button } from '@/components/ui/button'
 import { FilterBar } from '@/components/library/filter-bar'
 import { ExerciseCard } from '@/components/library/exercise-card'
 import { ExerciseDetailDialog } from '@/components/library/exercise-detail-dialog'
-import { EXERCISES, type LibraryExercise } from '@/lib/data/library'
+import { type LibraryExercise } from '@/lib/data/library'
 
 const PAGE_SIZE = 24
 
-export function LibraryWorkspace() {
+export function LibraryWorkspace({ exercises }: { exercises: LibraryExercise[] }) {
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState('Todas')
   const [muscle, setMuscle] = useState('Todos')
@@ -19,13 +19,13 @@ export function LibraryWorkspace() {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
-    return EXERCISES.filter((ex) => {
+    return exercises.filter((ex) => {
       if (category !== 'Todas' && ex.category !== category) return false
       if (muscle !== 'Todos' && ex.muscle !== muscle) return false
       if (q && !ex.name.toLowerCase().includes(q)) return false
       return true
     })
-  }, [category, muscle, query])
+  }, [category, muscle, query, exercises])
 
   const visible = filtered.slice(0, visibleCount)
   const hasActiveFilters = category !== 'Todas' || muscle !== 'Todos' || query.trim() !== ''
@@ -50,7 +50,7 @@ export function LibraryWorkspace() {
               Biblioteca de Ejercicios
             </h1>
             <p className="text-muted-foreground text-xs">
-              {filtered.length} de {EXERCISES.length} ejercicios
+              {filtered.length} de {exercises.length} ejercicios
             </p>
           </div>
           {hasActiveFilters ? (
