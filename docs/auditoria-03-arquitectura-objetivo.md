@@ -60,7 +60,7 @@ trineo, esquí) en las rutinas de la usuaria que **no** son ejercicios de biblio
                          ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │  Supabase                                                        │
-│  ├─ Auth            → profiles (role: professor|student|admin)  │
+│  ├─ Auth            → profiles (role: professor|student|individual|admin) │
 │  ├─ Postgres + RLS  → sports, exercises, plans, workouts, …     │
 │  └─ (sin Storage propio: los videos siguen siendo links YouTube)│
 └─────────────────────────────────────────────────────────────────┘
@@ -96,7 +96,7 @@ el mismo tipo de etiqueta.
 
 | Tabla | Propósito | Campos principales | Relaciones |
 |---|---|---|---|
-| `profiles` | 1 fila por usuario de Supabase Auth | `id` (=`auth.users.id`), `role` (`professor`\|`student`\|`admin`), `full_name`, `avatar_url`, `created_at` | — |
+| `profiles` | 1 fila por usuario de Supabase Auth | `id` (=`auth.users.id`), `role` (`professor`\|`student`\|`individual`\|`admin` — **`individual` agregado en la sección M**), `full_name`, `avatar_url`, `created_at` | — |
 | `professors` | Datos propios del rol profesor | `id` (FK `profiles.id`), `bio`, `created_at` | 1:1 con `profiles` |
 | `students` | Datos propios del rol alumno | `id` (FK `profiles.id`), `level`, `primary_sport_id` (FK `sports`, nullable), `availability`, `equipment_access`, `notes`, `status` | 1:1 con `profiles` |
 | `student_professors` | Relación alumno↔profesor, **many-to-many desde el día 1** aunque el MVP solo use un profesor activo por alumno | `student_id`, `professor_id`, `is_primary` (bool), `status` (`active`\|`invited`\|`ended`), `permission_level` (`full`\|`view_only`, default `full` — **[Auditoría 4 — Problema 7]** reservado desde ahora para cuando exista un co-profesor con acceso más limitado, sin UI en el MVP), `created_at` | PK compuesta `(student_id, professor_id)` |
@@ -150,7 +150,7 @@ biblioteca, tal como se hizo manualmente en Auditoría 2-I).
 
 | Tabla | Propósito | Campos principales |
 |---|---|---|
-| `plans` | CLAUDE.md §13 | `id`, `name`, `student_id`, `professor_id`, `sport_id`, `sport_profile_id` (nullable), `objective`, `level`, `plan_type` (`MUSCLE`\|`PATTERN`\|`MIXED`\|`SPORT_SPECIFIC`\|`CUSTOM`), `start_date`, `end_date`, `frequency_per_week`, `status` (`draft`\|`active`\|`completed`\|`archived`) |
+| `plans` | CLAUDE.md §13 | `id`, `name`, `student_id`, `professor_id` (**nullable desde la sección M** — NULL = plan autocoacheado), `sport_id`, `sport_profile_id` (nullable), `objective`, `level`, `plan_type` (`MUSCLE`\|`PATTERN`\|`MIXED`\|`SPORT_SPECIFIC`\|`CUSTOM`), `start_date`, `end_date`, `frequency_per_week`, `status` (`draft`\|`active`\|`completed`\|`archived`) |
 | `plan_phases` | CLAUDE.md §14, opcional | `id`, `plan_id`, `name`, `kind`, `start_date`, `end_date`, `order` |
 | `plan_weeks` | CLAUDE.md §15 | `id`, `plan_id`, `phase_id` (nullable), `number`, `name`, `start_date`, `end_date`, `objective`, `notes` |
 | `workouts` | Sesión (CLAUDE.md §16) | `id`, `week_id`, `student_id` (**[Auditoría 4 — Problema 5]** denormalizado desde `plans.student_id`, ver nota abajo), `sport_id` (FK nullable, **[Auditoría 4 — Problema 3]** hereda el de `plans` si no se especifica — permite planes multideporte a nivel de sesión), `competition_id` (FK nullable a `competitions`, **[Auditoría 4 — Problema 2]** — ver nota abajo), `name`, `date`, `estimated_duration_min`, `type`, `objective`, `order`, `status` (`scheduled`\|`completed`\|`skipped`) |
@@ -411,6 +411,68 @@ Retoma el roadmap de CLAUDE.md §44-45, ya con Fase 0 y las auditorías de datos
    arranca 100% en texto libre (como hoy) hasta que la falta de reutilización moleste en la
    práctica? El esquema ya lo soporta como opcional (Problema 1), la pregunta es de secuencia
    de trabajo, no de diseño.
+
+---
+
+## M. Ampliación post-aprobación — individuos autocoacheados y facturación
+
+Requerimiento nuevo de la usuaria, agregado después de que la Fase 1 ya estaba implementada y
+verificada en producción. Amplía CLAUDE.md §2, que solo describía "un profesor puede crear
+alumnos" — no contemplaba una persona armando su propio plan sin profesor. Documentado acá en
+vez de asumirse en silencio, siguiendo la misma disciplina que el resto de este documento.
+Implementado en `supabase/migrations/20260828000008_self_coached_individuals.sql`.
+
+**Requerimiento tal como lo planteó la usuaria**: "Un individuo, que no tiene profesor, también
+podría crearse un plan, pero para este caso, solo podría crearse planes para él mismo, no para
+otro. Y a estas personas se les cobrará por el uso de la plataforma, no como al profesor, que no
+se le cobrará por el uso."
+
+**Decisión de diseño — no se creó ninguna tabla nueva.** `students` ya modela a cualquier persona
+que ejecuta un plan, tenga o no profesor; lo único que hacía falta era dejar de exigir un
+profesor:
+
+- `profiles.role` suma un tercer valor: **`individual`** (antes solo `professor`\|`student`\|`admin`).
+  Un `individual` tiene fila en `students`, **nunca** en `professors`.
+- `plans.professor_id` pasa a ser **nullable**. `NULL` = plan autocoacheado.
+- La regla "solo para sí mismo" la impone **RLS, no una tabla nueva ni un CHECK**: la única
+  política que permite escribir un plan con `professor_id NULL` exige
+  `is_own_student(student_id)` — es decir, que quien crea el plan y el alumno del plan sean la
+  misma persona. Ese mismo patrón se repite en toda la cadena (`plan_phases`, `plan_weeks`,
+  `workouts`, `workout_blocks`, `training_items`, `workout_prescriptions`) como políticas
+  **agregadas**, no modificadas — el flujo normal de profesor queda intacto (verificado por
+  regresión, ver abajo).
+- `workouts.professor_id` se denormaliza igual que `workouts.student_id` (mismo criterio que
+  Auditoría 4, Problema 5), y un trigger nuevo (`sync_workout_denormalized_fields`) lo mantiene
+  sincronizado con el plan real automáticamente — la aplicación ya no necesita calcularlo. De
+  paso cierra un hueco que ya existía desde la Fase 1: `student_id` era denormalizado pero nada
+  garantizaba que coincidiera con el plan; ahora ninguno de los dos depende de que la app lo
+  setee bien.
+
+**Facturación — se modeló solo el hecho ya confirmado, nada más.** El esquema documenta que
+`role = 'individual'` es la condición que se factura y `professor`/`student` no — eso es todo lo
+que se implementó. **No se inventó** proveedor de pago, esquema de precios, período de prueba, ni
+estados de suscripción (activo/vencido/cancelado): son decisiones reales de producto que le
+corresponden a la usuaria, no algo que se pueda inferir. Ver preguntas nuevas en la sección L.
+
+**Probado funcionalmente** (Postgres 15 efímero local, descartado después): un individuo arma
+plan → semana → sesión para sí mismo (OK); el mismo individuo intenta crear un plan para otra
+persona (bloqueado por RLS); el flujo normal de profesor no cambió (regresión); un tercero sin
+ninguna relación no ve nada de ningún caso.
+
+**Nuevas decisiones que requieren aprobación humana** (se suman a la sección L):
+
+8. **Proveedor de pago** (Stripe, Mercado Pago, otro) — no elegido todavía, condiciona qué
+   columnas/tablas hacen falta para trackear suscripciones reales.
+9. **Precio y modelo de cobro** para los `individual` (mensual, anual, por plan, freemium con
+   límite) — ninguno definido.
+10. **¿Puede un `individual` invitar a un profesor después** y convertirse en `student` normal
+    (dejando de facturarse)? El modelo ya lo permitiría técnicamente (crear la fila en
+    `student_professors` y a partir de ahí usar el flujo con profesor), pero no está decidido
+    si el producto debe ofrecer esa transición ni qué pasa con los planes ya creados como
+    autocoacheados.
+11. **¿Un profesor puede además ser `individual`** (autocoacheado para sí mismo) con la cuenta
+    que ya tiene, o son roles mutuamente excluyentes en la práctica? El esquema no lo impide a
+    propósito (no se agregó ningún constraint cruzado) — es una decisión de producto, no técnica.
 
 ---
 
