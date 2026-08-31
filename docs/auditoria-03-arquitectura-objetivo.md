@@ -476,6 +476,43 @@ ninguna relación no ve nada de ningún caso.
 
 ---
 
+## N. Ampliación post-aprobación — flujo de aprobación de biblioteca
+
+Segunda ampliación de la usuaria (después de la sección M). Resuelve de forma **reutilizable**,
+no puntual, la decisión que había quedado abierta en Auditoría 2-L sobre los ~108 nombres
+"genuinamente ausentes": en vez de decidir una única vez qué hacer con esa lista, el producto
+ahora tiene un mecanismo permanente para que cualquier profesor proponga un elemento nuevo
+(ejercicio o activity) y quede pendiente hasta que alguien con permiso lo revise.
+
+Implementado en `supabase/migrations/20260828000009_library_approval_workflow.sql`:
+
+- `professors.is_approver` (bool) marca quién puede aprobar/rechazar — sin UI todavía, se setea
+  a mano.
+- `exercises`/`activities` suman `proposed_by`, `reviewed_by`, `reviewed_at`. `status` ya tenía
+  el valor `pending_review` desde la Fase 1 (sección D.3) pero sin ningún flujo real alrededor.
+- Cualquier profesor puede insertar un elemento nuevo, pero **siempre** en `pending_review` — la
+  política de RLS impide directamente insertar (o pasar) algo a `active` sin ser aprobador. La
+  biblioteca importada (`source='base_original'`) queda fuera de este flujo, nace `active` vía
+  `service_role`.
+- Un trigger completa `reviewed_by`/`reviewed_at` en el momento real de la aprobación — no
+  depende de que el cliente mande el dato correcto, mismo criterio que `plan_drafts` y
+  `workouts.professor_id` (sección M).
+
+Probado igual que el resto: Postgres 15 efímero, descartado después — un profesor propone,
+intenta auto-aprobarse (bloqueado), intenta aprobar sin ser aprobador (bloqueado), y un
+aprobador real aprueba con el trigger completando los campos solo.
+
+**Decisiones que quedan abiertas con esto** (se suman a la sección L):
+
+12. **¿Un elemento en `pending_review` es usable en un plan real mientras espera aprobación,**
+    o el Plan Builder solo debe mostrar elementos `active`? No se decidió — el esquema permite
+    ambas, es una decisión de UI/producto.
+13. **¿Cómo se asigna `is_approver` en la práctica?** Hoy es un campo sin interfaz — ¿lo asigna
+    la usuaria manualmente al principio (ej. ella misma como única aprobadora), o hace falta una
+    pantalla de administración desde ya?
+
+---
+
 **Próximo paso sugerido**: con Auditoría 1-4 completas, el siguiente paso natural es cerrar las
 decisiones abiertas de esta sección L (empezando por Supabase sí/no) y arrancar la Fase 1
 (schema real en Supabase + RLS).
