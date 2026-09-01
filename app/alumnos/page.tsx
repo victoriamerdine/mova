@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { UserPlus } from 'lucide-react'
 
@@ -105,24 +106,29 @@ export default async function StudentsPage({
 
                     return (
                       <li key={student.studentId} className="flex items-center gap-3 px-5 py-3.5">
-                        <Avatar className="size-9 rounded-md">
-                          <AvatarFallback className="bg-secondary text-secondary-foreground rounded-md text-xs font-semibold">
-                            {getInitials(student.fullName)}
-                          </AvatarFallback>
-                        </Avatar>
+                        <Link
+                          href={`/alumnos/${student.studentId}`}
+                          className="flex min-w-0 flex-1 items-center gap-3"
+                        >
+                          <Avatar className="size-9 rounded-md">
+                            <AvatarFallback className="bg-secondary text-secondary-foreground rounded-md text-xs font-semibold">
+                              {getInitials(student.fullName)}
+                            </AvatarFallback>
+                          </Avatar>
 
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-medium">{student.fullName}</p>
-                          <p className="text-muted-foreground text-xs">
-                            {student.plan ? (
-                              <>
-                                {PLAN_TYPE_LABEL[student.plan.planType]} · {student.plan.name}
-                              </>
-                            ) : (
-                              'Sin plan todavía'
-                            )}
-                          </p>
-                        </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-medium">{student.fullName}</p>
+                            <p className="text-muted-foreground text-xs">
+                              {student.plan ? (
+                                <>
+                                  {PLAN_TYPE_LABEL[student.plan.planType]} · {student.plan.name}
+                                </>
+                              ) : (
+                                'Sin plan todavía'
+                              )}
+                            </p>
+                          </div>
+                        </Link>
 
                         {student.relationshipStatus === 'invited' ? (
                           <Badge variant="secondary">Invitación pendiente</Badge>
