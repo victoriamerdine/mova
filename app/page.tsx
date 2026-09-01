@@ -29,7 +29,7 @@ export default async function ProfessorDashboardPage() {
 
   return (
     <div className="bg-background flex min-h-svh">
-      <AppSidebar />
+      <AppSidebar studentCount={metrics.totalStudents} />
 
       <div className="flex min-w-0 flex-1 flex-col">
         <DashboardHeader professorName={professor.fullName} />

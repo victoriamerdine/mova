@@ -1,8 +1,9 @@
+import Link from 'next/link'
 import { ChevronRight, UserPlus } from 'lucide-react'
 
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
+import { Button, buttonVariants } from '@/components/ui/button'
 import {
   Card,
   CardAction,
@@ -42,14 +43,10 @@ export function StudentsTable({ students }: { students: MyStudent[] }) {
           {students.length} alumno{students.length === 1 ? '' : 's'}
         </CardDescription>
         <CardAction className="flex items-center gap-2">
-          <Button
-            size="sm"
-            disabled
-            title="Invitar alumnos todavía no está implementado"
-          >
+          <Link href="/alumnos" className={buttonVariants({ size: 'sm' })}>
             <UserPlus data-icon="inline-start" />
             Nuevo alumno
-          </Button>
+          </Link>
         </CardAction>
       </CardHeader>
 

@@ -23,15 +23,17 @@ const FALLBACK_LIBRARY_COUNT = 1362
 export function AppSidebar({
   active = 'Dashboard',
   libraryCount = FALLBACK_LIBRARY_COUNT,
+  studentCount,
 }: {
   active?: string
   libraryCount?: number
+  studentCount?: number
 }) {
   const nav = [
     { label: 'Dashboard', icon: LayoutDashboard, href: '/' },
-    { label: 'Alumnos', icon: Users, count: 24, href: '#' },
+    { label: 'Alumnos', icon: Users, count: studentCount, href: '/alumnos' },
     { label: 'Biblioteca', icon: LibraryBig, count: libraryCount, href: '/biblioteca' },
-    { label: 'Planes', icon: ClipboardList, count: 21, href: '/constructor' },
+    { label: 'Planes', icon: ClipboardList, count: undefined, href: '/constructor' },
     { label: 'Analítica', icon: BarChart3, href: '#' },
     { label: 'Configuración', icon: Settings, href: '#' },
   ]
@@ -77,7 +79,7 @@ export function AppSidebar({
             ) : null}
             <item.icon className="size-4.5 shrink-0" />
             <span className="truncate">{item.label}</span>
-            {item.count ? (
+            {item.count != null ? (
               <span className="text-sidebar-foreground/55 ml-auto font-mono text-xs tnum">
                 {item.count}
               </span>
@@ -85,21 +87,6 @@ export function AppSidebar({
           </Link>
         ))}
       </nav>
-
-      <div className="border-t border-sidebar-border p-3">
-        <div className="rounded-lg bg-sidebar-accent/60 p-3">
-          <p className="text-sidebar-accent-foreground text-xs font-medium">
-            Volumen semanal
-          </p>
-          <p className="text-sidebar-accent-foreground mt-1 font-mono text-2xl leading-none tnum">
-            412
-            <span className="text-sidebar-foreground/60 ml-1 text-xs font-sans">series</span>
-          </p>
-          <p className="text-sidebar-foreground/60 mt-1.5 text-[11px] leading-relaxed">
-            Acumulado del staff en la semana en curso
-          </p>
-        </div>
-      </div>
     </aside>
   )
 }
