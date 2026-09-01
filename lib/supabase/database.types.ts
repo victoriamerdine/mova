@@ -2,7 +2,8 @@
  * Tipos de la base de Supabase — escritos a mano, PARCIALES a propósito.
  *
  * Solo cubre las tablas que el código de la app ya consulta (biblioteca de
- * ejercicios). El esquema real tiene 30 tablas (ver supabase/migrations/ y
+ * ejercicios + identidad/dashboard del profesor). El esquema real tiene
+ * ~30 tablas (ver supabase/migrations/ y
  * docs/auditoria-03-arquitectura-objetivo.md); no tiene sentido escribir a
  * mano el resto hasta que algo las use de verdad.
  *
@@ -97,6 +98,87 @@ export type Database = {
         }
         Insert: Partial<Database['public']['Tables']['exercise_media']['Row']>
         Update: Partial<Database['public']['Tables']['exercise_media']['Row']>
+      }
+      profiles: {
+        Row: {
+          id: string
+          role: 'professor' | 'student' | 'individual' | 'admin'
+          full_name: string
+          avatar_url: string | null
+          created_at: string
+        }
+        Insert: Partial<Database['public']['Tables']['profiles']['Row']>
+        Update: Partial<Database['public']['Tables']['profiles']['Row']>
+      }
+      professors: {
+        Row: { id: string; bio: string | null; is_approver: boolean; created_at: string }
+        Insert: Partial<Database['public']['Tables']['professors']['Row']>
+        Update: Partial<Database['public']['Tables']['professors']['Row']>
+      }
+      students: {
+        Row: {
+          id: string
+          level: string | null
+          primary_sport_id: string | null
+          availability: string | null
+          equipment_access: string | null
+          notes: string | null
+          status: 'active' | 'inactive'
+          created_at: string
+        }
+        Insert: Partial<Database['public']['Tables']['students']['Row']>
+        Update: Partial<Database['public']['Tables']['students']['Row']>
+      }
+      student_professors: {
+        Row: {
+          student_id: string
+          professor_id: string
+          is_primary: boolean
+          status: 'active' | 'invited' | 'ended'
+          permission_level: 'full' | 'view_only'
+          created_at: string
+        }
+        Insert: Partial<Database['public']['Tables']['student_professors']['Row']>
+        Update: Partial<Database['public']['Tables']['student_professors']['Row']>
+      }
+      plans: {
+        Row: {
+          id: string
+          name: string
+          student_id: string
+          professor_id: string | null
+          sport_id: string | null
+          sport_profile_id: string | null
+          objective: string | null
+          level: string | null
+          plan_type: 'MUSCLE' | 'PATTERN' | 'MIXED' | 'SPORT_SPECIFIC' | 'CUSTOM'
+          start_date: string | null
+          end_date: string | null
+          frequency_per_week: number | null
+          status: 'draft' | 'active' | 'completed' | 'archived'
+          created_at: string
+        }
+        Insert: Partial<Database['public']['Tables']['plans']['Row']>
+        Update: Partial<Database['public']['Tables']['plans']['Row']>
+      }
+      workouts: {
+        Row: {
+          id: string
+          week_id: string
+          student_id: string
+          professor_id: string | null
+          sport_id: string | null
+          competition_id: string | null
+          name: string
+          date: string | null
+          estimated_duration_min: number | null
+          type: string | null
+          objective: string | null
+          order: number
+          status: 'scheduled' | 'completed' | 'skipped'
+        }
+        Insert: Partial<Database['public']['Tables']['workouts']['Row']>
+        Update: Partial<Database['public']['Tables']['workouts']['Row']>
       }
     }
   }
