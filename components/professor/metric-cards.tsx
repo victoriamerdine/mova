@@ -1,46 +1,34 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { metrics } from '@/lib/data/professor'
-import { cn } from '@/lib/utils'
+import type { DashboardMetrics } from '@/lib/supabase/queries/professor-dashboard'
 
-export function MetricCards() {
+const CARD_DEFS: {
+  key: keyof DashboardMetrics
+  label: string
+  detail: string
+}[] = [
+  { key: 'totalStudents', label: 'Alumnos activos', detail: 'Con relación activa hoy' },
+  { key: 'activePlans', label: 'Planes activos', detail: 'En estado "active"' },
+  { key: 'workoutsToday', label: 'Entrenamientos hoy', detail: 'Sesiones con fecha de hoy' },
+]
+
+export function MetricCards({ metrics }: { metrics: DashboardMetrics }) {
   return (
-    <section aria-label="Métricas generales" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      {metrics.map((metric) => {
-        const isAlert = metric.trendTone === 'warning'
-
-        return (
-          <Card key={metric.id} className="gap-0 py-5">
-            <CardHeader className="gap-0 px-5">
-              <CardTitle className="text-muted-foreground text-xs font-medium tracking-widest uppercase">
-                {metric.label}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="px-5">
-              <div className="flex items-end gap-2.5">
-                <span
-                  className={cn(
-                    'font-mono text-4xl leading-none font-medium tnum',
-                    isAlert && 'text-destructive',
-                  )}
-                >
-                  {metric.value}
-                </span>
-                <span
-                  className={cn(
-                    'mb-1 rounded-full px-1.5 py-0.5 font-mono text-[11px] leading-none tnum',
-                    metric.trendTone === 'positive' && 'bg-primary/10 text-primary',
-                    metric.trendTone === 'neutral' && 'bg-secondary text-muted-foreground',
-                    isAlert && 'bg-destructive/10 text-destructive',
-                  )}
-                >
-                  {metric.trend}
-                </span>
-              </div>
-              <CardDescription className="mt-2.5 text-xs">{metric.detail}</CardDescription>
-            </CardContent>
-          </Card>
-        )
-      })}
+    <section aria-label="Métricas generales" className="grid gap-4 sm:grid-cols-3">
+      {CARD_DEFS.map((card) => (
+        <Card key={card.key} className="gap-0 py-5">
+          <CardHeader className="gap-0 px-5">
+            <CardTitle className="text-muted-foreground text-xs font-medium tracking-widest uppercase">
+              {card.label}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="px-5">
+            <span className="font-mono text-4xl leading-none font-medium tnum">
+              {metrics[card.key]}
+            </span>
+            <CardDescription className="mt-2.5 text-xs">{card.detail}</CardDescription>
+          </CardContent>
+        </Card>
+      ))}
     </section>
   )
 }

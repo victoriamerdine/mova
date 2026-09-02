@@ -50,28 +50,45 @@ function toLibraryExercise(row: ExerciseRow): LibraryExercise {
  * (ver Auditoría 3 sección N, decisión 12, todavía abierta sobre si
  * pending_review debería ser visible en algún lado).
  */
+// Supabase/PostgREST capa cada respuesta a 1.000 filas por default
+// (db-max-rows), sin importar si se pide un `.range()` más grande — un
+// `.range(0, 9999)` simple igual vuelve truncado a 1.000. Con 1.362
+// ejercicios reales eso se notaba de verdad (se vio "1000 de 1000
+// ejercicios" en vez de 1.362 al verificar en el navegador). Se pagina en
+// bloques de 1.000 hasta que una página vuelve incompleta.
+const PAGE_SIZE = 1000
+
 export async function getLibraryExercises(): Promise<LibraryExercise[]> {
   const supabase = await createClient()
+  const rows: ExerciseRow[] = []
 
-  const { data, error } = await supabase
-    .from('exercises')
-    .select(
-      `
-      id,
-      canonical_name,
-      match_status,
-      muscle:muscles(display_name),
-      pattern:patterns(display_name),
-      exercise_stimulus_types(stimulus_types(display_name)),
-      exercise_media(url, is_primary, type)
-    `,
-    )
-    .eq('status', 'active')
-    .order('canonical_name')
+  for (let from = 0; ; from += PAGE_SIZE) {
+    const { data, error } = await supabase
+      .from('exercises')
+      .select(
+        `
+        id,
+        canonical_name,
+        match_status,
+        muscle:muscles(display_name),
+        pattern:patterns(display_name),
+        exercise_stimulus_types(stimulus_types(display_name)),
+        exercise_media(url, is_primary, type)
+      `,
+      )
+      .eq('status', 'active')
+      .order('canonical_name')
+      .range(from, from + PAGE_SIZE - 1)
 
-  if (error) {
-    throw new Error(`No se pudo cargar la biblioteca de ejercicios: ${error.message}`)
+    if (error) {
+      throw new Error(`No se pudo cargar la biblioteca de ejercicios: ${error.message}`)
+    }
+
+    const page = data as unknown as ExerciseRow[]
+    rows.push(...page)
+
+    if (page.length < PAGE_SIZE) break
   }
 
-  return (data as unknown as ExerciseRow[]).map(toLibraryExercise)
+  return rows.map(toLibraryExercise)
 }
