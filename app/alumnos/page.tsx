@@ -1,19 +1,16 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { UserPlus } from 'lucide-react'
 
 import { AppSidebar } from '@/components/professor/app-sidebar'
 import { DashboardHeader } from '@/components/professor/dashboard-header'
+import { NewStudentCard } from '@/components/professor/new-student-card'
 import { RemoveStudentButton } from '@/components/professor/remove-student-button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
 import { getRenewalBadge } from '@/lib/plan-renewal'
 import { getCurrentProfessor } from '@/lib/supabase/queries/professor-dashboard'
 import { getMyStudentsWithPlans } from '@/lib/supabase/queries/students'
-import { inviteStudent } from '@/app/alumnos/actions'
 
 const PLAN_TYPE_LABEL: Record<string, string> = {
   MUSCLE: 'Músculo',
@@ -54,35 +51,7 @@ export default async function StudentsPage({
         <DashboardHeader professorName={professor.fullName} />
 
         <main className="flex flex-1 flex-col gap-6 px-6 py-6">
-          <Card className="gap-0 py-5">
-            <CardHeader className="px-5">
-              <CardTitle className="text-sm">Invitar alumno</CardTitle>
-              <CardDescription className="text-xs">
-                Le llega un email para que cree su contraseña y acceda a su plan.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="px-5">
-              {error ? (
-                <p className="bg-destructive/10 text-destructive mb-3 rounded-lg px-3 py-2 text-sm">
-                  {error}
-                </p>
-              ) : null}
-              <form action={inviteStudent} className="flex flex-wrap items-end gap-3">
-                <label className="flex min-w-48 flex-1 flex-col gap-1.5">
-                  <span className="text-muted-foreground text-xs font-medium">Nombre</span>
-                  <Input type="text" name="fullName" required placeholder="Nombre del alumno" />
-                </label>
-                <label className="flex min-w-48 flex-1 flex-col gap-1.5">
-                  <span className="text-muted-foreground text-xs font-medium">Email</span>
-                  <Input type="email" name="email" required placeholder="alumno@ejemplo.com" />
-                </label>
-                <Button type="submit" className="h-8">
-                  <UserPlus data-icon="inline-start" />
-                  Invitar
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
+          <NewStudentCard error={error} />
 
           <Card className="gap-0 overflow-hidden py-0">
             <CardHeader className="border-b px-5 py-4">
