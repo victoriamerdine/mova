@@ -97,7 +97,11 @@ export function CreateStudentUsernameForm() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <Button size="sm" render={<a href={waHref} target="_blank" rel="noopener noreferrer" />}>
+          <Button
+            size="sm"
+            nativeButton={false}
+            render={<a href={waHref} target="_blank" rel="noopener noreferrer" />}
+          >
             <MessageCircle data-icon="inline-start" />
             Compartir por WhatsApp
           </Button>
