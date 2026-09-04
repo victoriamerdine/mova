@@ -20,6 +20,8 @@
  * consume este archivo.
  */
 
+export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[]
+
 export type Database = {
   public: {
     Tables: {
@@ -421,7 +423,26 @@ export type Database = {
       }
     }
     Views: Record<string, never>
-    Functions: Record<string, never>
+    Functions: {
+      save_workout_day: {
+        Args: { p_workout_id: string; p_blocks: Json }
+        Returns: void
+      }
+      duplicate_workout: {
+        Args: {
+          p_source_workout_id: string
+          p_target_week_id: string
+          p_name: string
+          p_order: number
+          p_shift_siblings?: boolean
+        }
+        Returns: string
+      }
+      duplicate_plan_week: {
+        Args: { p_source_week_id: string; p_new_number: number; p_new_name: string }
+        Returns: string
+      }
+    }
     Enums: Record<string, never>
     CompositeTypes: Record<string, never>
   }
