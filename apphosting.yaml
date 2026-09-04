@@ -1,0 +1,35 @@
+# MOVA — Firebase App Hosting.
+#
+# Next.js con Server Actions/RSC dinámico (Server Components leyendo la
+# sesión por cookie vía @supabase/ssr) — necesita runtime de servidor, no
+# se puede exportar estático. App Hosting corre esto sobre Cloud Run.
+#
+# NEXT_PUBLIC_* son públicas a propósito (van al bundle del cliente de
+# todas formas — el anon key está protegido por RLS, no por estar oculto).
+# SUPABASE_SERVICE_ROLE_KEY NUNCA va en texto plano acá: referencia un
+# secreto de Secret Manager creado con
+#   firebase apphosting:secrets:set SUPABASE_SERVICE_ROLE_KEY
+# (mismo patrón documentado en lib/supabase/service-role.ts sobre por qué
+# esta key es sensible).
+
+runConfig:
+  minInstances: 0
+  maxInstances: 2
+
+env:
+  - variable: NEXT_PUBLIC_SUPABASE_URL
+    value: "https://xhnmneoyvkmpdxakouhj.supabase.co"
+    availability:
+      - BUILD
+      - RUNTIME
+
+  - variable: NEXT_PUBLIC_SUPABASE_ANON_KEY
+    value: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhobm1uZW95dmttcGR4YWtvdWhqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc5MzkwMjUsImV4cCI6MjEwMzUxNTAyNX0.CvqG9Gww48pD1RtKZa1ZhebN5t3wtI2WTU5L8J1GKBc"
+    availability:
+      - BUILD
+      - RUNTIME
+
+  - variable: SUPABASE_SERVICE_ROLE_KEY
+    secret: SUPABASE_SERVICE_ROLE_KEY
+    availability:
+      - RUNTIME
