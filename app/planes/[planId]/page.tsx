@@ -7,12 +7,19 @@ import { PlanEditorClient } from '@/components/professor/plan-editor/plan-editor
 import { getCurrentProfessor } from '@/lib/supabase/queries/professor-dashboard'
 import { getPlanBuilderCatalog, getPlanForEditor } from '@/lib/supabase/queries/plan-editor'
 
-export default async function PlanEditorPage({ params }: { params: Promise<{ planId: string }> }) {
+export default async function PlanEditorPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ planId: string }>
+  searchParams: Promise<{ week?: string; error?: string }>
+}) {
   const professor = await getCurrentProfessor()
   if (!professor) redirect('/login')
 
   const { planId } = await params
-  const [plan, catalog] = await Promise.all([getPlanForEditor(planId), getPlanBuilderCatalog()])
+  const { week, error } = await searchParams
+  const [plan, catalog] = await Promise.all([getPlanForEditor(planId, week), getPlanBuilderCatalog()])
 
   if (!plan) notFound()
 
@@ -32,6 +39,10 @@ export default async function PlanEditorPage({ params }: { params: Promise<{ pla
               {plan.name} · {plan.studentName}
             </h1>
           </div>
+
+          {error ? (
+            <p className="bg-destructive/10 text-destructive rounded-lg px-3 py-2 text-sm">{error}</p>
+          ) : null}
 
           <PlanEditorClient plan={plan} catalog={catalog} />
         </main>

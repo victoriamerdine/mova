@@ -185,6 +185,8 @@ export type Database = {
           notes: string | null
           status: 'active' | 'inactive'
           created_at: string
+          username: string | null
+          phone: string | null
         }
         Insert: Partial<Database['public']['Tables']['students']['Row']>
         Update: Partial<Database['public']['Tables']['students']['Row']>

@@ -1,13 +1,14 @@
 'use client'
 
 import { useMemo, useState, useTransition } from 'react'
-import { Layers, Plus, Save, Trash2 } from 'lucide-react'
+import { Copy, Layers, Plus, Repeat, Save, Trash2 } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ExerciseCombobox } from '@/components/professor/plan-editor/exercise-combobox'
 import { calculateVolumeByGroup } from '@/lib/volume-calc'
+import { blockHasRounds, type SaveDayBlockKind } from '@/lib/plan-blocks'
 import type { PlanBuilderCatalog, PlanDay } from '@/lib/supabase/queries/plan-editor'
 import { saveDay, type SaveDayBlockPayload } from '@/app/planes/[planId]/actions'
 
@@ -27,7 +28,7 @@ type DraftItem = {
 
 type DraftBlock = {
   tempId: string
-  kind: 'INDIVIDUAL' | 'COMBINADO'
+  kind: SaveDayBlockKind
   rounds: string
   items: DraftItem[]
 }
@@ -38,7 +39,7 @@ const nextTempId = () => `tmp-${tempIdCounter++}`
 function dayToDraft(day: PlanDay): DraftBlock[] {
   return day.blocks.map((block) => ({
     tempId: nextTempId(),
-    kind: block.kind === 'COMBINADO' || block.kind === 'CIRCUITO' ? 'COMBINADO' : 'INDIVIDUAL',
+    kind: block.kind === 'COMBINADO' || block.kind === 'CIRCUITO' ? block.kind : 'INDIVIDUAL',
     rounds: block.rounds != null ? String(block.rounds) : '3',
     items: block.items.map((item) => ({
       tempId: nextTempId(),
@@ -100,7 +101,7 @@ export function DayEditor({
       block.items.map((item) => ({
         groupId: item.patternOrMuscleId,
         groupName: item.patternOrMuscleId ? (groupIdToName.get(item.patternOrMuscleId) ?? null) : null,
-        sets: block.kind === 'COMBINADO' ? String(block.rounds) : item.sets,
+        sets: blockHasRounds(block.kind) ? String(block.rounds) : item.sets,
         intensityRpe: item.intensityRpe,
       })),
     )
@@ -136,6 +137,54 @@ export function DayEditor({
         ],
       },
     ])
+  }
+
+  function addCircuitBlock() {
+    setBlocks((prevBlocks) => [
+      ...prevBlocks,
+      {
+        tempId: nextTempId(),
+        kind: 'CIRCUITO',
+        rounds: '4',
+        items: [
+          { ...emptyItem(), label: 'A1' },
+          { ...emptyItem(), label: 'A2' },
+          { ...emptyItem(), label: 'A3' },
+          { ...emptyItem(), label: 'A4' },
+        ],
+      },
+    ])
+  }
+
+  function duplicateBlock(blockTempId: string) {
+    setBlocks((prevBlocks) => {
+      const index = prevBlocks.findIndex((b) => b.tempId === blockTempId)
+      if (index === -1) return prevBlocks
+      const source = prevBlocks[index]
+      const copy: DraftBlock = {
+        ...source,
+        tempId: nextTempId(),
+        items: source.items.map((item) => ({ ...item, tempId: nextTempId() })),
+      }
+      return [...prevBlocks.slice(0, index + 1), copy, ...prevBlocks.slice(index + 1)]
+    })
+  }
+
+  function duplicateItem(blockTempId: string, itemTempId: string) {
+    setBlocks((prevBlocks) =>
+      prevBlocks.map((block) => {
+        if (block.tempId !== blockTempId) return block
+        const index = block.items.findIndex((i) => i.tempId === itemTempId)
+        if (index === -1) return block
+        const copy: DraftItem = { ...block.items[index], tempId: nextTempId() }
+        const items = [...block.items.slice(0, index + 1), copy, ...block.items.slice(index + 1)]
+        // Reetiqueta A1/A2… si el bloque usa labels.
+        const relabelled = blockHasRounds(block.kind)
+          ? items.map((it, i) => ({ ...it, label: `A${i + 1}` }))
+          : items
+        return { ...block, items: relabelled }
+      }),
+    )
   }
 
   function addItemToBlock(blockTempId: string) {
@@ -188,13 +237,13 @@ export function DayEditor({
     setSaveError(null)
     const payload: SaveDayBlockPayload[] = blocks.map((block) => ({
       kind: block.kind,
-      rounds: block.kind === 'COMBINADO' ? parseInt(block.rounds, 10) || null : null,
+      rounds: blockHasRounds(block.kind) ? parseInt(block.rounds, 10) || null : null,
       items: block.items
         .filter((item) => item.exerciseId || item.activityName.trim() || item.exerciseName.trim())
         .map((item) => ({
           exerciseId: item.exerciseId,
           activityName: item.exerciseId ? null : item.activityName || item.exerciseName,
-          label: block.kind === 'COMBINADO' ? item.label : null,
+          label: blockHasRounds(block.kind) ? item.label : null,
           sets: item.sets,
           reps: item.reps,
           intensityRpe: item.intensityRpe,
@@ -233,124 +282,163 @@ export function DayEditor({
         </p>
       ) : null}
 
-      {blocks.map((block) => (
-        <div
-          key={block.tempId}
-          className={
-            block.kind === 'COMBINADO'
-              ? 'border-primary/30 ring-primary/15 rounded-xl border-l-4 py-3 pr-3 pl-4 ring-1'
-              : 'border-border rounded-xl border p-3'
-          }
-        >
-          {block.kind === 'COMBINADO' ? (
+      {blocks.map((block) => {
+        const hasRounds = blockHasRounds(block.kind)
+        return (
+          <div
+            key={block.tempId}
+            className={
+              hasRounds
+                ? 'border-primary/30 ring-primary/15 rounded-xl border-l-4 py-3 pr-3 pl-4 ring-1'
+                : 'border-border rounded-xl border p-3'
+            }
+          >
             <div className="mb-2 flex flex-wrap items-center gap-2">
-              <Badge className="bg-primary/10 text-primary border-transparent">
-                <Layers data-icon="inline-start" className="size-3" />
-                Bloque combinado
-              </Badge>
-              <label className="ml-auto flex items-center gap-1.5 text-xs">
-                <span className="text-muted-foreground">Vueltas</span>
-                <Input
-                  type="number"
-                  min={1}
-                  value={block.rounds}
-                  onChange={(e) => updateRounds(block.tempId, e.target.value)}
-                  className="h-7 w-16 text-center"
-                />
-              </label>
-              <Button variant="ghost" size="icon-sm" onClick={() => removeBlock(block.tempId)} aria-label="Quitar bloque">
-                <Trash2 />
-              </Button>
-            </div>
-          ) : null}
-
-          <div className="flex flex-col gap-2">
-            {block.items.map((item) => (
-              <div key={item.tempId} className="bg-secondary/30 flex flex-col gap-2 rounded-lg border border-border p-2.5">
-                <div className="flex items-start gap-2">
-                  {block.kind === 'COMBINADO' ? (
-                    <span className="bg-primary/10 text-primary mt-0.5 flex h-7 w-8 shrink-0 items-center justify-center rounded-md font-mono text-xs font-semibold">
-                      {item.label}
-                    </span>
-                  ) : null}
-                  <div className="min-w-0 flex-1">
-                    <ExerciseCombobox
-                      catalog={catalog}
-                      planType={planType}
-                      value={{
-                        patternOrMuscleId: item.patternOrMuscleId,
-                        exerciseId: item.exerciseId,
-                        exerciseName: item.exerciseName,
-                      }}
-                      onChange={(next) =>
-                        updateItem(block.tempId, item.tempId, {
-                          patternOrMuscleId: next.patternOrMuscleId,
-                          exerciseId: next.exerciseId,
-                          exerciseName: next.exerciseName,
-                          activityName: next.exerciseId ? '' : next.exerciseName,
-                        })
-                      }
+              {hasRounds ? (
+                <>
+                  <Badge className="bg-primary/10 text-primary border-transparent">
+                    {block.kind === 'CIRCUITO' ? (
+                      <Repeat data-icon="inline-start" className="size-3" />
+                    ) : (
+                      <Layers data-icon="inline-start" className="size-3" />
+                    )}
+                    {block.kind === 'CIRCUITO' ? 'Bloque circuito' : 'Bloque combinado'}
+                  </Badge>
+                  <label className="flex items-center gap-1.5 text-xs">
+                    <span className="text-muted-foreground">Vueltas</span>
+                    <Input
+                      type="number"
+                      min={1}
+                      value={block.rounds}
+                      onChange={(e) => updateRounds(block.tempId, e.target.value)}
+                      className="h-7 w-16 text-center"
                     />
-                  </div>
-                  {block.kind === 'INDIVIDUAL' || block.items.length > 2 ? (
+                  </label>
+                </>
+              ) : (
+                <Badge variant="outline" className="text-muted-foreground">
+                  Individual
+                </Badge>
+              )}
+              <div className="ml-auto flex items-center gap-0.5">
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={() => duplicateBlock(block.tempId)}
+                  aria-label="Duplicar bloque"
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  <Copy className="size-3.5" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={() => removeBlock(block.tempId)}
+                  aria-label="Quitar bloque"
+                  className="text-muted-foreground hover:text-destructive"
+                >
+                  <Trash2 className="size-3.5" />
+                </Button>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              {block.items.map((item) => (
+                <div key={item.tempId} className="bg-secondary/30 flex flex-col gap-2 rounded-lg border border-border p-2.5">
+                  <div className="flex items-start gap-2">
+                    {hasRounds ? (
+                      <span className="bg-primary/10 text-primary mt-0.5 flex h-7 w-8 shrink-0 items-center justify-center rounded-md font-mono text-xs font-semibold">
+                        {item.label}
+                      </span>
+                    ) : null}
+                    <div className="min-w-0 flex-1">
+                      <ExerciseCombobox
+                        catalog={catalog}
+                        planType={planType}
+                        value={{
+                          patternOrMuscleId: item.patternOrMuscleId,
+                          exerciseId: item.exerciseId,
+                          exerciseName: item.exerciseName,
+                        }}
+                        onChange={(next) =>
+                          updateItem(block.tempId, item.tempId, {
+                            patternOrMuscleId: next.patternOrMuscleId,
+                            exerciseId: next.exerciseId,
+                            exerciseName: next.exerciseName,
+                            activityName: next.exerciseId ? '' : next.exerciseName,
+                          })
+                        }
+                      />
+                    </div>
                     <Button
                       variant="ghost"
                       size="icon-sm"
-                      onClick={() => removeItem(block.tempId, item.tempId)}
-                      aria-label="Quitar ejercicio"
-                      className="text-muted-foreground hover:text-destructive mt-0.5 shrink-0"
+                      onClick={() => duplicateItem(block.tempId, item.tempId)}
+                      aria-label="Duplicar ejercicio"
+                      className="text-muted-foreground hover:text-foreground mt-0.5 shrink-0"
                     >
-                      <Trash2 className="size-3.5" />
+                      <Copy className="size-3.5" />
                     </Button>
-                  ) : null}
-                </div>
+                    {!hasRounds || block.items.length > 2 ? (
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={() => removeItem(block.tempId, item.tempId)}
+                        aria-label="Quitar ejercicio"
+                        className="text-muted-foreground hover:text-destructive mt-0.5 shrink-0"
+                      >
+                        <Trash2 className="size-3.5" />
+                      </Button>
+                    ) : null}
+                  </div>
 
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                  {block.kind !== 'COMBINADO' ? (
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                    {!hasRounds ? (
+                      <FreeTextField
+                        label="Series"
+                        value={item.sets}
+                        onChange={(v) => updateItem(block.tempId, item.tempId, { sets: v })}
+                      />
+                    ) : null}
                     <FreeTextField
-                      label="Series"
-                      value={item.sets}
-                      onChange={(v) => updateItem(block.tempId, item.tempId, { sets: v })}
+                      label="Reps"
+                      value={item.reps}
+                      onChange={(v) => updateItem(block.tempId, item.tempId, { reps: v })}
                     />
-                  ) : null}
+                    <FreeTextField
+                      label="Intensidad"
+                      value={item.intensityRpe}
+                      onChange={(v) => updateItem(block.tempId, item.tempId, { intensityRpe: v })}
+                    />
+                    <FreeTextField
+                      label="Pausa"
+                      value={item.restLabel}
+                      onChange={(v) => updateItem(block.tempId, item.tempId, { restLabel: v })}
+                    />
+                  </div>
                   <FreeTextField
-                    label="Reps"
-                    value={item.reps}
-                    onChange={(v) => updateItem(block.tempId, item.tempId, { reps: v })}
-                  />
-                  <FreeTextField
-                    label="Intensidad"
-                    value={item.intensityRpe}
-                    onChange={(v) => updateItem(block.tempId, item.tempId, { intensityRpe: v })}
-                  />
-                  <FreeTextField
-                    label="Pausa"
-                    value={item.restLabel}
-                    onChange={(v) => updateItem(block.tempId, item.tempId, { restLabel: v })}
+                    label="Notas"
+                    value={item.notes}
+                    onChange={(v) => updateItem(block.tempId, item.tempId, { notes: v })}
                   />
                 </div>
-                <FreeTextField
-                  label="Notas"
-                  value={item.notes}
-                  onChange={(v) => updateItem(block.tempId, item.tempId, { notes: v })}
-                />
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
 
-          {block.kind === 'COMBINADO' ? (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => addItemToBlock(block.tempId)}
-              className="text-muted-foreground hover:text-foreground mt-2 w-full border border-dashed border-border"
-            >
-              <Plus data-icon="inline-start" />
-              Añadir ejercicio al bloque
-            </Button>
-          ) : null}
-        </div>
-      ))}
+            {hasRounds ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => addItemToBlock(block.tempId)}
+                className="text-muted-foreground hover:text-foreground mt-2 w-full border border-dashed border-border"
+              >
+                <Plus data-icon="inline-start" />
+                Añadir ejercicio al bloque
+              </Button>
+            ) : null}
+          </div>
+        )
+      })}
 
       <div className="flex flex-wrap items-center gap-2">
         <Button variant="outline" size="sm" onClick={addIndividualBlock}>
@@ -360,6 +448,10 @@ export function DayEditor({
         <Button variant="outline" size="sm" onClick={addCombinedBlock}>
           <Layers data-icon="inline-start" />
           Bloque combinado
+        </Button>
+        <Button variant="outline" size="sm" onClick={addCircuitBlock}>
+          <Repeat data-icon="inline-start" />
+          Bloque circuito
         </Button>
 
         <div className="ml-auto flex items-center gap-2">

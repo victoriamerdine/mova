@@ -35,8 +35,8 @@ export default async function LoginPage({
           ) : null}
 
           <label className="flex flex-col gap-1.5">
-            <span className="text-muted-foreground text-xs font-medium">Email</span>
-            <Input type="email" name="email" required autoComplete="email" placeholder="vos@ejemplo.com" />
+            <span className="text-muted-foreground text-xs font-medium">Usuario o email</span>
+            <Input type="text" name="identifier" required autoComplete="username" placeholder="vos@ejemplo.com" />
           </label>
 
           <label className="flex flex-col gap-1.5">

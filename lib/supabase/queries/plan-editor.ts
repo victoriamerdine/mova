@@ -38,6 +38,12 @@ export type PlanDay = {
   blocks: PlanBlock[]
 }
 
+export type PlanWeekOption = {
+  id: string
+  number: number
+  name: string | null
+}
+
 export type PlanForEditor = {
   id: string
   name: string
@@ -45,6 +51,8 @@ export type PlanForEditor = {
   startDate: string | null
   endDate: string | null
   studentName: string
+  weeks: PlanWeekOption[]
+  /** Semana activa en el editor — `weekId` es su id (o '' si el plan no tiene semanas). */
   weekId: string
   days: PlanDay[]
 }
@@ -55,7 +63,7 @@ function extractYouTubeId(url: string | undefined): string | null {
   return match ? match[1] : null
 }
 
-export async function getPlanForEditor(planId: string): Promise<PlanForEditor | null> {
+export async function getPlanForEditor(planId: string, weekId?: string): Promise<PlanForEditor | null> {
   const supabase = await createClient()
 
   const { data: plan, error: planError } = await supabase
@@ -70,15 +78,15 @@ export async function getPlanForEditor(planId: string): Promise<PlanForEditor | 
     (plan as unknown as { students: { profiles: { full_name: string } | null } | null }).students
       ?.profiles?.full_name ?? 'Alumno'
 
-  const { data: week } = await supabase
+  const { data: weekRows } = await supabase
     .from('plan_weeks')
-    .select('id')
+    .select('id, number, name')
     .eq('plan_id', planId)
     .order('number', { ascending: true })
-    .limit(1)
-    .maybeSingle()
 
-  if (!week) {
+  const weeks: PlanWeekOption[] = (weekRows ?? []).map((w) => ({ id: w.id, number: w.number, name: w.name }))
+
+  if (weeks.length === 0) {
     return {
       id: plan.id,
       name: plan.name,
@@ -86,15 +94,18 @@ export async function getPlanForEditor(planId: string): Promise<PlanForEditor | 
       startDate: plan.start_date,
       endDate: plan.end_date,
       studentName,
+      weeks: [],
       weekId: '',
       days: [],
     }
   }
 
+  const activeWeek = weeks.find((w) => w.id === weekId) ?? weeks[0]
+
   const { data: workouts } = await supabase
     .from('workouts')
     .select('id, name, order')
-    .eq('week_id', week.id)
+    .eq('week_id', activeWeek.id)
     .order('order', { ascending: true })
 
   const days: PlanDay[] = []
@@ -179,7 +190,8 @@ export async function getPlanForEditor(planId: string): Promise<PlanForEditor | 
     startDate: plan.start_date,
     endDate: plan.end_date,
     studentName,
-    weekId: week.id,
+    weeks,
+    weekId: activeWeek.id,
     days,
   }
 }
