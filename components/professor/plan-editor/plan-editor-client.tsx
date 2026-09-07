@@ -1,12 +1,13 @@
 'use client'
 
-import { useEffect, useState, useTransition } from 'react'
+import { useCallback, useEffect, useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Copy, Plus, Save, Trash2 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { DayEditor } from '@/components/professor/plan-editor/day-editor'
+import { dayToDraft, draftToPayload, type DraftBlock } from '@/components/professor/plan-editor/draft'
 import { getRenewalBadge } from '@/lib/plan-renewal'
 import type { PlanBuilderCatalog, PlanForEditor } from '@/lib/supabase/queries/plan-editor'
 import {
@@ -17,6 +18,7 @@ import {
   duplicateDay,
   duplicateWeek,
   renameDay,
+  savePlanDays,
   updatePlanDetails,
 } from '@/app/planes/[planId]/actions'
 
@@ -32,6 +34,8 @@ function weekLabel(week: { number: number; name: string | null }): string {
   return week.name?.trim() || `Semana ${week.number}`
 }
 
+const DISCARD_MSG = 'Tenés cambios sin guardar en los días. Si seguís, se pierden. ¿Continuar?'
+
 export function PlanEditorClient({ plan, catalog }: { plan: PlanForEditor; catalog: PlanBuilderCatalog }) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
@@ -41,10 +45,30 @@ export function PlanEditorClient({ plan, catalog }: { plan: PlanForEditor; catal
   const [dayName, setDayName] = useState('')
   const [dayError, setDayError] = useState<string | null>(null)
 
+  // Draft de TODOS los días de la semana cargada — navegar entre días no
+  // pierde lo cargado, y "Guardar plan" persiste todo junto (atómico).
+  const [draftsByDay, setDraftsByDay] = useState<Record<string, DraftBlock[]>>(() =>
+    Object.fromEntries(plan.days.map((d) => [d.id, dayToDraft(d)])),
+  )
+  const [dirty, setDirty] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
+  const [savedAt, setSavedAt] = useState<number | null>(null)
+  const [saving, startSaving] = useTransition()
+
   const badge = getRenewalBadge(plan.startDate, plan.endDate)
 
-  // Si la lista de días cambió (añadir/eliminar/duplicar recargó los props),
-  // reencauzar las selecciones a algo que siga existiendo.
+  // `plan` (y por lo tanto `plan.days`) solo cambia de identidad cuando el
+  // Server Component vuelve a correr, o sea después de un router.refresh()
+  // de una operación estructural (añadir/duplicar/eliminar día o semana).
+  // Ahí: se conservan los drafts en memoria de los días que siguen
+  // existiendo, y se deriva uno fresco para los nuevos.
+  useEffect(() => {
+    setDraftsByDay((prev) =>
+      Object.fromEntries(plan.days.map((d) => [d.id, prev[d.id] ?? dayToDraft(d)])),
+    )
+  }, [plan.days])
+
+  // Si la lista de días cambió, reencauzar las selecciones.
   useEffect(() => {
     if (!plan.days.some((d) => d.id === activeDay)) setActiveDay(plan.days[0]?.id ?? '')
     if (!plan.days.some((d) => d.id === activeDay2)) setActiveDay2(plan.days[1]?.id ?? plan.days[0]?.id ?? '')
@@ -52,6 +76,30 @@ export function PlanEditorClient({ plan, catalog }: { plan: PlanForEditor; catal
 
   const currentDay = plan.days.find((d) => d.id === activeDay) ?? null
   useEffect(() => setDayName(currentDay?.name ?? ''), [currentDay?.id, currentDay?.name])
+
+  // Aviso nativo del navegador al cerrar/recargar con cambios sin guardar.
+  useEffect(() => {
+    if (!dirty) return
+    const handler = (e: BeforeUnloadEvent) => e.preventDefault()
+    window.addEventListener('beforeunload', handler)
+    return () => window.removeEventListener('beforeunload', handler)
+  }, [dirty])
+
+  const setDayDraft = useCallback(
+    (dayId: string) => (updater: (prev: DraftBlock[]) => DraftBlock[]) => {
+      setDraftsByDay((prev) => ({ ...prev, [dayId]: updater(prev[dayId] ?? []) }))
+      setDirty(true)
+    },
+    [],
+  )
+
+  // Solo las operaciones de SEMANA (navegar/añadir/duplicar/eliminar
+  // semana) tiran los drafts en memoria — recargan el Server Component con
+  // otra lista de días. Las de DÍA los conservan (ver el efecto de merge de
+  // arriba), así que no hace falta avisar ahí.
+  function confirmDiscardWeek(): boolean {
+    return !dirty || confirm(DISCARD_MSG)
+  }
 
   function runDayAction(fn: () => Promise<{ error: string | null }>) {
     setDayError(null)
@@ -61,6 +109,30 @@ export function PlanEditorClient({ plan, catalog }: { plan: PlanForEditor; catal
       else router.refresh()
     })
   }
+
+  function handleSavePlan() {
+    setSaveError(null)
+    const days = plan.days.map((d) => ({
+      workoutId: d.id,
+      blocks: draftToPayload(draftsByDay[d.id] ?? []),
+    }))
+    startSaving(async () => {
+      const result = await savePlanDays(plan.id, days)
+      if (result.error) setSaveError(result.error)
+      else {
+        setDirty(false)
+        setSavedAt(Date.now())
+      }
+    })
+  }
+
+  const twoUpSlots = useMemo(
+    () => [
+      { id: activeDay, set: setActiveDay },
+      { id: activeDay2, set: setActiveDay2 },
+    ],
+    [activeDay, activeDay2],
+  )
 
   return (
     <div className="flex flex-col gap-6">
@@ -118,7 +190,9 @@ export function PlanEditorClient({ plan, catalog }: { plan: PlanForEditor; catal
           <span className="text-muted-foreground text-xs font-medium">Semana</span>
           <select
             value={plan.weekId}
-            onChange={(e) => router.push(`/planes/${plan.id}?week=${e.target.value}`)}
+            onChange={(e) => {
+              if (confirmDiscardWeek()) router.push(`/planes/${plan.id}?week=${e.target.value}`)
+            }}
             className="border-input h-8 rounded-lg border bg-transparent px-2.5 text-sm outline-none dark:bg-input/30"
             disabled={plan.weeks.length === 0}
           >
@@ -130,7 +204,7 @@ export function PlanEditorClient({ plan, catalog }: { plan: PlanForEditor; catal
           </select>
         </label>
 
-        <form action={addWeek}>
+        <form action={addWeek} onSubmit={(e) => !confirmDiscardWeek() && e.preventDefault()}>
           <input type="hidden" name="planId" value={plan.id} />
           <Button type="submit" variant="outline" size="sm">
             <Plus data-icon="inline-start" />
@@ -139,7 +213,7 @@ export function PlanEditorClient({ plan, catalog }: { plan: PlanForEditor; catal
         </form>
 
         {plan.weekId ? (
-          <form action={duplicateWeek}>
+          <form action={duplicateWeek} onSubmit={(e) => !confirmDiscardWeek() && e.preventDefault()}>
             <input type="hidden" name="planId" value={plan.id} />
             <input type="hidden" name="sourceWeekId" value={plan.weekId} />
             <Button type="submit" variant="outline" size="sm">
@@ -153,7 +227,7 @@ export function PlanEditorClient({ plan, catalog }: { plan: PlanForEditor; catal
           <form
             action={deleteWeek}
             onSubmit={(e) => {
-              if (!confirm('¿Eliminar esta semana y todos sus días?')) e.preventDefault()
+              if (!confirmDiscardWeek() || !confirm('¿Eliminar esta semana y todos sus días?')) e.preventDefault()
             }}
           >
             <input type="hidden" name="planId" value={plan.id} />
@@ -189,7 +263,11 @@ export function PlanEditorClient({ plan, catalog }: { plan: PlanForEditor; catal
               </button>
             ))}
 
-            <form action={addDay} className="inline-flex">
+            <form
+              action={addDay}
+              className="inline-flex"
+              onSubmit={(e) => !confirmDiscardWeek() && e.preventDefault()}
+            >
               <input type="hidden" name="planId" value={plan.id} />
               <input type="hidden" name="weekId" value={plan.weekId} />
               <Button type="submit" variant="ghost" size="sm" className="text-muted-foreground">
@@ -216,6 +294,20 @@ export function PlanEditorClient({ plan, catalog }: { plan: PlanForEditor; catal
                 </button>
               </div>
             ) : null}
+          </div>
+
+          {/* Guardar plan (todos los días de la semana, junto) */}
+          <div className="mb-4 flex flex-wrap items-center gap-2">
+            {dirty ? (
+              <span className="text-warning-foreground text-xs font-medium">● Cambios sin guardar</span>
+            ) : savedAt ? (
+              <span className="text-primary text-xs">Guardado ✓</span>
+            ) : null}
+            {saveError ? <span className="text-destructive text-xs">{saveError}</span> : null}
+            <Button size="sm" onClick={handleSavePlan} disabled={saving || !dirty} className="ml-auto">
+              <Save data-icon="inline-start" />
+              {saving ? 'Guardando…' : 'Guardar plan'}
+            </Button>
           </div>
 
           {/* Estructura del día activo: renombrar / duplicar / eliminar */}
@@ -270,10 +362,7 @@ export function PlanEditorClient({ plan, catalog }: { plan: PlanForEditor; catal
             </p>
           ) : twoUp && plan.days.length > 1 ? (
             <div className="grid gap-4 lg:grid-cols-2">
-              {[
-                { id: activeDay, set: setActiveDay },
-                { id: activeDay2, set: setActiveDay2 },
-              ].map((slot, i) => {
+              {twoUpSlots.map((slot, i) => {
                 const day = plan.days.find((d) => d.id === slot.id)
                 return (
                   <div key={i} className="border-border rounded-xl border p-3">
@@ -291,8 +380,8 @@ export function PlanEditorClient({ plan, catalog }: { plan: PlanForEditor; catal
                     {day ? (
                       <DayEditor
                         key={day.id}
-                        day={day}
-                        planId={plan.id}
+                        blocks={draftsByDay[day.id] ?? []}
+                        onBlocksChange={setDayDraft(day.id)}
                         planType={plan.planType}
                         catalog={catalog}
                       />
@@ -304,8 +393,8 @@ export function PlanEditorClient({ plan, catalog }: { plan: PlanForEditor; catal
           ) : currentDay ? (
             <DayEditor
               key={currentDay.id}
-              day={currentDay}
-              planId={plan.id}
+              blocks={draftsByDay[currentDay.id] ?? []}
+              onBlocksChange={setDayDraft(currentDay.id)}
               planType={plan.planType}
               catalog={catalog}
             />
