@@ -14,6 +14,7 @@ import {
   ITEM_DRAG_TYPE,
   emptyItem,
   nextTempId,
+  normalizeText,
   type DraftBlock,
   type DraftItem,
 } from '@/components/professor/plan-editor/draft'
@@ -137,7 +138,8 @@ export function DayEditor({
     const cat = catalog.exercises.find((c) => c.id === ex.id)
     const patternOrMuscleId =
       planType === 'PATTERN' ? (cat?.patternId ?? null) : (cat?.muscleId ?? null)
-    return { ...emptyItem(), exerciseId: ex.id, exerciseName: ex.name, patternOrMuscleId }
+    const groupLabel = patternOrMuscleId ? (groupIdToName.get(patternOrMuscleId) ?? '') : ''
+    return { ...emptyItem(), exerciseId: ex.id, exerciseName: ex.name, patternOrMuscleId, groupLabel }
   }
 
   function handleDropInto(e: DragEvent, toBlockTempId: string, beforeItemTempId: string | null) {
@@ -167,15 +169,18 @@ export function DayEditor({
 
   const volumeRows = useMemo(() => {
     const inputs = blocks.flatMap((block) =>
-      block.items.map((item) => ({
-        groupId: item.patternOrMuscleId,
-        groupName: item.patternOrMuscleId ? (groupIdToName.get(item.patternOrMuscleId) ?? null) : null,
-        sets: blockHasRounds(block.kind) ? String(block.rounds) : item.sets,
-        intensityRpe: item.intensityRpe,
-      })),
+      block.items.map((item) => {
+        const label = item.groupLabel.trim()
+        return {
+          groupId: label ? normalizeText(label) : null,
+          groupName: label || null,
+          sets: blockHasRounds(block.kind) ? String(block.rounds) : item.sets,
+          intensityRpe: item.intensityRpe,
+        }
+      }),
     )
     return calculateVolumeByGroup(inputs)
-  }, [blocks, groupIdToName])
+  }, [blocks])
 
   function lastItemAcrossDay(): DraftItem | null {
     for (let i = blocks.length - 1; i >= 0; i--) {
@@ -483,12 +488,14 @@ export function DayEditor({
                         planType={planType}
                         value={{
                           patternOrMuscleId: item.patternOrMuscleId,
+                          patternOrMuscleLabel: item.groupLabel,
                           exerciseId: item.exerciseId,
                           exerciseName: item.exerciseName,
                         }}
                         onChange={(next) =>
                           updateItem(block.tempId, item.tempId, {
                             patternOrMuscleId: next.patternOrMuscleId,
+                            groupLabel: next.patternOrMuscleLabel,
                             exerciseId: next.exerciseId,
                             exerciseName: next.exerciseName,
                             activityName: next.exerciseId ? '' : next.exerciseName,

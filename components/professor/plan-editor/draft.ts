@@ -19,7 +19,10 @@ export type DraftItem = {
   tempId: string
   exerciseId: string | null
   exerciseName: string
+  /** Id del patrón/músculo del catálogo — solo si se eligió una opción; sirve para filtrar la búsqueda de ejercicios. No se persiste. */
   patternOrMuscleId: string | null
+  /** Rótulo del grupo (patrón/músculo/zona) — texto libre, puede estar vacío. Esto SÍ se guarda (training_items.group_label). */
+  groupLabel: string
   activityName: string
   label: string
   sets: string
@@ -73,6 +76,7 @@ export function dayToDraft(day: PlanDay): DraftBlock[] {
       exerciseId: item.exerciseId,
       exerciseName: item.exerciseName ?? item.activityName ?? '',
       patternOrMuscleId: item.patternId ?? item.muscleId ?? null,
+      groupLabel: item.groupLabel ?? item.patternName ?? item.muscleName ?? '',
       activityName: item.exerciseId ? '' : (item.activityName ?? ''),
       label: item.label ?? '',
       sets: item.prescription?.sets ?? '',
@@ -96,7 +100,8 @@ export function emptyItem(prefill?: Partial<DraftItem>): DraftItem {
     tempId: nextTempId(),
     exerciseId: null,
     exerciseName: '',
-    patternOrMuscleId: null,
+    patternOrMuscleId: prefill?.patternOrMuscleId ?? null,
+    groupLabel: prefill?.groupLabel ?? '',
     activityName: '',
     label: '',
     sets: prefill?.sets ?? '',
@@ -124,6 +129,7 @@ export function draftToPayload(blocks: DraftBlock[]): SaveDayBlockPayload[] {
         exerciseId: item.exerciseId,
         activityName: item.exerciseId ? null : item.activityName || item.exerciseName,
         label: blockHasRounds(block.kind) ? item.label : null,
+        groupLabel: textOrNull(item.groupLabel),
         sets: item.sets,
         reps: item.reps,
         loadKg: parseLooseNumber(item.load),

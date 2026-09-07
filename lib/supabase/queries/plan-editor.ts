@@ -40,6 +40,8 @@ export type PlanTrainingItem = {
   patternName: string | null
   muscleId: string | null
   muscleName: string | null
+  /** Rótulo del grupo escrito por el entrenador (texto libre). Null si no puso nada. */
+  groupLabel: string | null
   videoId: string | null
   prescription: PlanPrescription | null
 }
@@ -192,7 +194,7 @@ export async function getPlanForEditor(planId: string, weekId?: string): Promise
         `
         id, kind, rounds, order,
         training_items(
-          id, exercise_id, activity_name, label, order,
+          id, exercise_id, activity_name, label, order, group_label,
           exercises(canonical_name, pattern_id, muscle_id, patterns(display_name), muscles(display_name), exercise_media(url, is_primary, type)),
           workout_prescriptions(sets, reps, load_kg, load_percent, intensity_rpe, rest_label, time_sec, distance_m, pace, tempo, notes)
         )
@@ -207,6 +209,7 @@ export async function getPlanForEditor(planId: string, weekId?: string): Promise
       activity_name: string | null
       label: string | null
       order: number
+      group_label: string | null
       exercises: {
         canonical_name: string
         pattern_id: string | null
@@ -269,6 +272,7 @@ export async function getPlanForEditor(planId: string, weekId?: string): Promise
             patternName: item.exercises?.patterns?.display_name ?? null,
             muscleId: item.exercises?.muscle_id ?? null,
             muscleName: item.exercises?.muscles?.display_name ?? null,
+            groupLabel: item.group_label ?? null,
             videoId: extractYouTubeId(primaryVideo?.url),
             prescription,
           }

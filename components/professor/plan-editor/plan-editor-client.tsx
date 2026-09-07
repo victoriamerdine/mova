@@ -13,6 +13,7 @@ import {
   draftToPayload,
   emptyItem,
   nextTempId,
+  normalizeText,
   type DraftBlock,
 } from '@/components/professor/plan-editor/draft'
 import {
@@ -118,6 +119,13 @@ export function PlanEditorClient({
 
   const [dragOverDay, setDragOverDay] = useState<string | null>(null)
 
+  const groupIdToName = useMemo(() => {
+    const m = new Map<string, string>()
+    for (const p of catalog.patterns) m.set(p.id, p.name)
+    for (const m2 of catalog.muscles) m.set(m2.id, m2.name)
+    return m
+  }, [catalog])
+
   // Agrega un bloque INDIVIDUAL con el ejercicio ya puesto al final del día
   // (desde el panel de biblioteca: ＋ o arrastrar y soltar).
   const addExerciseToDay = useCallback(
@@ -125,17 +133,20 @@ export function PlanEditorClient({
       const cat = catalog.exercises.find((c) => c.id === ex.id)
       const patternOrMuscleId =
         plan.planType === 'PATTERN' ? (cat?.patternId ?? null) : (cat?.muscleId ?? null)
+      const groupLabel = patternOrMuscleId ? (groupIdToName.get(patternOrMuscleId) ?? '') : ''
       setDayDraft(dayId)((prev) => [
         ...prev,
         {
           tempId: nextTempId(),
           kind: 'INDIVIDUAL',
           rounds: '',
-          items: [{ ...emptyItem(), exerciseId: ex.id, exerciseName: ex.name, patternOrMuscleId }],
+          items: [
+            { ...emptyItem(), exerciseId: ex.id, exerciseName: ex.name, patternOrMuscleId, groupLabel },
+          ],
         },
       ])
     },
-    [catalog.exercises, plan.planType, setDayDraft],
+    [catalog.exercises, plan.planType, setDayDraft, groupIdToName],
   )
 
   function dropHandlers(dayId: string) {
@@ -202,31 +213,32 @@ export function PlanEditorClient({
     [activeDay, activeDay2],
   )
 
-  // Objetivos de carga del alumno, indexados por patrón/músculo.
-  const targetsById = useMemo(() => {
+  // Objetivos de carga del alumno, indexados por rótulo normalizado del
+  // grupo — así matchean con el volumen, que ahora se agrupa por el texto
+  // libre `groupLabel` y no por un id.
+  const targetsByKey = useMemo(() => {
     const m = new Map<string, LoadTarget>()
-    for (const t of loadTargets) m.set(t.groupId, t)
+    for (const t of loadTargets) {
+      const name = groupIdToName.get(t.groupId)
+      if (name) m.set(normalizeText(name), t)
+    }
     return m
-  }, [loadTargets])
-
-  const groupIdToName = useMemo(() => {
-    const m = new Map<string, string>()
-    for (const p of catalog.patterns) m.set(p.id, p.name)
-    for (const m2 of catalog.muscles) m.set(m2.id, m2.name)
-    return m
-  }, [catalog])
+  }, [loadTargets, groupIdToName])
 
   const blocksToVolumeInputs = useCallback(
     (blocks: DraftBlock[]): VolumeInput[] =>
       blocks.flatMap((block) =>
-        block.items.map((item) => ({
-          groupId: item.patternOrMuscleId,
-          groupName: item.patternOrMuscleId ? (groupIdToName.get(item.patternOrMuscleId) ?? null) : null,
-          sets: blockHasRounds(block.kind) ? String(block.rounds) : item.sets,
-          intensityRpe: item.intensityRpe,
-        })),
+        block.items.map((item) => {
+          const label = item.groupLabel.trim()
+          return {
+            groupId: label ? normalizeText(label) : null,
+            groupName: label || null,
+            sets: blockHasRounds(block.kind) ? String(block.rounds) : item.sets,
+            intensityRpe: item.intensityRpe,
+          }
+        }),
       ),
-    [groupIdToName],
+    [],
   )
 
   const weeklyVolume = useMemo(
@@ -464,7 +476,7 @@ export function PlanEditorClient({
           <LoadPanel
             weekly={weeklyVolume}
             day={activeDayVolume}
-            targets={targetsById}
+            targets={targetsByKey}
             dayCount={plan.days.length}
           />
 
