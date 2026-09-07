@@ -2,13 +2,13 @@
 
 import { Badge } from '@/components/ui/badge'
 import { VideoThumb } from '@/components/library/video-thumb'
-import type { LibraryExercise } from '@/lib/data/library'
+import type { LibraryItem } from '@/lib/library'
 
 export function ExerciseCard({
   exercise,
   onSelect,
 }: {
-  exercise: LibraryExercise
+  exercise: LibraryItem
   onSelect: () => void
 }) {
   return (

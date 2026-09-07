@@ -1,17 +1,26 @@
 'use client'
 
-import { ExternalLink, TriangleAlert, X } from 'lucide-react'
+import { ExternalLink, Pencil, TriangleAlert, Trash2, X } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { VideoThumb } from '@/components/library/video-thumb'
-import type { LibraryExercise } from '@/lib/data/library'
+import type { LibraryItem } from '@/lib/library'
 
 export function ExerciseDetailDialog({
   exercise,
+  canManage,
   onClose,
+  onEdit,
+  onDelete,
+  deleting,
 }: {
-  exercise: LibraryExercise | null
+  exercise: LibraryItem | null
+  canManage: boolean
   onClose: () => void
+  onEdit: (ex: LibraryItem) => void
+  onDelete: (ex: LibraryItem) => void
+  deleting: boolean
 }) {
   if (!exercise) return null
 
@@ -55,6 +64,11 @@ export function ExerciseDetailDialog({
                   {exercise.muscle}
                 </Badge>
                 <Badge variant="outline">{exercise.category}</Badge>
+                {exercise.difficulty ? (
+                  <Badge variant="secondary" className="capitalize">
+                    {exercise.difficulty}
+                  </Badge>
+                ) : null}
                 {exercise.approxMatch ? (
                   <Badge className="bg-warning/15 text-warning-foreground gap-1 border-transparent">
                     <TriangleAlert className="size-3" />
@@ -74,39 +88,61 @@ export function ExerciseDetailDialog({
           </div>
 
           <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
-            <section className="mb-5">
-              <h3 className="text-muted-foreground mb-2 text-xs font-semibold tracking-wide uppercase">
-                Clasificación
-              </h3>
-              <dl className="grid grid-cols-2 gap-3 text-sm">
-                <div>
-                  <dt className="text-muted-foreground text-[11px]">Categoría / patrón</dt>
-                  <dd className="font-medium text-foreground">{exercise.category}</dd>
-                </div>
-                <div>
-                  <dt className="text-muted-foreground text-[11px]">Músculo principal</dt>
-                  <dd className="font-medium text-foreground">{exercise.muscle}</dd>
-                </div>
-              </dl>
-            </section>
-
             {exercise.videoId ? (
               <a
                 href={`https://www.youtube.com/shorts/${exercise.videoId}`}
                 target="_blank"
                 rel="noreferrer"
-                className="text-primary mb-5 inline-flex items-center gap-1.5 text-sm font-medium hover:underline"
+                className="text-primary mb-4 inline-flex items-center gap-1.5 text-sm font-medium hover:underline"
               >
                 Ver en YouTube
                 <ExternalLink className="size-3.5" />
               </a>
             ) : null}
 
-            <section className="text-muted-foreground rounded-xl border border-dashed border-border bg-muted/40 p-3.5 text-xs">
-              Instrucciones paso a paso y errores frecuentes: pendientes de cargar para este
-              ejercicio en la base de datos.
-            </section>
+            {exercise.description ? (
+              <section className="mb-4">
+                <h3 className="text-muted-foreground mb-1 text-xs font-semibold tracking-wide uppercase">
+                  Descripción
+                </h3>
+                <p className="text-sm whitespace-pre-line">{exercise.description}</p>
+              </section>
+            ) : null}
+
+            {exercise.instructions ? (
+              <section className="mb-4">
+                <h3 className="text-muted-foreground mb-1 text-xs font-semibold tracking-wide uppercase">
+                  Instrucciones / errores frecuentes
+                </h3>
+                <p className="text-sm whitespace-pre-line">{exercise.instructions}</p>
+              </section>
+            ) : null}
+
+            {!exercise.description && !exercise.instructions ? (
+              <section className="text-muted-foreground rounded-xl border border-dashed border-border bg-muted/40 p-3.5 text-xs">
+                Sin descripción ni instrucciones cargadas.
+              </section>
+            ) : null}
           </div>
+
+          {canManage ? (
+            <div className="flex items-center justify-end gap-2 border-t border-border px-5 py-3">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-muted-foreground hover:text-destructive mr-auto"
+                disabled={deleting}
+                onClick={() => onDelete(exercise)}
+              >
+                <Trash2 data-icon="inline-start" />
+                Eliminar
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => onEdit(exercise)}>
+                <Pencil data-icon="inline-start" />
+                Editar
+              </Button>
+            </div>
+          ) : null}
         </div>
       </div>
     </div>
