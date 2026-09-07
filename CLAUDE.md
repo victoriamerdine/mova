@@ -1544,18 +1544,35 @@ Hecho:
     con estado (nuevo / "ya existe: X") y decisión por fila (reemplazar
     «ejercicio existente» / crear nuevo / omitir); las filas que caen sobre
     un ejercicio de otro dueño se marcan "a revisión" y entran como
-    solicitud.
+    solicitud;
+  - tagueo por deporte: `sports` (catálogo, 12 deportes) + `exercise_sports`
+    (N:N). Chips multi-select en el formulario del ejercicio; filtro
+    "Deporte" en la biblioteca; badges de deporte en tarjeta y detalle;
+    columna `deportes` en el CSV (nombres separados por coma). Los deportes
+    también entran en el `proposed` de una solicitud de cambio y el RPC de
+    aprobación los aplica;
+  - plantilla Excel: `GET /biblioteca/plantilla` genera un `.xlsx`
+    (`exceljs`, server) con los encabezados que espera el import y
+    validación de datos (listas desplegables) en patrón, músculo,
+    dificultad y deporte, tomadas del catálogo real, más una hoja "Listas".
+    Link "Descargar plantilla Excel" en la ventana de importación — el
+    profesor la completa, la guarda como CSV y la sube.
+- El thumbnail de las tarjetas del listado es apaisado (16:9) para reducir
+  el scroll; el detalle muestra el video vertical.
 - Migraciones: `20260828000021` (gestión directa por el profesor),
   `20260828000023` (dueño + solicitudes de cambio + RPC
   `apply_exercise_change_request`), `20260828000024` (fix de recursión en
-  la policy de `professors`).
+  la policy de `professors`), `20260828000025` (escritura de
+  `exercise_sports` + el RPC aplica los deportes propuestos).
 
 Pendiente:
 
-- Filtros por capacidad, deporte, equipamiento y "video disponible" (hoy el
-  filtro es categoría/patrón + músculo).
+- Filtros por capacidad y equipamiento, y "video disponible" (hoy: buscador
+  + categoría/patrón + músculo + deporte).
 - Videos alternativos por ejercicio (hoy solo el principal).
 - Nivel/dificultad como filtro (se muestra en el detalle, no filtra).
+- Que el import acepte `.xlsx` directo (hoy: el profesor guarda la plantilla
+  como CSV antes de subirla).
 
 ---
 
