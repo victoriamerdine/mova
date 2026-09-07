@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ExerciseCombobox } from '@/components/professor/plan-editor/exercise-combobox'
+import { ExerciseVideoPreview } from '@/components/professor/plan-editor/exercise-video-preview'
 import { calculateVolumeByGroup } from '@/lib/volume-calc'
 import { blockHasRounds, type SaveDayBlockKind } from '@/lib/plan-blocks'
 import type { PlanBuilderCatalog, PlanDay } from '@/lib/supabase/queries/plan-editor'
@@ -93,6 +94,12 @@ export function DayEditor({
     const map = new Map<string, string>()
     for (const p of catalog.patterns) map.set(p.id, p.name)
     for (const m of catalog.muscles) map.set(m.id, m.name)
+    return map
+  }, [catalog])
+
+  const videoIdByExercise = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const ex of catalog.exercises) if (ex.videoId) map.set(ex.id, ex.videoId)
     return map
   }, [catalog])
 
@@ -370,6 +377,12 @@ export function DayEditor({
                         }
                       />
                     </div>
+                    {item.exerciseId && videoIdByExercise.has(item.exerciseId) ? (
+                      <ExerciseVideoPreview
+                        videoId={videoIdByExercise.get(item.exerciseId)!}
+                        exerciseName={item.exerciseName}
+                      />
+                    ) : null}
                     <Button
                       variant="ghost"
                       size="icon-sm"

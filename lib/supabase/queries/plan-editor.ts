@@ -57,7 +57,7 @@ export type PlanForEditor = {
   days: PlanDay[]
 }
 
-function extractYouTubeId(url: string | undefined): string | null {
+export function extractYouTubeId(url: string | undefined): string | null {
   if (!url) return null
   const match = url.match(/(?:shorts\/|watch\?v=|embed\/|youtu\.be\/)([a-zA-Z0-9_-]{11})/)
   return match ? match[1] : null
@@ -201,6 +201,8 @@ export type CatalogExercise = {
   name: string
   patternId: string | null
   muscleId: string | null
+  /** id de YouTube del video principal, para previsualizar al armar el plan. */
+  videoId: string | null
 }
 
 export type CatalogOption = { id: string; name: string }
@@ -211,28 +213,56 @@ export type PlanBuilderCatalog = {
   exercises: CatalogExercise[]
 }
 
-/** Catálogo completo para el editor: patrones, músculos, y ejercicios activos con su patrón/músculo. */
+type CatalogExerciseRow = {
+  id: string
+  canonical_name: string
+  pattern_id: string | null
+  muscle_id: string | null
+  exercise_media: { url: string; is_primary: boolean; type: string }[]
+}
+
+/** Catálogo completo para el editor: patrones, músculos, y ejercicios activos con su patrón/músculo + video. */
 export async function getPlanBuilderCatalog(): Promise<PlanBuilderCatalog> {
   const supabase = await createClient()
 
-  const [{ data: patterns }, { data: muscles }, { data: exercisesData }] = await Promise.all([
+  const [{ data: patterns }, { data: muscles }] = await Promise.all([
     supabase.from('patterns').select('id, display_name').order('sort_order'),
     supabase.from('muscles').select('id, display_name').order('sort_order'),
-    supabase
-      .from('exercises')
-      .select('id, canonical_name, pattern_id, muscle_id')
-      .eq('status', 'active')
-      .order('canonical_name'),
   ])
+
+  // PostgREST capa cada respuesta a 1.000 filas (db-max-rows) aunque se pida
+  // un `.range()` mayor — con 1.362 ejercicios reales, sin paginar el
+  // Constructor solo veía los primeros 1.000. Mismo patrón que
+  // lib/supabase/queries/exercises.ts (getLibraryExercises).
+  const PAGE_SIZE = 1000
+  const exerciseRows: CatalogExerciseRow[] = []
+  for (let from = 0; ; from += PAGE_SIZE) {
+    const { data, error } = await supabase
+      .from('exercises')
+      .select('id, canonical_name, pattern_id, muscle_id, exercise_media(url, is_primary, type)')
+      .eq('status', 'active')
+      .order('canonical_name')
+      .range(from, from + PAGE_SIZE - 1)
+
+    if (error || !data || data.length === 0) break
+    exerciseRows.push(...(data as unknown as CatalogExerciseRow[]))
+    if (data.length < PAGE_SIZE) break
+  }
 
   return {
     patterns: (patterns ?? []).map((p) => ({ id: p.id, name: p.display_name })),
     muscles: (muscles ?? []).map((m) => ({ id: m.id, name: m.display_name })),
-    exercises: (exercisesData ?? []).map((e) => ({
-      id: e.id,
-      name: e.canonical_name,
-      patternId: e.pattern_id,
-      muscleId: e.muscle_id,
-    })),
+    exercises: exerciseRows.map((e) => {
+      const primaryVideo =
+        e.exercise_media?.find((m) => m.type === 'video' && m.is_primary) ??
+        e.exercise_media?.find((m) => m.type === 'video')
+      return {
+        id: e.id,
+        name: e.canonical_name,
+        patternId: e.pattern_id,
+        muscleId: e.muscle_id,
+        videoId: extractYouTubeId(primaryVideo?.url),
+      }
+    }),
   }
 }
