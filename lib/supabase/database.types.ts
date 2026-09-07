@@ -557,6 +557,177 @@ export type Database = {
           },
         ]
       }
+      forms: {
+        Row: {
+          id: string
+          professor_id: string | null
+          name: string
+          description: string | null
+          status: 'draft' | 'published' | 'archived'
+          is_template: boolean
+          template_source_id: string | null
+          created_at: string
+          archived_at: string | null
+        }
+        Insert: Partial<Database['public']['Tables']['forms']['Row']>
+        Update: Partial<Database['public']['Tables']['forms']['Row']>
+        Relationships: []
+      }
+      form_sports: {
+        Row: { form_id: string; sport_id: string }
+        Insert: Partial<Database['public']['Tables']['form_sports']['Row']>
+        Update: Partial<Database['public']['Tables']['form_sports']['Row']>
+        Relationships: []
+      }
+      form_sections: {
+        Row: {
+          id: string
+          form_id: string
+          order: number
+          title: string | null
+          description: string | null
+          sensitive: boolean
+        }
+        Insert: Partial<Database['public']['Tables']['form_sections']['Row']>
+        Update: Partial<Database['public']['Tables']['form_sections']['Row']>
+        Relationships: []
+      }
+      form_questions: {
+        Row: {
+          id: string
+          form_id: string
+          section_id: string
+          order: number
+          type:
+            | 'short_text'
+            | 'long_text'
+            | 'number'
+            | 'date'
+            | 'birth_date'
+            | 'single_select'
+            | 'multi_select'
+            | 'scale'
+            | 'yes_no'
+            | 'weight'
+            | 'height'
+            | 'duration'
+            | 'distance'
+            | 'pace'
+            | 'file'
+            | 'video'
+          label: string
+          help_text: string | null
+          required: boolean
+          sensitive: boolean
+          config: Json
+        }
+        Insert: Partial<Database['public']['Tables']['form_questions']['Row']>
+        Update: Partial<Database['public']['Tables']['form_questions']['Row']>
+        Relationships: []
+      }
+      form_question_options: {
+        Row: {
+          id: string
+          question_id: string
+          form_id: string
+          order: number
+          value: string
+          label: string
+        }
+        Insert: Partial<Database['public']['Tables']['form_question_options']['Row']>
+        Update: Partial<Database['public']['Tables']['form_question_options']['Row']>
+        Relationships: []
+      }
+      form_rules: {
+        Row: {
+          id: string
+          form_id: string
+          order: number
+          when: Json
+          match: 'all' | 'any'
+          action: 'show' | 'hide' | 'require' | 'skip_to'
+          target: Json
+        }
+        Insert: Partial<Database['public']['Tables']['form_rules']['Row']>
+        Update: Partial<Database['public']['Tables']['form_rules']['Row']>
+        Relationships: []
+      }
+      form_versions: {
+        Row: {
+          id: string
+          form_id: string
+          version: number
+          structure: Json
+          published_by: string | null
+          published_at: string
+        }
+        Insert: Partial<Database['public']['Tables']['form_versions']['Row']>
+        Update: Partial<Database['public']['Tables']['form_versions']['Row']>
+        Relationships: []
+      }
+      form_submissions: {
+        Row: {
+          id: string
+          form_id: string
+          form_version_id: string
+          professor_id: string
+          student_id: string | null
+          invitee_name: string | null
+          invitee_contact: string | null
+          token: string
+          status: 'pending' | 'started' | 'completed' | 'expired'
+          progress: Json
+          consent_accepted_at: string | null
+          started_at: string | null
+          completed_at: string | null
+          expires_at: string | null
+          created_at: string
+        }
+        Insert: Partial<Database['public']['Tables']['form_submissions']['Row']>
+        Update: Partial<Database['public']['Tables']['form_submissions']['Row']>
+        Relationships: []
+      }
+      form_answers: {
+        Row: {
+          id: string
+          submission_id: string
+          question_id: string
+          question_type: string
+          value: Json | null
+          updated_at: string
+        }
+        Insert: Partial<Database['public']['Tables']['form_answers']['Row']>
+        Update: Partial<Database['public']['Tables']['form_answers']['Row']>
+        Relationships: []
+      }
+      form_answer_files: {
+        Row: {
+          id: string
+          answer_id: string
+          storage_path: string
+          filename: string | null
+          mime: string | null
+          size_bytes: number | null
+        }
+        Insert: Partial<Database['public']['Tables']['form_answer_files']['Row']>
+        Update: Partial<Database['public']['Tables']['form_answer_files']['Row']>
+        Relationships: []
+      }
+      form_submission_summaries: {
+        Row: {
+          id: string
+          submission_id: string
+          summary: Json
+          model: string | null
+          status: 'pending' | 'approved' | 'rejected'
+          reviewed_by: string | null
+          reviewed_at: string | null
+          created_at: string
+        }
+        Insert: Partial<Database['public']['Tables']['form_submission_summaries']['Row']>
+        Update: Partial<Database['public']['Tables']['form_submission_summaries']['Row']>
+        Relationships: []
+      }
     }
     Views: Record<string, never>
     Functions: {
