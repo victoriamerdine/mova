@@ -246,26 +246,30 @@ export type SaveDayBlockPayload = {
   items: SaveDayItemPayload[]
 }
 
+export type SaveDayPayload = {
+  workoutId: string
+  blocks: SaveDayBlockPayload[]
+}
+
 /**
- * Reemplaza TODOS los bloques/ejercicios/prescripciones del día por los
- * nuevos — tal como pide la spec ("Guardar día... reemplaza completamente
- * la lista anterior de ese día"). Un solo RPC (`save_workout_day`,
- * supabase/migrations/20260828000016_atomic_day_and_duplication.sql) = una
- * transacción de Postgres: el delete + los inserts son atómicos, no puede
- * quedar el día a medio guardar si algo falla a mitad de camino.
+ * Guarda TODOS los días de la semana cargada de una sola vez — el
+ * Constructor mantiene en memoria lo que se va cargando en cada día y
+ * recién acá persiste todo junto. Un solo RPC (`save_week_days`,
+ * supabase/migrations/20260828000017_save_week_days.sql) que por dentro
+ * llama a `save_workout_day` por cada día: una transacción de Postgres, o
+ * se guarda el plan entero o no se guarda nada.
  */
-export async function saveDay(workoutId: string, planId: string, blocks: SaveDayBlockPayload[]) {
+export async function savePlanDays(planId: string, days: SaveDayPayload[]) {
   const professor = await getCurrentProfessor()
   if (!professor) redirect('/login')
 
   const supabase = await createClient()
 
-  const { error } = await supabase.rpc('save_workout_day', {
-    p_workout_id: workoutId,
-    p_blocks: blocks,
+  const { error } = await supabase.rpc('save_week_days', {
+    p_days: days.map((d) => ({ workoutId: d.workoutId, blocks: d.blocks })),
   })
 
-  if (error) return { error: `No se pudo guardar el día: ${error.message}` }
+  if (error) return { error: `No se pudo guardar el plan: ${error.message}` }
 
   revalidatePath(`/planes/${planId}`)
   return { error: null }

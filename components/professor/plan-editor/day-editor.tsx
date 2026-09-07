@@ -1,94 +1,36 @@
 'use client'
 
-import { useMemo, useState, useTransition } from 'react'
-import { Copy, Layers, Plus, Repeat, Save, Trash2 } from 'lucide-react'
+import { useMemo } from 'react'
+import { Copy, Layers, Plus, Repeat, Trash2 } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ExerciseCombobox } from '@/components/professor/plan-editor/exercise-combobox'
 import { ExerciseVideoPreview } from '@/components/professor/plan-editor/exercise-video-preview'
+import { emptyItem, nextTempId, type DraftBlock, type DraftItem } from '@/components/professor/plan-editor/draft'
 import { calculateVolumeByGroup } from '@/lib/volume-calc'
-import { blockHasRounds, type SaveDayBlockKind } from '@/lib/plan-blocks'
-import type { PlanBuilderCatalog, PlanDay } from '@/lib/supabase/queries/plan-editor'
-import { saveDay, type SaveDayBlockPayload } from '@/app/planes/[planId]/actions'
+import { blockHasRounds } from '@/lib/plan-blocks'
+import type { PlanBuilderCatalog } from '@/lib/supabase/queries/plan-editor'
 
-type DraftItem = {
-  tempId: string
-  exerciseId: string | null
-  exerciseName: string
-  patternOrMuscleId: string | null
-  activityName: string
-  label: string
-  sets: string
-  reps: string
-  intensityRpe: string
-  restLabel: string
-  notes: string
-}
-
-type DraftBlock = {
-  tempId: string
-  kind: SaveDayBlockKind
-  rounds: string
-  items: DraftItem[]
-}
-
-let tempIdCounter = 0
-const nextTempId = () => `tmp-${tempIdCounter++}`
-
-function dayToDraft(day: PlanDay): DraftBlock[] {
-  return day.blocks.map((block) => ({
-    tempId: nextTempId(),
-    kind: block.kind === 'COMBINADO' || block.kind === 'CIRCUITO' ? block.kind : 'INDIVIDUAL',
-    rounds: block.rounds != null ? String(block.rounds) : '3',
-    items: block.items.map((item) => ({
-      tempId: nextTempId(),
-      exerciseId: item.exerciseId,
-      exerciseName: item.exerciseName ?? item.activityName ?? '',
-      patternOrMuscleId: item.patternId ?? item.muscleId ?? null,
-      activityName: item.exerciseId ? '' : (item.activityName ?? ''),
-      label: item.label ?? '',
-      sets: item.prescription?.sets ?? '',
-      reps: item.prescription?.reps ?? '',
-      intensityRpe: item.prescription?.intensityRpe ?? '',
-      restLabel: item.prescription?.restLabel ?? '',
-      notes: item.prescription?.notes ?? '',
-    })),
-  }))
-}
-
-function emptyItem(prefill?: Partial<DraftItem>): DraftItem {
-  return {
-    tempId: nextTempId(),
-    exerciseId: null,
-    exerciseName: '',
-    patternOrMuscleId: null,
-    activityName: '',
-    label: '',
-    sets: prefill?.sets ?? '',
-    reps: prefill?.reps ?? '',
-    intensityRpe: prefill?.intensityRpe ?? '',
-    restLabel: '',
-    notes: '',
-  }
-}
-
+/**
+ * Editor de UN día. Es controlado: los bloques viven en PlanEditorClient
+ * (`blocks` + `onBlocksChange`) para que navegar entre días no pierda lo
+ * cargado. No guarda nada por su cuenta — el guardado es único, en
+ * PlanEditorClient ("Guardar plan").
+ */
 export function DayEditor({
-  day,
-  planId,
+  blocks,
+  onBlocksChange,
   planType,
   catalog,
 }: {
-  day: PlanDay
-  planId: string
+  blocks: DraftBlock[]
+  onBlocksChange: (updater: (prev: DraftBlock[]) => DraftBlock[]) => void
   planType: string
   catalog: PlanBuilderCatalog
 }) {
-  const [blocks, setBlocks] = useState<DraftBlock[]>(() => dayToDraft(day))
-  const [isPending, startTransition] = useTransition()
-  const [saveError, setSaveError] = useState<string | null>(null)
-  const [savedAt, setSavedAt] = useState<number | null>(null)
+  const setBlocks = onBlocksChange
 
   const groupIdToName = useMemo(() => {
     const map = new Map<string, string>()
@@ -238,35 +180,6 @@ export function DayEditor({
 
   function updateRounds(blockTempId: string, rounds: string) {
     setBlocks((prevBlocks) => prevBlocks.map((b) => (b.tempId === blockTempId ? { ...b, rounds } : b)))
-  }
-
-  function handleSave() {
-    setSaveError(null)
-    const payload: SaveDayBlockPayload[] = blocks.map((block) => ({
-      kind: block.kind,
-      rounds: blockHasRounds(block.kind) ? parseInt(block.rounds, 10) || null : null,
-      items: block.items
-        .filter((item) => item.exerciseId || item.activityName.trim() || item.exerciseName.trim())
-        .map((item) => ({
-          exerciseId: item.exerciseId,
-          activityName: item.exerciseId ? null : item.activityName || item.exerciseName,
-          label: blockHasRounds(block.kind) ? item.label : null,
-          sets: item.sets,
-          reps: item.reps,
-          intensityRpe: item.intensityRpe,
-          restLabel: item.restLabel,
-          notes: item.notes,
-        })),
-    }))
-
-    startTransition(async () => {
-      const result = await saveDay(day.id, planId, payload)
-      if (result.error) {
-        setSaveError(result.error)
-      } else {
-        setSavedAt(Date.now())
-      }
-    })
   }
 
   return (
@@ -466,15 +379,6 @@ export function DayEditor({
           <Repeat data-icon="inline-start" />
           Bloque circuito
         </Button>
-
-        <div className="ml-auto flex items-center gap-2">
-          {saveError ? <span className="text-destructive text-xs">{saveError}</span> : null}
-          {savedAt ? <span className="text-primary text-xs">Guardado ✓</span> : null}
-          <Button size="sm" onClick={handleSave} disabled={isPending}>
-            <Save data-icon="inline-start" />
-            {isPending ? 'Guardando…' : 'Guardar día'}
-          </Button>
-        </div>
       </div>
     </div>
   )
