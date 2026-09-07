@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getCurrentProfessor } from '@/lib/supabase/queries/professor-dashboard'
 import type { Database } from '@/lib/supabase/database.types'
 import type { SaveDayBlockKind } from '@/lib/plan-blocks'
+import { isPhaseKind } from '@/lib/plan-phases'
 
 type PlanType = Database['public']['Tables']['plans']['Row']['plan_type']
 
@@ -224,6 +225,99 @@ export async function duplicateDay(planId: string, workoutId: string) {
   })
 
   if (rpcError) return { error: rpcError.message }
+
+  revalidatePath(`/planes/${planId}`)
+  return { error: null }
+}
+
+// ============================================================
+// Fases del plan — nivel opcional Plan → Fase → Semana (CLAUDE.md §14).
+// Borrar una fase NO borra sus semanas: deletePhase primero las deja sin
+// fase (plan_weeks.phase_id = null) y recién después borra la fase.
+// ============================================================
+
+export async function addPhase(formData: FormData) {
+  const professor = await getCurrentProfessor()
+  if (!professor) redirect('/login')
+
+  const planId = String(formData.get('planId') ?? '')
+  const weekId = String(formData.get('weekId') ?? '')
+  const supabase = await createClient()
+
+  const { data: last } = await supabase
+    .from('plan_phases')
+    .select('order')
+    .eq('plan_id', planId)
+    .order('order', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  const nextOrder = (last?.order ?? -1) + 1
+
+  const { error } = await supabase
+    .from('plan_phases')
+    .insert({ plan_id: planId, name: `Fase ${nextOrder + 1}`, kind: 'custom', order: nextOrder })
+
+  const suffix = weekId ? `?week=${weekId}` : ''
+  if (error) {
+    redirect(`/planes/${planId}${suffix}${suffix ? '&' : '?'}error=${encodeURIComponent(error.message)}`)
+  }
+
+  revalidatePath(`/planes/${planId}`)
+  redirect(`/planes/${planId}${suffix}`)
+}
+
+type PlanPhaseUpdate = Database['public']['Tables']['plan_phases']['Update']
+
+export async function updatePhase(
+  planId: string,
+  phaseId: string,
+  patch: { name?: string; kind?: string },
+) {
+  const professor = await getCurrentProfessor()
+  if (!professor) redirect('/login')
+
+  const update: PlanPhaseUpdate = {}
+  if (patch.name != null) {
+    const trimmed = patch.name.trim()
+    if (!trimmed) return { error: 'La fase necesita un nombre.' }
+    update.name = trimmed
+  }
+  if (patch.kind != null && isPhaseKind(patch.kind)) update.kind = patch.kind
+
+  const supabase = await createClient()
+  const { error } = await supabase.from('plan_phases').update(update).eq('id', phaseId)
+  if (error) return { error: error.message }
+
+  revalidatePath(`/planes/${planId}`)
+  return { error: null }
+}
+
+export async function deletePhase(planId: string, phaseId: string) {
+  const professor = await getCurrentProfessor()
+  if (!professor) redirect('/login')
+
+  const supabase = await createClient()
+  // Desasignar las semanas primero — la FK plan_weeks.phase_id no tiene
+  // ON DELETE SET NULL, así que hay que limpiarlas a mano o el delete falla.
+  await supabase.from('plan_weeks').update({ phase_id: null }).eq('phase_id', phaseId)
+  const { error } = await supabase.from('plan_phases').delete().eq('id', phaseId)
+  if (error) return { error: error.message }
+
+  revalidatePath(`/planes/${planId}`)
+  return { error: null }
+}
+
+export async function setWeekPhase(planId: string, weekId: string, phaseId: string | null) {
+  const professor = await getCurrentProfessor()
+  if (!professor) redirect('/login')
+
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('plan_weeks')
+    .update({ phase_id: phaseId })
+    .eq('id', weekId)
+  if (error) return { error: error.message }
 
   revalidatePath(`/planes/${planId}`)
   return { error: null }

@@ -329,6 +329,38 @@ export type Database = {
           },
         ]
       }
+      plan_phases: {
+        Row: {
+          id: string
+          plan_id: string
+          name: string
+          kind:
+            | 'preparacion_general'
+            | 'preparacion_especifica'
+            | 'competencia'
+            | 'puesta_a_punto'
+            | 'transicion'
+            | 'recuperacion'
+            | 'pretemporada'
+            | 'temporada'
+            | 'custom'
+            | null
+          start_date: string | null
+          end_date: string | null
+          order: number
+        }
+        Insert: Partial<Database['public']['Tables']['plan_phases']['Row']>
+        Update: Partial<Database['public']['Tables']['plan_phases']['Row']>
+        Relationships: [
+          {
+            foreignKeyName: 'plan_phases_plan_id_fkey'
+            columns: ['plan_id']
+            isOneToOne: false
+            referencedRelation: 'plans'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       plan_weeks: {
         Row: {
           id: string
