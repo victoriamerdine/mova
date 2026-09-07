@@ -1,13 +1,24 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState, useTransition } from 'react'
+import { useCallback, useEffect, useMemo, useState, useTransition, type DragEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { Copy, Plus, Save, Trash2 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { DayEditor } from '@/components/professor/plan-editor/day-editor'
-import { dayToDraft, draftToPayload, type DraftBlock } from '@/components/professor/plan-editor/draft'
+import {
+  EXERCISE_DRAG_TYPE,
+  dayToDraft,
+  draftToPayload,
+  emptyItem,
+  nextTempId,
+  type DraftBlock,
+} from '@/components/professor/plan-editor/draft'
+import {
+  ExerciseLibraryPanel,
+  type LibraryDragPayload,
+} from '@/components/professor/plan-editor/exercise-library-panel'
 import { getRenewalBadge } from '@/lib/plan-renewal'
 import type { PlanBuilderCatalog, PlanForEditor } from '@/lib/supabase/queries/plan-editor'
 import {
@@ -93,6 +104,51 @@ export function PlanEditorClient({ plan, catalog }: { plan: PlanForEditor; catal
     [],
   )
 
+  const [dragOverDay, setDragOverDay] = useState<string | null>(null)
+
+  // Agrega un bloque INDIVIDUAL con el ejercicio ya puesto al final del día
+  // (desde el panel de biblioteca: ＋ o arrastrar y soltar).
+  const addExerciseToDay = useCallback(
+    (dayId: string, ex: LibraryDragPayload) => {
+      const cat = catalog.exercises.find((c) => c.id === ex.id)
+      const patternOrMuscleId =
+        plan.planType === 'PATTERN' ? (cat?.patternId ?? null) : (cat?.muscleId ?? null)
+      setDayDraft(dayId)((prev) => [
+        ...prev,
+        {
+          tempId: nextTempId(),
+          kind: 'INDIVIDUAL',
+          rounds: '',
+          items: [{ ...emptyItem(), exerciseId: ex.id, exerciseName: ex.name, patternOrMuscleId }],
+        },
+      ])
+    },
+    [catalog.exercises, plan.planType, setDayDraft],
+  )
+
+  function dropHandlers(dayId: string) {
+    return {
+      onDragOver: (e: DragEvent) => {
+        if (e.dataTransfer.types.includes(EXERCISE_DRAG_TYPE)) {
+          e.preventDefault()
+          setDragOverDay(dayId)
+        }
+      },
+      onDragLeave: () => setDragOverDay((d) => (d === dayId ? null : d)),
+      onDrop: (e: DragEvent) => {
+        const raw = e.dataTransfer.getData(EXERCISE_DRAG_TYPE)
+        setDragOverDay(null)
+        if (!raw) return
+        e.preventDefault()
+        try {
+          addExerciseToDay(dayId, JSON.parse(raw) as LibraryDragPayload)
+        } catch {
+          /* payload inválido, ignorar */
+        }
+      },
+    }
+  }
+
   // Solo las operaciones de SEMANA (navegar/añadir/duplicar/eliminar
   // semana) tiran los drafts en memoria — recargan el Server Component con
   // otra lista de días. Las de DÍA los conservan (ver el efecto de merge de
@@ -134,8 +190,17 @@ export function PlanEditorClient({ plan, catalog }: { plan: PlanForEditor; catal
     [activeDay, activeDay2],
   )
 
+  const showLibrary = plan.weeks.length > 0 && plan.days.length > 0
+
   return (
-    <div className="flex flex-col gap-6">
+    <div
+      className={
+        showLibrary
+          ? 'lg:grid lg:grid-cols-[minmax(0,1fr)_17rem] lg:items-start lg:gap-6'
+          : undefined
+      }
+    >
+      <div className="flex flex-col gap-6">
       {/* Datos generales del plan */}
       <div className="border-border bg-card rounded-xl border p-4">
         <form action={updatePlanDetails} className="flex flex-wrap items-end gap-3">
@@ -365,7 +430,15 @@ export function PlanEditorClient({ plan, catalog }: { plan: PlanForEditor; catal
               {twoUpSlots.map((slot, i) => {
                 const day = plan.days.find((d) => d.id === slot.id)
                 return (
-                  <div key={i} className="border-border rounded-xl border p-3">
+                  <div
+                    key={i}
+                    {...(day ? dropHandlers(day.id) : {})}
+                    className={
+                      day && dragOverDay === day.id
+                        ? 'ring-primary/50 rounded-xl border border-border p-3 ring-2 ring-dashed'
+                        : 'border-border rounded-xl border p-3'
+                    }
+                  >
                     <select
                       value={slot.id}
                       onChange={(e) => slot.set(e.target.value)}
@@ -391,16 +464,33 @@ export function PlanEditorClient({ plan, catalog }: { plan: PlanForEditor; catal
               })}
             </div>
           ) : currentDay ? (
-            <DayEditor
-              key={currentDay.id}
-              blocks={draftsByDay[currentDay.id] ?? []}
-              onBlocksChange={setDayDraft(currentDay.id)}
-              planType={plan.planType}
-              catalog={catalog}
-            />
+            <div
+              {...dropHandlers(currentDay.id)}
+              className={
+                dragOverDay === currentDay.id
+                  ? 'ring-primary/50 rounded-xl p-1 ring-2 ring-dashed'
+                  : undefined
+              }
+            >
+              <DayEditor
+                key={currentDay.id}
+                blocks={draftsByDay[currentDay.id] ?? []}
+                onBlocksChange={setDayDraft(currentDay.id)}
+                planType={plan.planType}
+                catalog={catalog}
+              />
+            </div>
           ) : null}
         </div>
       )}
+      </div>
+
+      {showLibrary ? (
+        <ExerciseLibraryPanel
+          exercises={catalog.exercises}
+          onAdd={(ex) => addExerciseToDay(activeDay, ex)}
+        />
+      ) : null}
     </div>
   )
 }
