@@ -4,13 +4,13 @@ import { useState } from 'react'
 import { Play } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
-import type { LibraryExercise } from '@/lib/data/library'
+import type { LibraryItem } from '@/lib/library'
 
 export function VideoThumb({
   exercise,
   big = false,
 }: {
-  exercise: LibraryExercise
+  exercise: LibraryItem
   big?: boolean
 }) {
   const [imgError, setImgError] = useState(false)

@@ -126,6 +126,25 @@ export type Database = {
           },
         ]
       }
+      exercise_aliases: {
+        Row: {
+          id: string
+          exercise_id: string
+          alias: string
+          note: string | null
+        }
+        Insert: Partial<Database['public']['Tables']['exercise_aliases']['Row']>
+        Update: Partial<Database['public']['Tables']['exercise_aliases']['Row']>
+        Relationships: [
+          {
+            foreignKeyName: 'exercise_aliases_exercise_id_fkey'
+            columns: ['exercise_id']
+            isOneToOne: false
+            referencedRelation: 'exercises'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       exercise_media: {
         Row: {
           id: string

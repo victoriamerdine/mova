@@ -1,21 +1,38 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
+import { Plus } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { FilterBar } from '@/components/library/filter-bar'
 import { ExerciseCard } from '@/components/library/exercise-card'
 import { ExerciseDetailDialog } from '@/components/library/exercise-detail-dialog'
-import { type LibraryExercise } from '@/lib/data/library'
+import { ExerciseFormDialog } from '@/components/library/exercise-form-dialog'
+import { deleteExercise } from '@/app/biblioteca/actions'
+import type { LibraryItem } from '@/lib/library'
+import type { LibraryCatalog } from '@/lib/supabase/queries/exercises'
 
 const PAGE_SIZE = 24
 
-export function LibraryWorkspace({ exercises }: { exercises: LibraryExercise[] }) {
+export function LibraryWorkspace({
+  exercises,
+  catalog,
+  canManage,
+}: {
+  exercises: LibraryItem[]
+  catalog: LibraryCatalog
+  canManage: boolean
+}) {
+  const router = useRouter()
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState('Todas')
   const [muscle, setMuscle] = useState('Todos')
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
-  const [selected, setSelected] = useState<LibraryExercise | null>(null)
+  const [selected, setSelected] = useState<LibraryItem | null>(null)
+  const [form, setForm] = useState<{ mode: 'create' | 'edit'; initial?: LibraryItem } | null>(null)
+  const [toast, setToast] = useState<string | null>(null)
+  const [deleting, startDeleting] = useTransition()
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -41,6 +58,29 @@ export function LibraryWorkspace({ exercises }: { exercises: LibraryExercise[] }
     resetVisible()
   }
 
+  function afterSave(msg: string) {
+    setForm(null)
+    setSelected(null)
+    setToast(msg)
+    router.refresh()
+    window.setTimeout(() => setToast(null), 3500)
+  }
+
+  function handleDelete(ex: LibraryItem) {
+    if (!confirm(`¿Eliminar "${ex.name}" de la biblioteca?`)) return
+    startDeleting(async () => {
+      const res = await deleteExercise(ex.id)
+      if (res.error) {
+        setToast(`No se pudo eliminar: ${res.error}`)
+      } else {
+        setToast(res.archived ? 'Ejercicio archivado (está en uso en algún plan).' : 'Ejercicio eliminado.')
+      }
+      setSelected(null)
+      router.refresh()
+      window.setTimeout(() => setToast(null), 3500)
+    })
+  }
+
   return (
     <>
       <header className="bg-surface/85 sticky top-0 z-20 border-b border-border px-4 py-4 backdrop-blur sm:px-6">
@@ -53,11 +93,19 @@ export function LibraryWorkspace({ exercises }: { exercises: LibraryExercise[] }
               {filtered.length} de {exercises.length} ejercicios
             </p>
           </div>
-          {hasActiveFilters ? (
-            <Button variant="outline" size="sm" onClick={resetFilters} className="bg-card shrink-0">
-              Limpiar filtros
-            </Button>
-          ) : null}
+          <div className="flex shrink-0 items-center gap-2">
+            {hasActiveFilters ? (
+              <Button variant="outline" size="sm" onClick={resetFilters} className="bg-card">
+                Limpiar filtros
+              </Button>
+            ) : null}
+            {canManage ? (
+              <Button size="sm" onClick={() => setForm({ mode: 'create' })}>
+                <Plus data-icon="inline-start" />
+                Agregar ejercicio
+              </Button>
+            ) : null}
+          </div>
         </div>
 
         <FilterBar
@@ -78,6 +126,12 @@ export function LibraryWorkspace({ exercises }: { exercises: LibraryExercise[] }
           }}
         />
       </header>
+
+      {toast ? (
+        <div className="bg-primary/10 text-primary border-primary/20 mx-4 mt-3 rounded-lg border px-3 py-2 text-xs sm:mx-6">
+          {toast}
+        </div>
+      ) : null}
 
       <main className="flex-1 overflow-y-auto p-4 sm:p-6">
         {filtered.length === 0 ? (
@@ -111,7 +165,24 @@ export function LibraryWorkspace({ exercises }: { exercises: LibraryExercise[] }
         )}
       </main>
 
-      <ExerciseDetailDialog exercise={selected} onClose={() => setSelected(null)} />
+      <ExerciseDetailDialog
+        exercise={selected}
+        canManage={canManage}
+        onClose={() => setSelected(null)}
+        onEdit={(ex) => setForm({ mode: 'edit', initial: ex })}
+        onDelete={handleDelete}
+        deleting={deleting}
+      />
+
+      {form ? (
+        <ExerciseFormDialog
+          mode={form.mode}
+          initial={form.initial}
+          catalog={catalog}
+          onClose={() => setForm(null)}
+          onSaved={afterSave}
+        />
+      ) : null}
     </>
   )
 }
