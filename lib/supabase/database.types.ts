@@ -757,6 +757,38 @@ export type Database = {
         Args: { p_source_week_id: string; p_new_number: number; p_new_name: string }
         Returns: string
       }
+      publish_form: {
+        Args: { p_form_id: string }
+        Returns: string
+      }
+      create_form_from_template: {
+        Args: { p_template_id: string }
+        Returns: string
+      }
+      duplicate_form: {
+        Args: { p_form_id: string }
+        Returns: string
+      }
+      save_form_as_template: {
+        Args: { p_form_id: string }
+        Returns: string
+      }
+      get_submission: {
+        Args: { p_token: string }
+        Returns: Json
+      }
+      start_submission: {
+        Args: { p_token: string }
+        Returns: undefined
+      }
+      save_submission_answers: {
+        Args: { p_token: string; p_answers: Json; p_progress?: Json }
+        Returns: undefined
+      }
+      complete_submission: {
+        Args: { p_token: string; p_consent?: boolean }
+        Returns: undefined
+      }
     }
     Enums: Record<string, never>
     CompositeTypes: Record<string, never>
