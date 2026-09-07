@@ -1,9 +1,11 @@
 import { createClient } from '@/lib/supabase/server'
+import { getCurrentProfessor } from '@/lib/supabase/queries/professor-dashboard'
 import {
   DUPLICATE_SIMILARITY_THRESHOLD,
   extractYouTubeId,
   nameSimilarity,
   normalizeExerciseName,
+  type ChangeRequest,
   type LibraryItem,
 } from '@/lib/library'
 
@@ -22,6 +24,8 @@ type ExerciseRow = {
   match_status: string | null
   muscle_id: string | null
   pattern_id: string | null
+  owner_id: string | null
+  owner: { profiles: { full_name: string } | null } | null
   muscle: { display_name: string } | null
   pattern: { display_name: string } | null
   exercise_stimulus_types: { stimulus_types: { display_name: string } | null }[]
@@ -40,13 +44,15 @@ const SELECT = `
   match_status,
   muscle_id,
   pattern_id,
+  owner_id,
+  owner:professors!exercises_owner_id_fkey(profiles(full_name)),
   muscle:muscles(display_name),
   pattern:patterns(display_name),
   exercise_stimulus_types(stimulus_types(display_name)),
   exercise_media(url, is_primary, type)
 `
 
-function toLibraryItem(row: ExerciseRow): LibraryItem {
+function toLibraryItem(row: ExerciseRow, currentProfessorId: string | null): LibraryItem {
   const category =
     row.pattern?.display_name ??
     row.exercise_stimulus_types.find((r) => r.stimulus_types)?.stimulus_types?.display_name ??
@@ -72,6 +78,9 @@ function toLibraryItem(row: ExerciseRow): LibraryItem {
     videoUrl: primaryVideo?.url ?? null,
     status: row.status,
     source: row.source,
+    ownerId: row.owner_id,
+    ownerName: row.owner?.profiles?.full_name ?? null,
+    isMine: row.owner_id != null && row.owner_id === currentProfessorId,
     approxMatch: row.match_status ? APPROX_MATCH_STATUSES.has(row.match_status) : false,
   }
 }
@@ -83,6 +92,7 @@ const PAGE_SIZE = 1000
 /** Biblioteca completa (solo `active`) para la pantalla de gestión. */
 export async function getLibraryItems(): Promise<LibraryItem[]> {
   const supabase = await createClient()
+  const professor = await getCurrentProfessor()
   const rows: ExerciseRow[] = []
 
   for (let from = 0; ; from += PAGE_SIZE) {
@@ -99,7 +109,37 @@ export async function getLibraryItems(): Promise<LibraryItem[]> {
     if (page.length < PAGE_SIZE) break
   }
 
-  return rows.map(toLibraryItem)
+  return rows.map((r) => toLibraryItem(r, professor?.id ?? null))
+}
+
+/** Solicitudes de cambio pendientes sobre ejercicios de los que soy dueño. */
+export async function getPendingChangeRequestsForOwner(): Promise<ChangeRequest[]> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('exercise_change_requests')
+    .select(
+      'id, exercise_id, proposed, created_at, exercises(canonical_name), requester:professors!exercise_change_requests_requested_by_fkey(profiles(full_name))',
+    )
+    .eq('status', 'pending')
+    .order('created_at', { ascending: true })
+
+  if (error || !data) return []
+
+  return (data as unknown as {
+    id: string
+    exercise_id: string
+    proposed: ChangeRequest['proposed']
+    created_at: string
+    exercises: { canonical_name: string } | null
+    requester: { profiles: { full_name: string } | null } | null
+  }[]).map((r) => ({
+    id: r.id,
+    exerciseId: r.exercise_id,
+    exerciseName: r.exercises?.canonical_name ?? 'Ejercicio',
+    requestedByName: r.requester?.profiles?.full_name ?? 'Otro profesor',
+    proposed: r.proposed,
+    createdAt: r.created_at,
+  }))
 }
 
 /** Compat: firma vieja usada por algún import previo. */
@@ -135,6 +175,7 @@ export async function findDuplicateExercises(
   if (!norm) return []
 
   const supabase = await createClient()
+  const professor = await getCurrentProfessor()
   const rows: ExerciseRow[] = []
   for (let from = 0; ; from += PAGE_SIZE) {
     const { data, error } = await supabase
@@ -151,7 +192,10 @@ export async function findDuplicateExercises(
 
   return rows
     .filter((r) => r.id !== excludeId)
-    .map((r) => ({ item: toLibraryItem(r), sim: nameSimilarity(name, r.canonical_name) }))
+    .map((r) => ({
+      item: toLibraryItem(r, professor?.id ?? null),
+      sim: nameSimilarity(name, r.canonical_name),
+    }))
     .filter(
       ({ item, sim }) =>
         normalizeExerciseName(item.name) === norm || sim >= DUPLICATE_SIMILARITY_THRESHOLD,

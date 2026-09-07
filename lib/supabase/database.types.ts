@@ -84,6 +84,8 @@ export type Database = {
           proposed_by: string | null
           reviewed_by: string | null
           reviewed_at: string | null
+          added_by: string | null
+          owner_id: string | null
           created_at: string
         }
         Insert: Partial<Database['public']['Tables']['exercises']['Row']>
@@ -138,6 +140,29 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: 'exercise_aliases_exercise_id_fkey'
+            columns: ['exercise_id']
+            isOneToOne: false
+            referencedRelation: 'exercises'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      exercise_change_requests: {
+        Row: {
+          id: string
+          exercise_id: string
+          requested_by: string
+          proposed: Json
+          status: 'pending' | 'approved' | 'rejected'
+          reviewed_by: string | null
+          reviewed_at: string | null
+          created_at: string
+        }
+        Insert: Partial<Database['public']['Tables']['exercise_change_requests']['Row']>
+        Update: Partial<Database['public']['Tables']['exercise_change_requests']['Row']>
+        Relationships: [
+          {
+            foreignKeyName: 'exercise_change_requests_exercise_id_fkey'
             columns: ['exercise_id']
             isOneToOne: false
             referencedRelation: 'exercises'
@@ -497,6 +522,10 @@ export type Database = {
     }
     Views: Record<string, never>
     Functions: {
+      apply_exercise_change_request: {
+        Args: { p_request_id: string }
+        Returns: undefined
+      }
       save_workout_day: {
         Args: { p_workout_id: string; p_blocks: Json }
         Returns: void
