@@ -5,7 +5,11 @@ import { AppSidebar } from '@/components/professor/app-sidebar'
 import { DashboardHeader } from '@/components/professor/dashboard-header'
 import { PlanEditorClient } from '@/components/professor/plan-editor/plan-editor-client'
 import { getCurrentProfessor } from '@/lib/supabase/queries/professor-dashboard'
-import { getPlanBuilderCatalog, getPlanForEditor } from '@/lib/supabase/queries/plan-editor'
+import {
+  getPlanBuilderCatalog,
+  getPlanForEditor,
+  getStudentLoadTargets,
+} from '@/lib/supabase/queries/plan-editor'
 
 export default async function PlanEditorPage({
   params,
@@ -22,6 +26,8 @@ export default async function PlanEditorPage({
   const [plan, catalog] = await Promise.all([getPlanForEditor(planId, week), getPlanBuilderCatalog()])
 
   if (!plan) notFound()
+
+  const loadTargets = await getStudentLoadTargets(plan.studentId)
 
   return (
     <div className="bg-background flex min-h-svh">
@@ -44,7 +50,7 @@ export default async function PlanEditorPage({
             <p className="bg-destructive/10 text-destructive rounded-lg px-3 py-2 text-sm">{error}</p>
           ) : null}
 
-          <PlanEditorClient plan={plan} catalog={catalog} />
+          <PlanEditorClient plan={plan} catalog={catalog} loadTargets={loadTargets} />
         </main>
       </div>
     </div>

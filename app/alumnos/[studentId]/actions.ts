@@ -1,5 +1,6 @@
 'use server'
 
+import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 
 import { createClient } from '@/lib/supabase/server'
@@ -72,4 +73,47 @@ export async function createPlan(formData: FormData) {
   }
 
   redirect(`/planes/${plan!.id}`)
+}
+
+export type LoadTargetInput = { groupId: string; weeklySeries: string; intensity: string }
+
+/**
+ * Guarda los objetivos de carga por patrón del alumno. Cada fila: si las
+ * dos quedan vacías, se borra el objetivo de ese patrón; si tiene alguna,
+ * se upsert. El editor de plan los usa para marcar cuando un plan se pasa.
+ */
+export async function saveLoadTargets(studentId: string, rows: LoadTargetInput[]) {
+  const professor = await getCurrentProfessor()
+  if (!professor) redirect('/login')
+
+  const supabase = await createClient()
+
+  for (const row of rows) {
+    const series = row.weeklySeries.trim() === '' ? null : Number.parseInt(row.weeklySeries, 10)
+    const intensity = row.intensity.trim() === '' ? null : Number.parseFloat(row.intensity)
+    const seriesVal = series != null && Number.isFinite(series) ? series : null
+    const intensityVal = intensity != null && Number.isFinite(intensity) ? intensity : null
+
+    if (seriesVal == null && intensityVal == null) {
+      await supabase
+        .from('student_load_targets')
+        .delete()
+        .eq('student_id', studentId)
+        .eq('group_type', 'pattern')
+        .eq('group_id', row.groupId)
+    } else {
+      const { error } = await supabase.from('student_load_targets').upsert({
+        student_id: studentId,
+        group_type: 'pattern',
+        group_id: row.groupId,
+        target_weekly_series: seriesVal,
+        target_intensity: intensityVal,
+        updated_at: new Date().toISOString(),
+      })
+      if (error) return { error: error.message }
+    }
+  }
+
+  revalidatePath(`/alumnos/${studentId}`)
+  return { error: null }
 }
