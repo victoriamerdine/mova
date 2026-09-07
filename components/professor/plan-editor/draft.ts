@@ -1,4 +1,12 @@
 import { blockHasRounds, isKnownBlockKind, type SaveDayBlockKind } from '@/lib/plan-blocks'
+import {
+  formatMToLabel,
+  formatSecToLabel,
+  parseDistanceToM,
+  parseLooseNumber,
+  parseTimeToSec,
+  textOrNull,
+} from '@/lib/prescription-format'
 import type { PlanDay } from '@/lib/supabase/queries/plan-editor'
 import type { SaveDayBlockPayload } from '@/app/planes/[planId]/actions'
 
@@ -16,8 +24,20 @@ export type DraftItem = {
   label: string
   sets: string
   reps: string
+  /** Carga en kg (texto libre — se parsea al guardar). */
+  load: string
+  /** Carga como % (de 1RM u otra referencia). */
+  loadPercent: string
   intensityRpe: string
   restLabel: string
+  /** Tiempo — "3:30", "45 s", "3 min". */
+  time: string
+  /** Distancia — "400 m", "5 km". */
+  distance: string
+  /** Ritmo — texto libre, "4:30 /km". */
+  pace: string
+  /** Tempo — texto libre, "3-1-1-0". */
+  tempo: string
   notes: string
 }
 
@@ -55,8 +75,15 @@ export function dayToDraft(day: PlanDay): DraftBlock[] {
       label: item.label ?? '',
       sets: item.prescription?.sets ?? '',
       reps: item.prescription?.reps ?? '',
+      load: item.prescription?.loadKg != null ? String(item.prescription.loadKg) : '',
+      loadPercent:
+        item.prescription?.loadPercent != null ? String(item.prescription.loadPercent) : '',
       intensityRpe: item.prescription?.intensityRpe ?? '',
       restLabel: item.prescription?.restLabel ?? '',
+      time: formatSecToLabel(item.prescription?.timeSec),
+      distance: formatMToLabel(item.prescription?.distanceM),
+      pace: item.prescription?.pace ?? '',
+      tempo: item.prescription?.tempo ?? '',
       notes: item.prescription?.notes ?? '',
     })),
   }))
@@ -72,8 +99,14 @@ export function emptyItem(prefill?: Partial<DraftItem>): DraftItem {
     label: '',
     sets: prefill?.sets ?? '',
     reps: prefill?.reps ?? '',
+    load: prefill?.load ?? '',
+    loadPercent: prefill?.loadPercent ?? '',
     intensityRpe: prefill?.intensityRpe ?? '',
     restLabel: '',
+    time: prefill?.time ?? '',
+    distance: prefill?.distance ?? '',
+    pace: prefill?.pace ?? '',
+    tempo: prefill?.tempo ?? '',
     notes: '',
   }
 }
@@ -91,8 +124,14 @@ export function draftToPayload(blocks: DraftBlock[]): SaveDayBlockPayload[] {
         label: blockHasRounds(block.kind) ? item.label : null,
         sets: item.sets,
         reps: item.reps,
+        loadKg: parseLooseNumber(item.load),
+        loadPercent: parseLooseNumber(item.loadPercent),
         intensityRpe: item.intensityRpe,
         restLabel: item.restLabel,
+        timeSec: parseTimeToSec(item.time),
+        distanceM: parseDistanceToM(item.distance),
+        pace: textOrNull(item.pace),
+        tempo: textOrNull(item.tempo),
         notes: item.notes,
       })),
   }))

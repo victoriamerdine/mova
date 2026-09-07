@@ -235,8 +235,14 @@ export type SaveDayItemPayload = {
   label: string | null
   sets: string
   reps: string
+  loadKg: number | null
+  loadPercent: number | null
   intensityRpe: string
   restLabel: string
+  timeSec: number | null
+  distanceM: number | null
+  pace: string | null
+  tempo: string | null
   notes: string
 }
 

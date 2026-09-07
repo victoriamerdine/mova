@@ -1,7 +1,7 @@
 'use client'
 
-import { useMemo } from 'react'
-import { Copy, Layers, Plus, Repeat, Trash2 } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { ChevronDown, Copy, Layers, Plus, Repeat, Trash2 } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -50,6 +50,21 @@ export function DayEditor({
     for (const ex of catalog.exercises) if (ex.videoId) map.set(ex.id, ex.videoId)
     return map
   }, [catalog])
+
+  // Campos de resistencia/actividad (distancia, tiempo, ritmo, tempo, carga %)
+  // ocultos por defecto; se abren por ítem, y arrancan abiertos si ya traen
+  // algo cargado. DayEditor se remonta al cambiar de día (key), así que el
+  // estado inicial se recalcula por día.
+  const [expandedItems, setExpandedItems] = useState<Set<string>>(
+    () => new Set(blocks.flatMap((b) => b.items).filter(hasEnduranceFields).map((i) => i.tempId)),
+  )
+  const toggleExpanded = (tempId: string) =>
+    setExpandedItems((prev) => {
+      const next = new Set(prev)
+      if (next.has(tempId)) next.delete(tempId)
+      else next.add(tempId)
+      return next
+    })
 
   const volumeRows = useMemo(() => {
     const inputs = blocks.flatMap((block) =>
@@ -291,6 +306,10 @@ export function DayEditor({
             <div className="flex flex-col gap-2">
               {block.items.map((item) => {
                 const videoId = item.exerciseId ? videoIdByExercise.get(item.exerciseId) : undefined
+                const expanded = expandedItems.has(item.tempId)
+                const gridClass = videoId
+                  ? 'grid grid-cols-2 gap-2'
+                  : 'grid grid-cols-2 gap-2 sm:grid-cols-4'
                 return (
                 <div key={item.tempId} className="bg-secondary/30 flex flex-col gap-2 rounded-lg border border-border p-2.5">
                   <div className="flex items-start gap-2">
@@ -342,7 +361,7 @@ export function DayEditor({
 
                   <div className="flex items-stretch gap-3">
                     <div className="flex min-w-0 flex-1 flex-col gap-2">
-                      <div className={videoId ? 'grid grid-cols-2 gap-2' : 'grid grid-cols-2 gap-2 sm:grid-cols-4'}>
+                      <div className={gridClass}>
                         {!hasRounds ? (
                           <FreeTextField
                             label="Series"
@@ -356,6 +375,11 @@ export function DayEditor({
                           onChange={(v) => updateItem(block.tempId, item.tempId, { reps: v })}
                         />
                         <FreeTextField
+                          label="Carga"
+                          value={item.load}
+                          onChange={(v) => updateItem(block.tempId, item.tempId, { load: v })}
+                        />
+                        <FreeTextField
                           label="Intensidad"
                           value={item.intensityRpe}
                           onChange={(v) => updateItem(block.tempId, item.tempId, { intensityRpe: v })}
@@ -366,6 +390,48 @@ export function DayEditor({
                           onChange={(v) => updateItem(block.tempId, item.tempId, { restLabel: v })}
                         />
                       </div>
+
+                      {expanded ? (
+                        <div className={gridClass}>
+                          <FreeTextField
+                            label="Carga %"
+                            value={item.loadPercent}
+                            onChange={(v) => updateItem(block.tempId, item.tempId, { loadPercent: v })}
+                          />
+                          <FreeTextField
+                            label="Distancia"
+                            value={item.distance}
+                            onChange={(v) => updateItem(block.tempId, item.tempId, { distance: v })}
+                          />
+                          <FreeTextField
+                            label="Tiempo"
+                            value={item.time}
+                            onChange={(v) => updateItem(block.tempId, item.tempId, { time: v })}
+                          />
+                          <FreeTextField
+                            label="Ritmo"
+                            value={item.pace}
+                            onChange={(v) => updateItem(block.tempId, item.tempId, { pace: v })}
+                          />
+                          <FreeTextField
+                            label="Tempo"
+                            value={item.tempo}
+                            onChange={(v) => updateItem(block.tempId, item.tempId, { tempo: v })}
+                          />
+                        </div>
+                      ) : null}
+
+                      <button
+                        type="button"
+                        onClick={() => toggleExpanded(item.tempId)}
+                        className="text-muted-foreground hover:text-foreground flex w-fit items-center gap-1 text-[11px] font-medium"
+                      >
+                        <ChevronDown
+                          className={`size-3 transition-transform ${expanded ? 'rotate-180' : ''}`}
+                        />
+                        {expanded ? 'Menos campos' : 'Carga % · distancia · tiempo · ritmo · tempo'}
+                      </button>
+
                       <FreeTextField
                         label="Notas"
                         value={item.notes}
@@ -434,6 +500,11 @@ export function DayEditor({
       </div>
     </div>
   )
+}
+
+/** ¿El ítem ya tiene algún campo de resistencia/actividad cargado? (para abrir la sección al entrar). */
+function hasEnduranceFields(item: DraftItem): boolean {
+  return Boolean(item.loadPercent || item.distance || item.time || item.pace || item.tempo)
 }
 
 function FreeTextField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {

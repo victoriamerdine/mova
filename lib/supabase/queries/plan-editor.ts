@@ -3,8 +3,14 @@ import { createClient } from '@/lib/supabase/server'
 export type PlanPrescription = {
   sets: string | null
   reps: string | null
+  loadKg: number | null
+  loadPercent: number | null
   intensityRpe: string | null
   restLabel: string | null
+  timeSec: number | null
+  distanceM: number | null
+  pace: string | null
+  tempo: string | null
   notes: string | null
 }
 
@@ -12,8 +18,14 @@ export type PlanPrescription = {
 type PrescriptionRow = {
   sets: string | null
   reps: string | null
+  load_kg: number | null
+  load_percent: number | null
   intensity_rpe: string | null
   rest_label: string | null
+  time_sec: number | null
+  distance_m: number | null
+  pace: string | null
+  tempo: string | null
   notes: string | null
 }
 
@@ -153,7 +165,7 @@ export async function getPlanForEditor(planId: string, weekId?: string): Promise
         training_items(
           id, exercise_id, activity_name, label, order,
           exercises(canonical_name, pattern_id, muscle_id, patterns(display_name), muscles(display_name), exercise_media(url, is_primary, type)),
-          workout_prescriptions(sets, reps, intensity_rpe, rest_label, notes)
+          workout_prescriptions(sets, reps, load_kg, load_percent, intensity_rpe, rest_label, time_sec, distance_m, pace, tempo, notes)
         )
       `,
       )
@@ -205,8 +217,14 @@ export async function getPlanForEditor(planId: string, weekId?: string): Promise
             ? {
                 sets: raw.sets,
                 reps: raw.reps,
+                loadKg: raw.load_kg,
+                loadPercent: raw.load_percent,
                 intensityRpe: raw.intensity_rpe,
                 restLabel: raw.rest_label,
+                timeSec: raw.time_sec,
+                distanceM: raw.distance_m,
+                pace: raw.pace,
+                tempo: raw.tempo,
                 notes: raw.notes,
               }
             : null
