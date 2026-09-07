@@ -1511,6 +1511,52 @@ Crear:
 - capacidades;
 - deportes.
 
+### ESTADO — en producción
+
+Hecho:
+
+- `/biblioteca` con datos reales de Supabase (~1.362 ejercicios): buscador,
+  filtros por categoría/patrón y por músculo, tarjetas con thumbnail de
+  video, diálogo de detalle con video embebido + dificultad +
+  descripción/instrucciones, paginación ("mostrar más").
+- Selección de un ejercicio para usarlo dentro de un plan — desde el editor
+  de plan (panel lateral de biblioteca + búsqueda por fila con texto
+  libre). Ver Fase 6.
+- Gestión de la biblioteca por el profesor (amplía el alcance original de
+  la fase):
+  - alta / edición / borrado de ejercicios y su video. "Borrar" archiva el
+    ejercicio si algún plan lo usa (los planes siguen funcionando), lo
+    elimina de verdad si no lo usa nadie;
+  - detección de duplicados al agregar (match exacto normalizado o
+    similitud de tokens): vista con el/los ejercicios parecidos que ya
+    están en el sistema; el profesor elige por cada uno reemplazar
+    (mismo id, cambian los demás valores), reemplazar solo el video, o
+    guardar igual como nuevo;
+  - dueño por ejercicio: al crear, el profesor elige asociarlo a su nombre
+    (`owner_id`) o dejarlo público (`owner_id` null). Un ejercicio con
+    dueño solo lo edita/borra el dueño directo; otro profesor genera una
+    solicitud de cambio (`exercise_change_requests`) que el dueño aprueba
+    (aplica los valores propuestos al mismo id) o rechaza — bandeja
+    "Aprobaciones pendientes". Al editar un ejercicio de otro, la UI avisa
+    que el cambio va a revisión y el botón pasa a "Enviar a revisión";
+  - importación por CSV: pegar o subir un archivo (delimitador `,`/`;`
+    autodetectado, encabezados por alias), vista de revisión fila por fila
+    con estado (nuevo / "ya existe: X") y decisión por fila (reemplazar
+    «ejercicio existente» / crear nuevo / omitir); las filas que caen sobre
+    un ejercicio de otro dueño se marcan "a revisión" y entran como
+    solicitud.
+- Migraciones: `20260828000021` (gestión directa por el profesor),
+  `20260828000023` (dueño + solicitudes de cambio + RPC
+  `apply_exercise_change_request`), `20260828000024` (fix de recursión en
+  la policy de `professors`).
+
+Pendiente:
+
+- Filtros por capacidad, deporte, equipamiento y "video disponible" (hoy el
+  filtro es categoría/patrón + músculo).
+- Videos alternativos por ejercicio (hoy solo el principal).
+- Nivel/dificultad como filtro (se muestra en el detalle, no filtra).
+
 ---
 
 ## FASE 4 — Deportes y actividades
