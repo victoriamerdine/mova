@@ -253,3 +253,126 @@ export async function rejectChangeRequest(requestId: string): Promise<Result> {
   revalidatePath('/biblioteca')
   return {}
 }
+
+// ============================================================
+// Importación por CSV — aplica en lote las decisiones ya revisadas en la
+// vista de importación (una fila = un ejercicio).
+// ============================================================
+export type CsvImportItem = {
+  input: ExerciseFormInput
+  /** 'create' = nuevo · 'replace' = actualiza el ejercicio targetId · 'skip'. */
+  action: 'create' | 'replace' | 'skip'
+  targetId?: string
+}
+
+export type CsvImportSummary = {
+  created: number
+  updated: number
+  pendingReview: number
+  skipped: number
+  errors: string[]
+}
+
+export async function applyCsvImport(items: CsvImportItem[]): Promise<CsvImportSummary> {
+  const professor = await getCurrentProfessor()
+  if (!professor) redirect('/login')
+
+  const supabase = await createClient()
+  const summary: CsvImportSummary = { created: 0, updated: 0, pendingReview: 0, skipped: 0, errors: [] }
+
+  for (const item of items) {
+    if (item.action === 'skip') {
+      summary.skipped++
+      continue
+    }
+    const data = clean(item.input)
+    if (!data.name) {
+      summary.skipped++
+      continue
+    }
+
+    if (item.action === 'create') {
+      const { data: row, error } = await supabase
+        .from('exercises')
+        .insert({
+          canonical_name: data.name,
+          display_name: data.name,
+          original_name: data.name,
+          description: data.description,
+          instructions: data.instructions,
+          difficulty: data.difficulty,
+          pattern_id: data.patternId,
+          muscle_id: data.muscleId,
+          source: 'nuevo_profe',
+          status: 'active',
+          added_by: professor.id,
+          owner_id: item.input.owned ? professor.id : null,
+        })
+        .select('id')
+        .single()
+      if (error || !row) {
+        summary.errors.push(`${data.name}: ${error?.message ?? 'no se pudo crear'}`)
+        continue
+      }
+      if (data.videoUrl) await syncPrimaryVideo(supabase, row.id, data.videoUrl)
+      summary.created++
+      continue
+    }
+
+    // replace
+    if (!item.targetId) {
+      summary.errors.push(`${data.name}: sin ejercicio a reemplazar`)
+      continue
+    }
+    const owner = await checkOwner(supabase, item.targetId, professor.id)
+    if (!owner.canManageDirect) {
+      const proposed = {
+        name: data.name,
+        patternId: data.patternId,
+        muscleId: data.muscleId,
+        difficulty: data.difficulty,
+        description: item.input.description.trim(),
+        instructions: item.input.instructions.trim(),
+        videoUrl: data.videoUrl ?? '',
+      }
+      const { error } = await supabase
+        .from('exercise_change_requests')
+        .insert({ exercise_id: item.targetId, requested_by: professor.id, proposed, status: 'pending' })
+      if (error) summary.errors.push(`${data.name}: ${error.message}`)
+      else summary.pendingReview++
+      continue
+    }
+
+    const { data: current } = await supabase
+      .from('exercises')
+      .select('canonical_name')
+      .eq('id', item.targetId)
+      .maybeSingle()
+    const { error } = await supabase
+      .from('exercises')
+      .update({
+        canonical_name: data.name,
+        display_name: data.name,
+        description: data.description,
+        instructions: data.instructions,
+        difficulty: data.difficulty,
+        pattern_id: data.patternId,
+        muscle_id: data.muscleId,
+      })
+      .eq('id', item.targetId)
+    if (error) {
+      summary.errors.push(`${data.name}: ${error.message}`)
+      continue
+    }
+    if (current?.canonical_name && current.canonical_name.trim() !== data.name) {
+      await supabase
+        .from('exercise_aliases')
+        .insert({ exercise_id: item.targetId, alias: current.canonical_name, note: 'nombre anterior' })
+    }
+    await syncPrimaryVideo(supabase, item.targetId, data.videoUrl)
+    summary.updated++
+  }
+
+  revalidatePath('/biblioteca')
+  return summary
+}

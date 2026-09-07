@@ -10,7 +10,8 @@ import { ExerciseCard } from '@/components/library/exercise-card'
 import { ExerciseDetailDialog } from '@/components/library/exercise-detail-dialog'
 import { ExerciseFormDialog } from '@/components/library/exercise-form-dialog'
 import { ChangeRequestsDialog } from '@/components/library/change-requests-dialog'
-import { deleteExercise } from '@/app/biblioteca/actions'
+import { CsvImportDialog } from '@/components/library/csv-import-dialog'
+import { deleteExercise, type CsvImportSummary } from '@/app/biblioteca/actions'
 import type { ChangeRequest, LibraryItem } from '@/lib/library'
 import type { LibraryCatalog } from '@/lib/supabase/queries/exercises'
 
@@ -35,6 +36,7 @@ export function LibraryWorkspace({
   const [selected, setSelected] = useState<LibraryItem | null>(null)
   const [form, setForm] = useState<{ mode: 'create' | 'edit'; initial?: LibraryItem } | null>(null)
   const [reviewsOpen, setReviewsOpen] = useState(false)
+  const [importOpen, setImportOpen] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
   const [deleting, startDeleting] = useTransition()
 
@@ -118,6 +120,11 @@ export function LibraryWorkspace({
                 onClick={() => setReviewsOpen(true)}
               >
                 Aprobaciones pendientes ({pendingRequests.length})
+              </Button>
+            ) : null}
+            {canManage ? (
+              <Button variant="outline" size="sm" className="bg-card" onClick={() => setImportOpen(true)}>
+                Importar CSV
               </Button>
             ) : null}
             {canManage ? (
@@ -215,6 +222,29 @@ export function LibraryWorkspace({
             setToast(msg)
             router.refresh()
             window.setTimeout(() => setToast(null), 3500)
+          }}
+        />
+      ) : null}
+
+      {importOpen ? (
+        <CsvImportDialog
+          catalog={catalog}
+          exercises={exercises}
+          onClose={() => setImportOpen(false)}
+          onDone={(s: CsvImportSummary) => {
+            setImportOpen(false)
+            const parts = [
+              s.created ? `${s.created} nuevos` : null,
+              s.updated ? `${s.updated} actualizados` : null,
+              s.pendingReview ? `${s.pendingReview} a revisión` : null,
+              s.skipped ? `${s.skipped} omitidos` : null,
+            ].filter(Boolean)
+            setToast(
+              `Importación: ${parts.join(', ') || 'sin cambios'}.` +
+                (s.errors.length ? ` ${s.errors.length} con error.` : ''),
+            )
+            router.refresh()
+            window.setTimeout(() => setToast(null), 6000)
           }}
         />
       ) : null}
