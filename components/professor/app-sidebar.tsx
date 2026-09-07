@@ -2,6 +2,7 @@ import Link from 'next/link'
 import {
   BarChart3,
   ClipboardList,
+  ClipboardCheck,
   Dumbbell,
   LayoutDashboard,
   LibraryBig,
@@ -25,17 +26,20 @@ export function AppSidebar({
   libraryCount = FALLBACK_LIBRARY_COUNT,
   studentCount,
   planCount,
+  formCount,
 }: {
   active?: string
   libraryCount?: number
   studentCount?: number
   planCount?: number
+  formCount?: number
 }) {
   const nav = [
     { label: 'Dashboard', icon: LayoutDashboard, href: '/' },
     { label: 'Alumnos', icon: Users, count: studentCount, href: '/alumnos' },
     { label: 'Biblioteca', icon: LibraryBig, count: libraryCount, href: '/biblioteca' },
     { label: 'Planes', icon: ClipboardList, count: planCount, href: '/planes' },
+    { label: 'Formularios', icon: ClipboardCheck, count: formCount, href: '/formularios' },
     { label: 'Analítica', icon: BarChart3, href: '#' },
     { label: 'Configuración', icon: Settings, href: '#' },
   ]

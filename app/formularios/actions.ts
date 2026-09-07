@@ -7,8 +7,11 @@ import { redirect } from 'next/navigation'
 
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentProfessor } from '@/lib/supabase/queries/professor-dashboard'
+import { QUESTION_TYPE_BY_KEY } from '@/lib/forms/question-types'
+import type { QuestionConfig, QuestionType } from '@/lib/forms/types'
+import type { Database } from '@/lib/supabase/database.types'
 
-type Result<T = Record<string, never>> = ({ error?: undefined } & T) | { error: string }
+type Result<T extends object = Record<never, never>> = { error?: string } & Partial<T>
 
 async function requireProfessor() {
   const professor = await getCurrentProfessor()
@@ -101,6 +104,29 @@ export async function setFormStatus(
   return {}
 }
 
+export async function deleteForm(formId: string): Promise<Result<{ archived: boolean }>> {
+  await requireProfessor()
+  const supabase = await createClient()
+  // Con respuestas → archivar (no perder datos). Sin respuestas → borrar.
+  const { count } = await supabase
+    .from('form_submissions')
+    .select('id', { count: 'exact', head: true })
+    .eq('form_id', formId)
+  if ((count ?? 0) > 0) {
+    const { error } = await supabase
+      .from('forms')
+      .update({ status: 'archived', archived_at: new Date().toISOString() })
+      .eq('id', formId)
+    if (error) return { error: error.message }
+    revalidatePath('/formularios')
+    return { archived: true }
+  }
+  const { error } = await supabase.from('forms').delete().eq('id', formId)
+  if (error) return { error: error.message }
+  revalidatePath('/formularios')
+  return {}
+}
+
 export async function publishForm(formId: string): Promise<Result<{ versionId: string }>> {
   await requireProfessor()
   const supabase = await createClient()
@@ -119,6 +145,189 @@ export async function setFormSports(formId: string, sportIds: string[]): Promise
     const { error } = await supabase
       .from('form_sports')
       .insert(ids.map((sport_id) => ({ form_id: formId, sport_id })))
+    if (error) return { error: error.message }
+  }
+  revalidatePath(`/formularios/${formId}`)
+  return {}
+}
+
+// ============================================================
+// Builder — secciones
+// ============================================================
+export async function addSection(formId: string): Promise<Result<{ id: string }>> {
+  await requireProfessor()
+  const supabase = await createClient()
+  const { count } = await supabase
+    .from('form_sections')
+    .select('id', { count: 'exact', head: true })
+    .eq('form_id', formId)
+  const { data, error } = await supabase
+    .from('form_sections')
+    .insert({ form_id: formId, order: count ?? 0, title: 'Sección' })
+    .select('id')
+    .single()
+  if (error || !data) return { error: error?.message ?? 'No se pudo agregar la sección.' }
+  revalidatePath(`/formularios/${formId}`)
+  return { id: data.id }
+}
+
+export async function updateSection(
+  formId: string,
+  sectionId: string,
+  patch: { title?: string; description?: string; sensitive?: boolean },
+): Promise<Result> {
+  await requireProfessor()
+  const supabase = await createClient()
+  const update: Database['public']['Tables']['form_sections']['Update'] = {}
+  if (patch.title !== undefined) update.title = patch.title.trim() || null
+  if (patch.description !== undefined) update.description = patch.description.trim() || null
+  if (patch.sensitive !== undefined) update.sensitive = patch.sensitive
+  const { error } = await supabase.from('form_sections').update(update).eq('id', sectionId)
+  if (error) return { error: error.message }
+  revalidatePath(`/formularios/${formId}`)
+  return {}
+}
+
+export async function deleteSection(formId: string, sectionId: string): Promise<Result> {
+  await requireProfessor()
+  const supabase = await createClient()
+  const { count } = await supabase
+    .from('form_sections')
+    .select('id', { count: 'exact', head: true })
+    .eq('form_id', formId)
+  if ((count ?? 0) <= 1) return { error: 'El formulario necesita al menos una sección.' }
+  const { error } = await supabase.from('form_sections').delete().eq('id', sectionId)
+  if (error) return { error: error.message }
+  revalidatePath(`/formularios/${formId}`)
+  return {}
+}
+
+export async function reorderSections(formId: string, orderedIds: string[]): Promise<Result> {
+  await requireProfessor()
+  const supabase = await createClient()
+  await Promise.all(
+    orderedIds.map((id, i) => supabase.from('form_sections').update({ order: i }).eq('id', id)),
+  )
+  revalidatePath(`/formularios/${formId}`)
+  return {}
+}
+
+// ============================================================
+// Builder — preguntas
+// ============================================================
+export async function addQuestion(
+  formId: string,
+  sectionId: string,
+  type: QuestionType,
+): Promise<Result<{ id: string }>> {
+  await requireProfessor()
+  const meta = QUESTION_TYPE_BY_KEY[type]
+  if (!meta || !meta.available) return { error: 'Tipo de pregunta no disponible.' }
+
+  const supabase = await createClient()
+  const { count } = await supabase
+    .from('form_questions')
+    .select('id', { count: 'exact', head: true })
+    .eq('section_id', sectionId)
+
+  const { data, error } = await supabase
+    .from('form_questions')
+    .insert({
+      form_id: formId,
+      section_id: sectionId,
+      order: count ?? 0,
+      type,
+      label: 'Pregunta nueva',
+      required: false,
+      sensitive: false,
+      config: meta.defaultConfig,
+    })
+    .select('id')
+    .single()
+  if (error || !data) return { error: error?.message ?? 'No se pudo agregar la pregunta.' }
+
+  if (meta.hasOptions) {
+    await supabase.from('form_question_options').insert([
+      { question_id: data.id, form_id: formId, order: 0, value: 'op1', label: 'Opción 1' },
+      { question_id: data.id, form_id: formId, order: 1, value: 'op2', label: 'Opción 2' },
+    ])
+  }
+
+  revalidatePath(`/formularios/${formId}`)
+  return { id: data.id }
+}
+
+export async function updateQuestion(
+  formId: string,
+  questionId: string,
+  patch: {
+    label?: string
+    helpText?: string
+    required?: boolean
+    sensitive?: boolean
+    config?: QuestionConfig
+    sectionId?: string
+  },
+): Promise<Result> {
+  await requireProfessor()
+  const supabase = await createClient()
+  const update: Database['public']['Tables']['form_questions']['Update'] = {}
+  if (patch.label !== undefined) update.label = patch.label.trim() || 'Pregunta'
+  if (patch.helpText !== undefined) update.help_text = patch.helpText.trim() || null
+  if (patch.required !== undefined) update.required = patch.required
+  if (patch.sensitive !== undefined) update.sensitive = patch.sensitive
+  if (patch.config !== undefined) update.config = patch.config
+  if (patch.sectionId !== undefined) update.section_id = patch.sectionId
+  const { error } = await supabase.from('form_questions').update(update).eq('id', questionId)
+  if (error) return { error: error.message }
+  revalidatePath(`/formularios/${formId}`)
+  return {}
+}
+
+export async function deleteQuestion(formId: string, questionId: string): Promise<Result> {
+  await requireProfessor()
+  const supabase = await createClient()
+  const { error } = await supabase.from('form_questions').delete().eq('id', questionId)
+  if (error) return { error: error.message }
+  revalidatePath(`/formularios/${formId}`)
+  return {}
+}
+
+export async function reorderQuestions(
+  formId: string,
+  sectionId: string,
+  orderedIds: string[],
+): Promise<Result> {
+  await requireProfessor()
+  const supabase = await createClient()
+  await Promise.all(
+    orderedIds.map((id, i) =>
+      supabase.from('form_questions').update({ order: i, section_id: sectionId }).eq('id', id),
+    ),
+  )
+  revalidatePath(`/formularios/${formId}`)
+  return {}
+}
+
+export async function setQuestionOptions(
+  formId: string,
+  questionId: string,
+  options: { value: string; label: string }[],
+): Promise<Result> {
+  await requireProfessor()
+  const supabase = await createClient()
+  await supabase.from('form_question_options').delete().eq('question_id', questionId)
+  const clean = options
+    .map((o, i) => ({
+      question_id: questionId,
+      form_id: formId,
+      order: i,
+      value: (o.value || o.label).trim().slice(0, 80) || `op${i + 1}`,
+      label: o.label.trim() || `Opción ${i + 1}`,
+    }))
+    .filter((o) => o.label)
+  if (clean.length > 0) {
+    const { error } = await supabase.from('form_question_options').insert(clean)
     if (error) return { error: error.message }
   }
   revalidatePath(`/formularios/${formId}`)
