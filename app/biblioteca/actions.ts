@@ -58,14 +58,20 @@ async function checkOwner(
 ): Promise<OwnerCheck> {
   const { data } = await supabase
     .from('exercises')
-    .select('owner_id, owner:professors!exercises_owner_id_fkey(profiles(full_name))')
+    .select('owner_id')
     .eq('id', exerciseId)
     .maybeSingle()
 
-  const ownerId = (data as { owner_id: string | null } | null)?.owner_id ?? null
-  const ownerName =
-    (data as unknown as { owner: { profiles: { full_name: string } | null } | null } | null)?.owner
-      ?.profiles?.full_name ?? null
+  const ownerId = data?.owner_id ?? null
+  let ownerName: string | null = null
+  if (ownerId && ownerId !== professorId) {
+    const { data: prof } = await supabase
+      .from('profiles')
+      .select('full_name')
+      .eq('id', ownerId)
+      .maybeSingle()
+    ownerName = prof?.full_name ?? null
+  }
 
   return { ownerId, ownerName, canManageDirect: ownerId == null || ownerId === professorId }
 }

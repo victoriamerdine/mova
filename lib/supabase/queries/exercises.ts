@@ -25,13 +25,14 @@ type ExerciseRow = {
   muscle_id: string | null
   pattern_id: string | null
   owner_id: string | null
-  owner: { profiles: { full_name: string } | null } | null
   muscle: { display_name: string } | null
   pattern: { display_name: string } | null
   exercise_stimulus_types: { stimulus_types: { display_name: string } | null }[]
   exercise_media: { url: string; is_primary: boolean; type: string }[]
 }
 
+// El nombre del dueño se resuelve aparte (no con embed de PostgREST):
+// exercises tiene 4 FKs a professors y el embed es frágil.
 const SELECT = `
   id,
   canonical_name,
@@ -45,14 +46,27 @@ const SELECT = `
   muscle_id,
   pattern_id,
   owner_id,
-  owner:professors!exercises_owner_id_fkey(profiles(full_name)),
   muscle:muscles(display_name),
   pattern:patterns(display_name),
   exercise_stimulus_types(stimulus_types(display_name)),
   exercise_media(url, is_primary, type)
 `
 
-function toLibraryItem(row: ExerciseRow, currentProfessorId: string | null): LibraryItem {
+async function resolveOwnerNames(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  ownerIds: (string | null)[],
+): Promise<Map<string, string>> {
+  const ids = [...new Set(ownerIds.filter((x): x is string => !!x))]
+  if (ids.length === 0) return new Map()
+  const { data } = await supabase.from('profiles').select('id, full_name').in('id', ids)
+  return new Map((data ?? []).map((p) => [p.id, p.full_name]))
+}
+
+function toLibraryItem(
+  row: ExerciseRow,
+  currentProfessorId: string | null,
+  ownerNames: Map<string, string>,
+): LibraryItem {
   const category =
     row.pattern?.display_name ??
     row.exercise_stimulus_types.find((r) => r.stimulus_types)?.stimulus_types?.display_name ??
@@ -79,7 +93,7 @@ function toLibraryItem(row: ExerciseRow, currentProfessorId: string | null): Lib
     status: row.status,
     source: row.source,
     ownerId: row.owner_id,
-    ownerName: row.owner?.profiles?.full_name ?? null,
+    ownerName: row.owner_id ? (ownerNames.get(row.owner_id) ?? null) : null,
     isMine: row.owner_id != null && row.owner_id === currentProfessorId,
     approxMatch: row.match_status ? APPROX_MATCH_STATUSES.has(row.match_status) : false,
   }
@@ -109,7 +123,11 @@ export async function getLibraryItems(): Promise<LibraryItem[]> {
     if (page.length < PAGE_SIZE) break
   }
 
-  return rows.map((r) => toLibraryItem(r, professor?.id ?? null))
+  const ownerNames = await resolveOwnerNames(
+    supabase,
+    rows.map((r) => r.owner_id),
+  )
+  return rows.map((r) => toLibraryItem(r, professor?.id ?? null, ownerNames))
 }
 
 /** Solicitudes de cambio pendientes sobre ejercicios de los que soy dueño. */
@@ -117,26 +135,31 @@ export async function getPendingChangeRequestsForOwner(): Promise<ChangeRequest[
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('exercise_change_requests')
-    .select(
-      'id, exercise_id, proposed, created_at, exercises(canonical_name), requester:professors!exercise_change_requests_requested_by_fkey(profiles(full_name))',
-    )
+    .select('id, exercise_id, proposed, created_at, requested_by, exercises(canonical_name)')
     .eq('status', 'pending')
     .order('created_at', { ascending: true })
 
   if (error || !data) return []
 
-  return (data as unknown as {
+  const rows = data as unknown as {
     id: string
     exercise_id: string
     proposed: ChangeRequest['proposed']
     created_at: string
+    requested_by: string
     exercises: { canonical_name: string } | null
-    requester: { profiles: { full_name: string } | null } | null
-  }[]).map((r) => ({
+  }[]
+
+  const requesterNames = await resolveOwnerNames(
+    supabase,
+    rows.map((r) => r.requested_by),
+  )
+
+  return rows.map((r) => ({
     id: r.id,
     exerciseId: r.exercise_id,
     exerciseName: r.exercises?.canonical_name ?? 'Ejercicio',
-    requestedByName: r.requester?.profiles?.full_name ?? 'Otro profesor',
+    requestedByName: requesterNames.get(r.requested_by) ?? 'Otro profesor',
     proposed: r.proposed,
     createdAt: r.created_at,
   }))
@@ -190,10 +213,15 @@ export async function findDuplicateExercises(
     if (page.length < PAGE_SIZE) break
   }
 
+  const ownerNames = await resolveOwnerNames(
+    supabase,
+    rows.map((r) => r.owner_id),
+  )
+
   return rows
     .filter((r) => r.id !== excludeId)
     .map((r) => ({
-      item: toLibraryItem(r, professor?.id ?? null),
+      item: toLibraryItem(r, professor?.id ?? null, ownerNames),
       sim: nameSimilarity(name, r.canonical_name),
     }))
     .filter(
