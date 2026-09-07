@@ -1,4 +1,4 @@
-import { blockHasRounds, type SaveDayBlockKind } from '@/lib/plan-blocks'
+import { blockHasRounds, isKnownBlockKind, type SaveDayBlockKind } from '@/lib/plan-blocks'
 import type { PlanDay } from '@/lib/supabase/queries/plan-editor'
 import type { SaveDayBlockPayload } from '@/app/planes/[planId]/actions'
 
@@ -44,7 +44,7 @@ export const EXERCISE_DRAG_TYPE = 'application/x-mova-exercise'
 export function dayToDraft(day: PlanDay): DraftBlock[] {
   return day.blocks.map((block) => ({
     tempId: nextTempId(),
-    kind: block.kind === 'COMBINADO' || block.kind === 'CIRCUITO' ? block.kind : 'INDIVIDUAL',
+    kind: isKnownBlockKind(block.kind) ? block.kind : 'INDIVIDUAL',
     rounds: block.rounds != null ? String(block.rounds) : '3',
     items: block.items.map((item) => ({
       tempId: nextTempId(),
