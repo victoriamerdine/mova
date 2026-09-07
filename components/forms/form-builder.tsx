@@ -20,9 +20,11 @@ import type { QuestionConfig, QuestionType } from '@/lib/forms/types'
 import type { EditorQuestion, EditorSection, FormForEditor } from '@/lib/supabase/queries/forms'
 import {
   addQuestion,
+  addRule,
   addSection,
   createSubmission,
   deleteQuestion,
+  deleteRule,
   deleteSection,
   duplicateForm,
   publishForm,
@@ -34,8 +36,10 @@ import {
   setFormStatus,
   setQuestionOptions,
   updateQuestion,
+  updateRule,
   updateSection,
 } from '@/app/formularios/actions'
+import type { RuleAction, RuleOperator } from '@/lib/forms/types'
 
 export function FormBuilder({
   form,
@@ -224,6 +228,8 @@ export function FormBuilder({
         <Plus data-icon="inline-start" />
         Sección
       </Button>
+
+      <RulesPanel form={form} pending={pending} run={run} />
 
       {sendOpen ? (
         <SendDialog
@@ -679,6 +685,155 @@ function SendDialog({
           </div>
         )}
       </div>
+    </div>
+  )
+}
+
+// ============================================================
+// Reglas — lógica condicional (una condición por regla en la v1)
+// ============================================================
+const OP_LABEL: Record<RuleOperator, string> = {
+  eq: 'es igual a',
+  neq: 'no es igual a',
+  in: 'es uno de',
+  gt: 'es mayor que',
+  lt: 'es menor que',
+  answered: 'fue respondida',
+  not_answered: 'no fue respondida',
+}
+const ACTION_LABEL: Record<RuleAction, string> = {
+  show: 'mostrar',
+  hide: 'ocultar',
+  require: 'hacer obligatoria',
+  skip_to: 'saltar a',
+}
+
+function RulesPanel({
+  form,
+  pending,
+  run,
+}: {
+  form: FormForEditor
+  pending: boolean
+  run: RunFn
+}) {
+  const questions = form.sections.flatMap((s) => s.questions.map((q) => ({ id: q.id, label: q.label })))
+  const targets = [
+    ...form.sections.map((s) => ({ kind: 'section' as const, id: s.id, label: `Sección: ${s.title ?? 'sin título'}` })),
+    ...questions.map((q) => ({ kind: 'question' as const, id: q.id, label: q.label })),
+  ]
+
+  return (
+    <div className="border-border rounded-xl border p-3">
+      <p className="mb-2 text-sm font-medium">Reglas</p>
+      {form.rules.length === 0 ? (
+        <p className="text-muted-foreground mb-2 text-xs">
+          Sin reglas. Ej: “Si <em>¿Practicás deporte?</em> es igual a <em>Sí</em> → mostrar la sección de deporte”.
+        </p>
+      ) : null}
+
+      <ul className="flex flex-col gap-2">
+        {form.rules.map((rule) => {
+          const cond = rule.when[0] ?? { questionId: '', op: 'eq' as RuleOperator, value: '' }
+          const needsValue = !['answered', 'not_answered'].includes(cond.op)
+          return (
+            <li key={rule.id} className="flex flex-wrap items-center gap-1.5 text-xs">
+              <span>Si</span>
+              <select
+                value={cond.questionId}
+                onChange={(e) =>
+                  run(() => updateRule(form.id, rule.id, { when: [{ ...cond, questionId: e.target.value }] }))
+                }
+                className="border-input h-7 max-w-40 rounded-md border bg-transparent px-1.5 outline-none dark:bg-input/30"
+              >
+                <option value="">pregunta…</option>
+                {questions.map((q) => (
+                  <option key={q.id} value={q.id}>
+                    {q.label}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={cond.op}
+                onChange={(e) =>
+                  run(() => updateRule(form.id, rule.id, { when: [{ ...cond, op: e.target.value as RuleOperator }] }))
+                }
+                className="border-input h-7 rounded-md border bg-transparent px-1.5 outline-none dark:bg-input/30"
+              >
+                {(Object.keys(OP_LABEL) as RuleOperator[]).map((op) => (
+                  <option key={op} value={op}>
+                    {OP_LABEL[op]}
+                  </option>
+                ))}
+              </select>
+              {needsValue ? (
+                <Input
+                  defaultValue={String(cond.value ?? '')}
+                  onBlur={(e) =>
+                    run(() => updateRule(form.id, rule.id, { when: [{ ...cond, value: e.target.value }] }))
+                  }
+                  placeholder="valor"
+                  className="h-7 w-28 text-xs"
+                />
+              ) : null}
+              <span>→</span>
+              <select
+                value={rule.action}
+                onChange={(e) =>
+                  run(() => updateRule(form.id, rule.id, { action: e.target.value as RuleAction }))
+                }
+                className="border-input h-7 rounded-md border bg-transparent px-1.5 outline-none dark:bg-input/30"
+              >
+                {(['show', 'hide', 'require'] as RuleAction[]).map((a) => (
+                  <option key={a} value={a}>
+                    {ACTION_LABEL[a]}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={`${rule.target.kind}:${rule.target.id}`}
+                onChange={(e) => {
+                  const [kind, id] = e.target.value.split(':')
+                  run(() =>
+                    updateRule(form.id, rule.id, {
+                      target: { kind: kind as 'question' | 'section', id },
+                    }),
+                  )
+                }}
+                className="border-input h-7 max-w-40 rounded-md border bg-transparent px-1.5 outline-none dark:bg-input/30"
+              >
+                <option value="question:">destino…</option>
+                {targets.map((t) => (
+                  <option key={`${t.kind}:${t.id}`} value={`${t.kind}:${t.id}`}>
+                    {t.label}
+                  </option>
+                ))}
+              </select>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                disabled={pending}
+                className="text-muted-foreground hover:text-destructive"
+                onClick={() => run(() => deleteRule(form.id, rule.id))}
+                aria-label="Eliminar regla"
+              >
+                <Trash2 className="size-3.5" />
+              </Button>
+            </li>
+          )
+        })}
+      </ul>
+
+      <Button
+        variant="ghost"
+        size="sm"
+        className="text-muted-foreground mt-2"
+        disabled={pending || questions.length === 0}
+        onClick={() => run(() => addRule(form.id))}
+      >
+        <Plus data-icon="inline-start" />
+        Regla
+      </Button>
     </div>
   )
 }

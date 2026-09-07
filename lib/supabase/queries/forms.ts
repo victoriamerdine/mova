@@ -1,6 +1,12 @@
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentProfessor } from '@/lib/supabase/queries/professor-dashboard'
-import type { FormStatus, QuestionConfig, QuestionType } from '@/lib/forms/types'
+import type {
+  FormRule,
+  FormStatus,
+  QuestionConfig,
+  QuestionType,
+  RuleCondition,
+} from '@/lib/forms/types'
 
 export type FormListItem = {
   id: string
@@ -85,6 +91,8 @@ export type EditorSection = {
   questions: EditorQuestion[]
 }
 
+export type EditorRule = FormRule
+
 export type FormForEditor = {
   id: string
   name: string
@@ -92,6 +100,7 @@ export type FormForEditor = {
   status: FormStatus
   sportIds: string[]
   sections: EditorSection[]
+  rules: EditorRule[]
   publishedVersion: number | null
   /** true si hay ediciones sin publicar (heurística: hay preguntas y no hay versión, o cambió algo — v1: solo si nunca se publicó). */
   hasDraftChanges: boolean
@@ -107,11 +116,12 @@ export async function getFormForEditor(formId: string): Promise<FormForEditor | 
     .maybeSingle()
   if (error || !form) return null
 
-  const [{ data: sections }, { data: questions }, { data: options }, { data: versions }] =
+  const [{ data: sections }, { data: questions }, { data: options }, { data: rules }, { data: versions }] =
     await Promise.all([
       supabase.from('form_sections').select('*').eq('form_id', formId).order('order'),
       supabase.from('form_questions').select('*').eq('form_id', formId).order('order'),
       supabase.from('form_question_options').select('*').eq('form_id', formId).order('order'),
+      supabase.from('form_rules').select('*').eq('form_id', formId).order('order'),
       supabase.from('form_versions').select('version').eq('form_id', formId),
     ])
 
@@ -152,6 +162,15 @@ export async function getFormForEditor(formId: string): Promise<FormForEditor | 
   const publishedVersion =
     (versions ?? []).reduce((max, v) => Math.max(max, v.version), 0) || null
 
+  const editorRules: EditorRule[] = (rules ?? []).map((r) => ({
+    id: r.id,
+    order: r.order,
+    when: (r.when ?? []) as RuleCondition[],
+    match: r.match,
+    action: r.action,
+    target: r.target as EditorRule['target'],
+  }))
+
   return {
     id: form.id,
     name: form.name,
@@ -159,6 +178,7 @@ export async function getFormForEditor(formId: string): Promise<FormForEditor | 
     status: form.status,
     sportIds: (form.form_sports as { sport_id: string }[] | null)?.map((s) => s.sport_id) ?? [],
     sections: editorSections,
+    rules: editorRules,
     publishedVersion,
     hasDraftChanges:
       publishedVersion == null && editorSections.some((s) => s.questions.length > 0),

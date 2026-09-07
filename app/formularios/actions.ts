@@ -8,8 +8,14 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentProfessor } from '@/lib/supabase/queries/professor-dashboard'
 import { QUESTION_TYPE_BY_KEY } from '@/lib/forms/question-types'
-import type { QuestionConfig, QuestionType } from '@/lib/forms/types'
-import type { Database } from '@/lib/supabase/database.types'
+import type {
+  QuestionConfig,
+  QuestionType,
+  RuleAction,
+  RuleCondition,
+  RuleTarget,
+} from '@/lib/forms/types'
+import type { Database, Json } from '@/lib/supabase/database.types'
 
 type Result<T extends object = Record<never, never>> = { error?: string } & Partial<T>
 
@@ -330,6 +336,65 @@ export async function setQuestionOptions(
     const { error } = await supabase.from('form_question_options').insert(clean)
     if (error) return { error: error.message }
   }
+  revalidatePath(`/formularios/${formId}`)
+  return {}
+}
+
+// ============================================================
+// Builder — reglas (lógica condicional)
+// ============================================================
+export async function addRule(formId: string): Promise<Result<{ id: string }>> {
+  await requireProfessor()
+  const supabase = await createClient()
+  const { count } = await supabase
+    .from('form_rules')
+    .select('id', { count: 'exact', head: true })
+    .eq('form_id', formId)
+  const { data, error } = await supabase
+    .from('form_rules')
+    .insert({
+      form_id: formId,
+      order: count ?? 0,
+      when: [],
+      match: 'all',
+      action: 'show',
+      target: { kind: 'question', id: '' },
+    })
+    .select('id')
+    .single()
+  if (error || !data) return { error: error?.message ?? 'No se pudo agregar la regla.' }
+  revalidatePath(`/formularios/${formId}`)
+  return { id: data.id }
+}
+
+export async function updateRule(
+  formId: string,
+  ruleId: string,
+  patch: {
+    when?: RuleCondition[]
+    match?: 'all' | 'any'
+    action?: RuleAction
+    target?: RuleTarget
+  },
+): Promise<Result> {
+  await requireProfessor()
+  const supabase = await createClient()
+  const update: Database['public']['Tables']['form_rules']['Update'] = {}
+  if (patch.when !== undefined) update.when = patch.when as unknown as Json
+  if (patch.match !== undefined) update.match = patch.match
+  if (patch.action !== undefined) update.action = patch.action
+  if (patch.target !== undefined) update.target = patch.target as unknown as Json
+  const { error } = await supabase.from('form_rules').update(update).eq('id', ruleId)
+  if (error) return { error: error.message }
+  revalidatePath(`/formularios/${formId}`)
+  return {}
+}
+
+export async function deleteRule(formId: string, ruleId: string): Promise<Result> {
+  await requireProfessor()
+  const supabase = await createClient()
+  const { error } = await supabase.from('form_rules').delete().eq('id', ruleId)
+  if (error) return { error: error.message }
   revalidatePath(`/formularios/${formId}`)
   return {}
 }
