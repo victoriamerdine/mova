@@ -19,8 +19,11 @@ import {
   ExerciseLibraryPanel,
   type LibraryDragPayload,
 } from '@/components/professor/plan-editor/exercise-library-panel'
+import { LoadPanel } from '@/components/professor/plan-editor/load-panel'
+import { blockHasRounds } from '@/lib/plan-blocks'
 import { getRenewalBadge } from '@/lib/plan-renewal'
-import type { PlanBuilderCatalog, PlanForEditor } from '@/lib/supabase/queries/plan-editor'
+import { calculateVolumeByGroup, type VolumeInput } from '@/lib/volume-calc'
+import type { LoadTarget, PlanBuilderCatalog, PlanForEditor } from '@/lib/supabase/queries/plan-editor'
 import {
   addDay,
   addWeek,
@@ -47,7 +50,15 @@ function weekLabel(week: { number: number; name: string | null }): string {
 
 const DISCARD_MSG = 'Tenés cambios sin guardar en los días. Si seguís, se pierden. ¿Continuar?'
 
-export function PlanEditorClient({ plan, catalog }: { plan: PlanForEditor; catalog: PlanBuilderCatalog }) {
+export function PlanEditorClient({
+  plan,
+  catalog,
+  loadTargets,
+}: {
+  plan: PlanForEditor
+  catalog: PlanBuilderCatalog
+  loadTargets: LoadTarget[]
+}) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [twoUp, setTwoUp] = useState(false)
@@ -188,6 +199,42 @@ export function PlanEditorClient({ plan, catalog }: { plan: PlanForEditor; catal
       { id: activeDay2, set: setActiveDay2 },
     ],
     [activeDay, activeDay2],
+  )
+
+  // Objetivos de carga del alumno, indexados por patrón/músculo.
+  const targetsById = useMemo(() => {
+    const m = new Map<string, LoadTarget>()
+    for (const t of loadTargets) m.set(t.groupId, t)
+    return m
+  }, [loadTargets])
+
+  const groupIdToName = useMemo(() => {
+    const m = new Map<string, string>()
+    for (const p of catalog.patterns) m.set(p.id, p.name)
+    for (const m2 of catalog.muscles) m.set(m2.id, m2.name)
+    return m
+  }, [catalog])
+
+  const blocksToVolumeInputs = useCallback(
+    (blocks: DraftBlock[]): VolumeInput[] =>
+      blocks.flatMap((block) =>
+        block.items.map((item) => ({
+          groupId: item.patternOrMuscleId,
+          groupName: item.patternOrMuscleId ? (groupIdToName.get(item.patternOrMuscleId) ?? null) : null,
+          sets: blockHasRounds(block.kind) ? String(block.rounds) : item.sets,
+          intensityRpe: item.intensityRpe,
+        })),
+      ),
+    [groupIdToName],
+  )
+
+  const weeklyVolume = useMemo(
+    () => calculateVolumeByGroup(plan.days.flatMap((d) => blocksToVolumeInputs(draftsByDay[d.id] ?? []))),
+    [plan.days, draftsByDay, blocksToVolumeInputs],
+  )
+  const activeDayVolume = useMemo(
+    () => calculateVolumeByGroup(blocksToVolumeInputs(draftsByDay[activeDay] ?? [])),
+    [draftsByDay, activeDay, blocksToVolumeInputs],
   )
 
   const showLibrary = plan.weeks.length > 0 && plan.days.length > 0
@@ -374,6 +421,13 @@ export function PlanEditorClient({ plan, catalog }: { plan: PlanForEditor; catal
               {saving ? 'Guardando…' : 'Guardar plan'}
             </Button>
           </div>
+
+          <LoadPanel
+            weekly={weeklyVolume}
+            day={activeDayVolume}
+            targets={targetsById}
+            dayCount={plan.days.length}
+          />
 
           {/* Estructura del día activo: renombrar / duplicar / eliminar */}
           {currentDay ? (
