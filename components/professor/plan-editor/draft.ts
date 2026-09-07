@@ -60,6 +60,8 @@ export function normalizeText(value: string): string {
 }
 
 export const EXERCISE_DRAG_TYPE = 'application/x-mova-exercise'
+/** Arrastre de un ítem YA cargado en el editor (reordenar / mover entre bloques). */
+export const ITEM_DRAG_TYPE = 'application/x-mova-item'
 
 export function dayToDraft(day: PlanDay): DraftBlock[] {
   return day.blocks.map((block) => ({
