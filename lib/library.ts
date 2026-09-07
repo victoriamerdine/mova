@@ -28,6 +28,9 @@ export type LibraryItem = {
   ownerName: string | null
   /** true si el usuario actual es el dueño. */
   isMine: boolean
+  /** Deportes con los que está taggeado el ejercicio. */
+  sportIds: string[]
+  sportNames: string[]
   /** true si el match del video quedó marcado para revisar. */
   approxMatch: boolean
 }
@@ -40,6 +43,7 @@ export type ExerciseFormInput = {
   description: string
   instructions: string
   videoUrl: string
+  sportIds: string[]
   /** Solo al crear: true = asociar a mi nombre; false = público. */
   owned: boolean
 }

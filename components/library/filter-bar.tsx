@@ -49,6 +49,9 @@ export function FilterBar({
   onCategoryChange,
   muscle,
   onMuscleChange,
+  sport,
+  onSportChange,
+  sportOptions,
 }: {
   query: string
   onQueryChange: (value: string) => void
@@ -56,6 +59,9 @@ export function FilterBar({
   onCategoryChange: (value: string) => void
   muscle: string
   onMuscleChange: (value: string) => void
+  sport: string
+  onSportChange: (value: string) => void
+  sportOptions: string[]
 }) {
   return (
     <div className="flex flex-col gap-2.5 sm:flex-row sm:items-end">
@@ -89,6 +95,14 @@ export function FilterBar({
         onChange={onMuscleChange}
         options={MUSCLE_OPTIONS}
       />
+      {sportOptions.length > 1 ? (
+        <FilterSelect
+          label="Deporte"
+          value={sport}
+          onChange={onSportChange}
+          options={sportOptions}
+        />
+      ) : null}
     </div>
   )
 }

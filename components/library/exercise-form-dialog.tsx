@@ -42,6 +42,7 @@ export function ExerciseFormDialog({
   const [description, setDescription] = useState(initial?.description ?? '')
   const [instructions, setInstructions] = useState(initial?.instructions ?? '')
   const [videoUrl, setVideoUrl] = useState(initial?.videoUrl ?? '')
+  const [sportIds, setSportIds] = useState<string[]>(initial?.sportIds ?? [])
 
   const [owned, setOwned] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -61,8 +62,13 @@ export function ExerciseFormDialog({
       description,
       instructions,
       videoUrl,
+      sportIds,
       owned,
     }
+  }
+
+  function toggleSport(id: string) {
+    setSportIds((prev) => (prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]))
   }
 
   function submit() {
@@ -195,6 +201,30 @@ export function ExerciseFormDialog({
               rows={3}
             />
           </Field>
+
+          {catalog.sports.length > 0 ? (
+            <Field label="Deportes">
+              <div className="flex flex-wrap gap-1.5">
+                {catalog.sports.map((s) => {
+                  const on = sportIds.includes(s.id)
+                  return (
+                    <button
+                      key={s.id}
+                      type="button"
+                      onClick={() => toggleSport(s.id)}
+                      className={
+                        on
+                          ? 'bg-primary text-primary-foreground rounded-full px-2.5 py-1 text-xs font-medium'
+                          : 'border-input text-muted-foreground hover:text-foreground rounded-full border px-2.5 py-1 text-xs'
+                      }
+                    >
+                      {s.name}
+                    </button>
+                  )
+                })}
+              </div>
+            </Field>
+          ) : null}
 
           {error ? <p className="text-destructive text-xs">{error}</p> : null}
         </div>

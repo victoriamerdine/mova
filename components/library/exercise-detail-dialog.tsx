@@ -84,6 +84,11 @@ export function ExerciseDetailDialog({
                     Video a revisar
                   </Badge>
                 ) : null}
+                {exercise.sportNames.map((s) => (
+                  <Badge key={s} variant="outline" className="text-muted-foreground">
+                    {s}
+                  </Badge>
+                ))}
               </div>
             </div>
             <button
