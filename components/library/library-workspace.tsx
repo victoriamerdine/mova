@@ -9,8 +9,9 @@ import { FilterBar } from '@/components/library/filter-bar'
 import { ExerciseCard } from '@/components/library/exercise-card'
 import { ExerciseDetailDialog } from '@/components/library/exercise-detail-dialog'
 import { ExerciseFormDialog } from '@/components/library/exercise-form-dialog'
+import { ChangeRequestsDialog } from '@/components/library/change-requests-dialog'
 import { deleteExercise } from '@/app/biblioteca/actions'
-import type { LibraryItem } from '@/lib/library'
+import type { ChangeRequest, LibraryItem } from '@/lib/library'
 import type { LibraryCatalog } from '@/lib/supabase/queries/exercises'
 
 const PAGE_SIZE = 24
@@ -19,10 +20,12 @@ export function LibraryWorkspace({
   exercises,
   catalog,
   canManage,
+  pendingRequests,
 }: {
   exercises: LibraryItem[]
   catalog: LibraryCatalog
   canManage: boolean
+  pendingRequests: ChangeRequest[]
 }) {
   const router = useRouter()
   const [query, setQuery] = useState('')
@@ -31,8 +34,16 @@ export function LibraryWorkspace({
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
   const [selected, setSelected] = useState<LibraryItem | null>(null)
   const [form, setForm] = useState<{ mode: 'create' | 'edit'; initial?: LibraryItem } | null>(null)
+  const [reviewsOpen, setReviewsOpen] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
   const [deleting, startDeleting] = useTransition()
+
+  const catalogNameById = useMemo(() => {
+    const m = new Map<string, string>()
+    for (const p of catalog.patterns) m.set(p.id, p.name)
+    for (const mu of catalog.muscles) m.set(mu.id, mu.name)
+    return m
+  }, [catalog])
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -97,6 +108,16 @@ export function LibraryWorkspace({
             {hasActiveFilters ? (
               <Button variant="outline" size="sm" onClick={resetFilters} className="bg-card">
                 Limpiar filtros
+              </Button>
+            ) : null}
+            {canManage && pendingRequests.length > 0 ? (
+              <Button
+                variant="outline"
+                size="sm"
+                className="bg-card"
+                onClick={() => setReviewsOpen(true)}
+              >
+                Aprobaciones pendientes ({pendingRequests.length})
               </Button>
             ) : null}
             {canManage ? (
@@ -181,6 +202,20 @@ export function LibraryWorkspace({
           catalog={catalog}
           onClose={() => setForm(null)}
           onSaved={afterSave}
+        />
+      ) : null}
+
+      {reviewsOpen ? (
+        <ChangeRequestsDialog
+          requests={pendingRequests}
+          catalogNameById={catalogNameById}
+          onClose={() => setReviewsOpen(false)}
+          onResolved={(msg) => {
+            setReviewsOpen(false)
+            setToast(msg)
+            router.refresh()
+            window.setTimeout(() => setToast(null), 3500)
+          }}
         />
       ) : null}
     </>

@@ -23,6 +23,11 @@ export type LibraryItem = {
   videoUrl: string | null
   status: 'active' | 'pending_review' | 'archived'
   source: 'base_original' | 'nuevo_profe'
+  /** Dueño a efectos de aprobación. Null = público. */
+  ownerId: string | null
+  ownerName: string | null
+  /** true si el usuario actual es el dueño. */
+  isMine: boolean
   /** true si el match del video quedó marcado para revisar. */
   approxMatch: boolean
 }
@@ -35,6 +40,18 @@ export type ExerciseFormInput = {
   description: string
   instructions: string
   videoUrl: string
+  /** Solo al crear: true = asociar a mi nombre; false = público. */
+  owned: boolean
+}
+
+/** Solicitud de cambio a un ejercicio con dueño, pendiente de aprobación. */
+export type ChangeRequest = {
+  id: string
+  exerciseId: string
+  exerciseName: string
+  requestedByName: string
+  proposed: Omit<ExerciseFormInput, 'owned'>
+  createdAt: string
 }
 
 export function extractYouTubeId(url: string | null | undefined): string | null {

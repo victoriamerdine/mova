@@ -69,6 +69,15 @@ export function ExerciseDetailDialog({
                     {exercise.difficulty}
                   </Badge>
                 ) : null}
+                {exercise.isMine ? (
+                  <Badge className="bg-primary/10 text-primary border-transparent">Mío</Badge>
+                ) : exercise.ownerId ? (
+                  <Badge variant="secondary">de {exercise.ownerName ?? 'otro profesor'}</Badge>
+                ) : (
+                  <Badge variant="outline" className="text-muted-foreground">
+                    Público
+                  </Badge>
+                )}
                 {exercise.approxMatch ? (
                   <Badge className="bg-warning/15 text-warning-foreground gap-1 border-transparent">
                     <TriangleAlert className="size-3" />
@@ -127,16 +136,22 @@ export function ExerciseDetailDialog({
 
           {canManage ? (
             <div className="flex items-center justify-end gap-2 border-t border-border px-5 py-3">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-muted-foreground hover:text-destructive mr-auto"
-                disabled={deleting}
-                onClick={() => onDelete(exercise)}
-              >
-                <Trash2 data-icon="inline-start" />
-                Eliminar
-              </Button>
+              {!exercise.ownerId || exercise.isMine ? (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-muted-foreground hover:text-destructive mr-auto"
+                  disabled={deleting}
+                  onClick={() => onDelete(exercise)}
+                >
+                  <Trash2 data-icon="inline-start" />
+                  Eliminar
+                </Button>
+              ) : (
+                <span className="text-muted-foreground mr-auto text-xs">
+                  Los cambios van a la aprobación de {exercise.ownerName ?? 'su dueño'}
+                </span>
+              )}
               <Button variant="outline" size="sm" onClick={() => onEdit(exercise)}>
                 <Pencil data-icon="inline-start" />
                 Editar

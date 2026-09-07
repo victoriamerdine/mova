@@ -1,6 +1,10 @@
 import { AppSidebar } from '@/components/professor/app-sidebar'
 import { LibraryWorkspace } from '@/components/library/library-workspace'
-import { getLibraryCatalog, getLibraryItems } from '@/lib/supabase/queries/exercises'
+import {
+  getLibraryCatalog,
+  getLibraryItems,
+  getPendingChangeRequestsForOwner,
+} from '@/lib/supabase/queries/exercises'
 import { getCurrentProfessor } from '@/lib/supabase/queries/professor-dashboard'
 
 export default async function ExerciseLibraryPage() {
@@ -9,13 +13,19 @@ export default async function ExerciseLibraryPage() {
     getLibraryCatalog(),
     getCurrentProfessor(),
   ])
+  const pendingRequests = professor ? await getPendingChangeRequestsForOwner() : []
 
   return (
     <div className="bg-background flex min-h-svh">
       <AppSidebar active="Biblioteca" libraryCount={exercises.length} />
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <LibraryWorkspace exercises={exercises} catalog={catalog} canManage={professor != null} />
+        <LibraryWorkspace
+          exercises={exercises}
+          catalog={catalog}
+          canManage={professor != null}
+          pendingRequests={pendingRequests}
+        />
       </div>
     </div>
   )

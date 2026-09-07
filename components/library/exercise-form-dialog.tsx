@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { X } from 'lucide-react'
+import { Lock, X } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -43,9 +43,14 @@ export function ExerciseFormDialog({
   const [instructions, setInstructions] = useState(initial?.instructions ?? '')
   const [videoUrl, setVideoUrl] = useState(initial?.videoUrl ?? '')
 
+  const [owned, setOwned] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
   const [duplicates, setDuplicates] = useState<LibraryItem[] | null>(null)
+
+  // Al editar un ejercicio con dueño distinto al usuario actual, el guardado
+  // no aplica: crea una solicitud de cambio que el dueño aprueba.
+  const goesToReview = mode === 'edit' && !!initial && !!initial.ownerId && !initial.isMine
 
   function currentInput(): ExerciseFormInput {
     return {
@@ -56,6 +61,7 @@ export function ExerciseFormDialog({
       description,
       instructions,
       videoUrl,
+      owned,
     }
   }
 
@@ -65,6 +71,8 @@ export function ExerciseFormDialog({
       if (mode === 'edit' && initial) {
         const res = await updateExercise(initial.id, currentInput())
         if (res.error) setError(res.error)
+        else if (res.pendingReview)
+          onSaved(`Cambio enviado a la aprobación de ${res.ownerName ?? 'el dueño'}.`)
         else onSaved('Ejercicio actualizado.')
         return
       }
@@ -102,9 +110,44 @@ export function ExerciseFormDialog({
         </div>
 
         <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-5 py-4">
+          {goesToReview ? (
+            <div className="bg-warning/10 text-warning-foreground border-warning/20 flex items-start gap-2 rounded-lg border px-3 py-2 text-xs">
+              <Lock className="mt-0.5 size-3.5 shrink-0" />
+              <span>
+                Este ejercicio es de <strong>{initial?.ownerName}</strong>. Al guardar, tus cambios
+                quedan <strong>pendientes de su aprobación</strong> — no se aplican todavía.
+              </span>
+            </div>
+          ) : null}
+
           <Field label="Nombre">
             <Input value={name} onChange={(e) => setName(e.target.value)} autoFocus />
           </Field>
+
+          {mode === 'create' ? (
+            <Field label="Propiedad">
+              <div className="flex gap-3 text-sm">
+                <label className="flex items-center gap-1.5">
+                  <input
+                    type="radio"
+                    name="owned"
+                    checked={owned}
+                    onChange={() => setOwned(true)}
+                  />
+                  Asociarlo a mi nombre
+                </label>
+                <label className="flex items-center gap-1.5">
+                  <input
+                    type="radio"
+                    name="owned"
+                    checked={!owned}
+                    onChange={() => setOwned(false)}
+                  />
+                  Público
+                </label>
+              </div>
+            </Field>
+          ) : null}
 
           <div className="grid grid-cols-2 gap-3">
             <Field label="Patrón">
@@ -161,7 +204,13 @@ export function ExerciseFormDialog({
             Cancelar
           </Button>
           <Button size="sm" onClick={submit} disabled={pending || !name.trim()}>
-            {pending ? 'Guardando…' : mode === 'create' ? 'Agregar' : 'Guardar cambios'}
+            {pending
+              ? 'Guardando…'
+              : mode === 'create'
+                ? 'Agregar'
+                : goesToReview
+                  ? 'Enviar a revisión'
+                  : 'Guardar cambios'}
           </Button>
         </div>
       </div>

@@ -8,12 +8,19 @@ import { getCurrentProfessor } from '@/lib/supabase/queries/professor-dashboard'
 import { findDuplicateExercises } from '@/lib/supabase/queries/exercises'
 import type { ExerciseFormInput, LibraryItem } from '@/lib/library'
 
-type Result = { error?: string; duplicates?: LibraryItem[]; id?: string; archived?: boolean }
+type Result = {
+  error?: string
+  duplicates?: LibraryItem[]
+  id?: string
+  archived?: boolean
+  /** El cambio quedó pendiente de aprobación del dueño. */
+  pendingReview?: boolean
+  ownerName?: string
+}
 
 function clean(input: ExerciseFormInput) {
-  const name = input.name.trim()
   return {
-    name,
+    name: input.name.trim(),
     patternId: input.patternId || null,
     muscleId: input.muscleId || null,
     difficulty: input.difficulty ?? null,
@@ -29,11 +36,7 @@ async function syncPrimaryVideo(
   exerciseId: string,
   url: string | null,
 ) {
-  await supabase
-    .from('exercise_media')
-    .delete()
-    .eq('exercise_id', exerciseId)
-    .eq('type', 'video')
+  await supabase.from('exercise_media').delete().eq('exercise_id', exerciseId).eq('type', 'video')
   if (url) {
     await supabase.from('exercise_media').insert({
       exercise_id: exerciseId,
@@ -43,6 +46,28 @@ async function syncPrimaryVideo(
       is_primary: true,
     })
   }
+}
+
+type OwnerCheck = { ownerId: string | null; ownerName: string | null; canManageDirect: boolean }
+
+/** Dueño del ejercicio + si el profesor actual puede editarlo directo (propio o público). */
+async function checkOwner(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  exerciseId: string,
+  professorId: string,
+): Promise<OwnerCheck> {
+  const { data } = await supabase
+    .from('exercises')
+    .select('owner_id, owner:professors!exercises_owner_id_fkey(profiles(full_name))')
+    .eq('id', exerciseId)
+    .maybeSingle()
+
+  const ownerId = (data as { owner_id: string | null } | null)?.owner_id ?? null
+  const ownerName =
+    (data as unknown as { owner: { profiles: { full_name: string } | null } | null } | null)?.owner
+      ?.profiles?.full_name ?? null
+
+  return { ownerId, ownerName, canManageDirect: ownerId == null || ownerId === professorId }
 }
 
 export async function createExercise(
@@ -74,6 +99,8 @@ export async function createExercise(
       muscle_id: data.muscleId,
       source: 'nuevo_profe',
       status: 'active',
+      added_by: professor.id,
+      owner_id: input.owned ? professor.id : null,
     })
     .select('id')
     .single()
@@ -94,6 +121,26 @@ export async function updateExercise(id: string, input: ExerciseFormInput): Prom
   if (!data.name) return { error: 'El ejercicio necesita un nombre.' }
 
   const supabase = await createClient()
+  const owner = await checkOwner(supabase, id, professor.id)
+
+  // Ejercicio de otro dueño → el cambio va a revisión, no se aplica.
+  if (!owner.canManageDirect) {
+    const proposed = {
+      name: data.name,
+      patternId: data.patternId,
+      muscleId: data.muscleId,
+      difficulty: data.difficulty,
+      description: input.description.trim(),
+      instructions: input.instructions.trim(),
+      videoUrl: data.videoUrl ?? '',
+    }
+    const { error } = await supabase
+      .from('exercise_change_requests')
+      .insert({ exercise_id: id, requested_by: professor.id, proposed, status: 'pending' })
+    if (error) return { error: error.message }
+    revalidatePath('/biblioteca')
+    return { id, pendingReview: true, ownerName: owner.ownerName ?? undefined }
+  }
 
   const { data: current } = await supabase
     .from('exercises')
@@ -116,7 +163,6 @@ export async function updateExercise(id: string, input: ExerciseFormInput): Prom
 
   if (error) return { error: error.message }
 
-  // Al renombrar, se conserva el nombre viejo como alias (best-effort).
   if (current?.canonical_name && current.canonical_name.trim() !== data.name) {
     await supabase
       .from('exercise_aliases')
@@ -134,6 +180,13 @@ export async function replaceExerciseVideo(id: string, videoUrl: string): Promis
   if (!professor) redirect('/login')
 
   const supabase = await createClient()
+  const owner = await checkOwner(supabase, id, professor.id)
+  if (!owner.canManageDirect) {
+    return {
+      error: `Este ejercicio es de ${owner.ownerName ?? 'otro profesor'}. Editalo desde "Editar" para enviar el cambio a su aprobación.`,
+    }
+  }
+
   await syncPrimaryVideo(supabase, id, videoUrl.trim() || null)
   revalidatePath('/biblioteca')
   return { id }
@@ -144,6 +197,10 @@ export async function deleteExercise(id: string): Promise<Result> {
   if (!professor) redirect('/login')
 
   const supabase = await createClient()
+  const owner = await checkOwner(supabase, id, professor.id)
+  if (!owner.canManageDirect) {
+    return { error: `Este ejercicio es de ${owner.ownerName ?? 'otro profesor'} — no lo podés eliminar.` }
+  }
 
   const { count } = await supabase
     .from('training_items')
@@ -157,9 +214,36 @@ export async function deleteExercise(id: string): Promise<Result> {
     return { id, archived: true }
   }
 
-  // exercise_media / exercise_aliases tienen ON DELETE CASCADE.
   const { error } = await supabase.from('exercises').delete().eq('id', id)
   if (error) return { error: error.message }
   revalidatePath('/biblioteca')
   return { id }
+}
+
+// ============================================================
+// Aprobación de cambios (el dueño resuelve).
+// ============================================================
+export async function approveChangeRequest(requestId: string): Promise<Result> {
+  const professor = await getCurrentProfessor()
+  if (!professor) redirect('/login')
+
+  const supabase = await createClient()
+  const { error } = await supabase.rpc('apply_exercise_change_request', { p_request_id: requestId })
+  if (error) return { error: error.message }
+  revalidatePath('/biblioteca')
+  return {}
+}
+
+export async function rejectChangeRequest(requestId: string): Promise<Result> {
+  const professor = await getCurrentProfessor()
+  if (!professor) redirect('/login')
+
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('exercise_change_requests')
+    .update({ status: 'rejected', reviewed_by: professor.id, reviewed_at: new Date().toISOString() })
+    .eq('id', requestId)
+  if (error) return { error: error.message }
+  revalidatePath('/biblioteca')
+  return {}
 }
