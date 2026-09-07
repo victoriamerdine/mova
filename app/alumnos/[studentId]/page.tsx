@@ -4,6 +4,7 @@ import { ArrowRight, Plus } from 'lucide-react'
 
 import { AppSidebar } from '@/components/professor/app-sidebar'
 import { DashboardHeader } from '@/components/professor/dashboard-header'
+import { LoadTargetsForm } from '@/components/professor/load-targets-form'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -11,6 +12,7 @@ import { Input } from '@/components/ui/input'
 import { getRenewalBadge } from '@/lib/plan-renewal'
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentProfessor } from '@/lib/supabase/queries/professor-dashboard'
+import { getStudentLoadTargets } from '@/lib/supabase/queries/plan-editor'
 import { createPlan } from '@/app/alumnos/[studentId]/actions'
 
 const PLAN_TYPE_OPTIONS: { value: string; label: string }[] = [
@@ -54,6 +56,15 @@ export default async function StudentDetailPage({
     .order('created_at', { ascending: false })
 
   const plans = plansData ?? []
+
+  const [{ data: patternsData }, loadTargets] = await Promise.all([
+    supabase.from('patterns').select('id, display_name').order('sort_order'),
+    getStudentLoadTargets(studentId),
+  ])
+  const patterns = (patternsData ?? []).map((p) => ({ id: p.id, name: p.display_name }))
+  const patternTargets = loadTargets
+    .filter((t) => t.groupType === 'pattern')
+    .map((t) => ({ groupId: t.groupId, weeklySeries: t.weeklySeries, intensity: t.intensity }))
 
   return (
     <div className="bg-background flex min-h-svh">
@@ -107,6 +118,19 @@ export default async function StudentDetailPage({
                   Crear plan
                 </Button>
               </form>
+            </CardContent>
+          </Card>
+
+          <Card className="gap-0 py-5">
+            <CardHeader className="px-5">
+              <CardTitle className="text-sm">Objetivos de carga</CardTitle>
+              <CardDescription className="text-xs">
+                Volumen (series/semana) e intensidad (RPE) objetivo por patrón. El editor de plan marca
+                cuando un plan se pasa. Dejá vacío lo que no quieras limitar.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="px-5">
+              <LoadTargetsForm studentId={studentId} patterns={patterns} current={patternTargets} />
             </CardContent>
           </Card>
 

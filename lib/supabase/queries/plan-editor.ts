@@ -59,11 +59,35 @@ export type PlanForEditor = {
   planType: 'MUSCLE' | 'PATTERN' | 'MIXED' | 'SPORT_SPECIFIC' | 'CUSTOM'
   startDate: string | null
   endDate: string | null
+  studentId: string
   studentName: string
   weeks: PlanWeekOption[]
   /** Semana activa en el editor — `weekId` es su id (o '' si el plan no tiene semanas). */
   weekId: string
   days: PlanDay[]
+}
+
+export type LoadTarget = {
+  groupType: 'pattern' | 'muscle'
+  groupId: string
+  weeklySeries: number | null
+  intensity: number | null
+}
+
+/** Objetivos de carga del alumno (los que cargó el profesor). Vacío si no configuró ninguno. */
+export async function getStudentLoadTargets(studentId: string): Promise<LoadTarget[]> {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('student_load_targets')
+    .select('group_type, group_id, target_weekly_series, target_intensity')
+    .eq('student_id', studentId)
+
+  return (data ?? []).map((r) => ({
+    groupType: r.group_type,
+    groupId: r.group_id,
+    weeklySeries: r.target_weekly_series,
+    intensity: r.target_intensity,
+  }))
 }
 
 export function extractYouTubeId(url: string | undefined): string | null {
@@ -77,7 +101,7 @@ export async function getPlanForEditor(planId: string, weekId?: string): Promise
 
   const { data: plan, error: planError } = await supabase
     .from('plans')
-    .select('id, name, plan_type, start_date, end_date, students(profiles(full_name))')
+    .select('id, name, plan_type, start_date, end_date, student_id, students(profiles(full_name))')
     .eq('id', planId)
     .maybeSingle()
 
@@ -102,6 +126,7 @@ export async function getPlanForEditor(planId: string, weekId?: string): Promise
       planType: plan.plan_type,
       startDate: plan.start_date,
       endDate: plan.end_date,
+      studentId: plan.student_id,
       studentName,
       weeks: [],
       weekId: '',
@@ -212,6 +237,7 @@ export async function getPlanForEditor(planId: string, weekId?: string): Promise
     planType: plan.plan_type,
     startDate: plan.start_date,
     endDate: plan.end_date,
+    studentId: plan.student_id,
     studentName,
     weeks,
     weekId: activeWeek.id,

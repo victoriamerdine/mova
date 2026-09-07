@@ -230,6 +230,27 @@ export type Database = {
           },
         ]
       }
+      student_load_targets: {
+        Row: {
+          student_id: string
+          group_type: 'pattern' | 'muscle'
+          group_id: string
+          target_weekly_series: number | null
+          target_intensity: number | null
+          updated_at: string
+        }
+        Insert: Partial<Database['public']['Tables']['student_load_targets']['Row']>
+        Update: Partial<Database['public']['Tables']['student_load_targets']['Row']>
+        Relationships: [
+          {
+            foreignKeyName: 'student_load_targets_student_id_fkey'
+            columns: ['student_id']
+            isOneToOne: false
+            referencedRelation: 'students'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       plans: {
         Row: {
           id: string
