@@ -168,7 +168,7 @@ export function LibraryWorkspace({
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-4">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5">
               {visible.map((exercise) => (
                 <ExerciseCard
                   key={exercise.id}
