@@ -25,6 +25,11 @@ export function ExerciseCard({
         <div className="flex flex-wrap gap-1">
           <Badge className="bg-primary/10 text-primary border-transparent">{exercise.muscle}</Badge>
           <Badge variant="secondary">{exercise.category}</Badge>
+          {exercise.sportNames.slice(0, 2).map((s) => (
+            <Badge key={s} variant="outline" className="text-muted-foreground">
+              {s}
+            </Badge>
+          ))}
         </div>
       </div>
     </button>

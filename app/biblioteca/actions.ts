@@ -48,6 +48,21 @@ async function syncPrimaryVideo(
   }
 }
 
+/** Reemplaza el set completo de deportes taggeados del ejercicio. */
+async function syncSports(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  exerciseId: string,
+  sportIds: string[],
+) {
+  await supabase.from('exercise_sports').delete().eq('exercise_id', exerciseId)
+  const ids = [...new Set(sportIds.filter(Boolean))]
+  if (ids.length > 0) {
+    await supabase
+      .from('exercise_sports')
+      .insert(ids.map((sport_id) => ({ exercise_id: exerciseId, sport_id })))
+  }
+}
+
 type OwnerCheck = { ownerId: string | null; ownerName: string | null; canManageDirect: boolean }
 
 /** Dueño del ejercicio + si el profesor actual puede editarlo directo (propio o público). */
@@ -114,6 +129,7 @@ export async function createExercise(
   if (error || !row) return { error: error?.message ?? 'No se pudo crear el ejercicio.' }
 
   if (data.videoUrl) await syncPrimaryVideo(supabase, row.id, data.videoUrl)
+  await syncSports(supabase, row.id, input.sportIds ?? [])
 
   revalidatePath('/biblioteca')
   return { id: row.id }
@@ -139,6 +155,7 @@ export async function updateExercise(id: string, input: ExerciseFormInput): Prom
       description: input.description.trim(),
       instructions: input.instructions.trim(),
       videoUrl: data.videoUrl ?? '',
+      sportIds: [...new Set((input.sportIds ?? []).filter(Boolean))],
     }
     const { error } = await supabase
       .from('exercise_change_requests')
@@ -176,6 +193,7 @@ export async function updateExercise(id: string, input: ExerciseFormInput): Prom
   }
 
   await syncPrimaryVideo(supabase, id, data.videoUrl)
+  await syncSports(supabase, id, input.sportIds ?? [])
 
   revalidatePath('/biblioteca')
   return { id }
@@ -315,6 +333,7 @@ export async function applyCsvImport(items: CsvImportItem[]): Promise<CsvImportS
         continue
       }
       if (data.videoUrl) await syncPrimaryVideo(supabase, row.id, data.videoUrl)
+      await syncSports(supabase, row.id, item.input.sportIds ?? [])
       summary.created++
       continue
     }
@@ -334,6 +353,7 @@ export async function applyCsvImport(items: CsvImportItem[]): Promise<CsvImportS
         description: item.input.description.trim(),
         instructions: item.input.instructions.trim(),
         videoUrl: data.videoUrl ?? '',
+        sportIds: [...new Set((item.input.sportIds ?? []).filter(Boolean))],
       }
       const { error } = await supabase
         .from('exercise_change_requests')
@@ -370,6 +390,7 @@ export async function applyCsvImport(items: CsvImportItem[]): Promise<CsvImportS
         .insert({ exercise_id: item.targetId, alias: current.canonical_name, note: 'nombre anterior' })
     }
     await syncPrimaryVideo(supabase, item.targetId, data.videoUrl)
+    await syncSports(supabase, item.targetId, item.input.sportIds ?? [])
     summary.updated++
   }
 

@@ -17,6 +17,8 @@ export type CsvRow = {
   videoUrl: string
   description: string
   instructions: string
+  /** Nombres de deporte separados por coma en la celda `deportes`. */
+  sports: string[]
   /** De la columna `propiedad` si viene ("mio"/"publico"); si no, null. */
   owned: boolean | null
   error: string | null
@@ -41,6 +43,8 @@ const HEADER_ALIASES: Record<string, keyof Omit<CsvRow, 'line' | 'error'>> = {
   descripción: 'description',
   instrucciones: 'instructions',
   errores: 'instructions',
+  deporte: 'sports',
+  deportes: 'sports',
   propiedad: 'owned',
   duenio: 'owned',
   dueño: 'owned',
@@ -152,6 +156,10 @@ export function rowsFromCsv(text: string): CsvRow[] {
       videoUrl: get('videoUrl'),
       description: get('description'),
       instructions: get('instructions'),
+      sports: get('sports')
+        .split(/[,;|/]/)
+        .map((s) => s.trim())
+        .filter(Boolean),
       owned,
       error: name ? null : 'Sin nombre',
     }
@@ -166,4 +174,14 @@ export function matchCatalogId(
   const norm = normalizeExerciseName(value)
   if (!norm) return null
   return options.find((o) => normalizeExerciseName(o.name) === norm)?.id ?? null
+}
+
+/** Mapea una lista de nombres a ids del catálogo (los que no matchean se descartan). */
+export function matchCatalogIds(
+  values: string[],
+  options: { id: string; name: string }[],
+): string[] {
+  return values
+    .map((v) => matchCatalogId(v, options))
+    .filter((id): id is string => !!id)
 }

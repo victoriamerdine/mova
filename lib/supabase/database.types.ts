@@ -37,6 +37,44 @@ export type Database = {
         Update: Partial<Database['public']['Tables']['muscles']['Row']>
         Relationships: []
       }
+      sports: {
+        Row: {
+          id: string
+          name: string
+          slug: string
+          description: string | null
+          icon: string | null
+          status: 'active' | 'inactive'
+          created_at: string
+        }
+        Insert: Partial<Database['public']['Tables']['sports']['Row']>
+        Update: Partial<Database['public']['Tables']['sports']['Row']>
+        Relationships: []
+      }
+      exercise_sports: {
+        Row: {
+          exercise_id: string
+          sport_id: string
+        }
+        Insert: Partial<Database['public']['Tables']['exercise_sports']['Row']>
+        Update: Partial<Database['public']['Tables']['exercise_sports']['Row']>
+        Relationships: [
+          {
+            foreignKeyName: 'exercise_sports_exercise_id_fkey'
+            columns: ['exercise_id']
+            isOneToOne: false
+            referencedRelation: 'exercises'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'exercise_sports_sport_id_fkey'
+            columns: ['sport_id']
+            isOneToOne: false
+            referencedRelation: 'sports'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       patterns: {
         Row: {
           id: string

@@ -92,6 +92,15 @@ export function ChangeRequestsDialog({
                       value={req.proposed.muscleId ? (catalogNameById.get(req.proposed.muscleId) ?? '—') : '—'}
                     />
                     <Row label="Dificultad" value={req.proposed.difficulty ?? '—'} />
+                    <Row
+                      label="Deportes"
+                      value={
+                        (req.proposed.sportIds ?? [])
+                          .map((id) => catalogNameById.get(id))
+                          .filter(Boolean)
+                          .join(', ') || '—'
+                      }
+                    />
                     <Row label="Video" value={req.proposed.videoUrl || '—'} />
                     <Row label="Descripción" value={req.proposed.description || '—'} />
                   </dl>

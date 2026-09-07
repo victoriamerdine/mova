@@ -29,6 +29,7 @@ type ExerciseRow = {
   pattern: { display_name: string } | null
   exercise_stimulus_types: { stimulus_types: { display_name: string } | null }[]
   exercise_media: { url: string; is_primary: boolean; type: string }[]
+  exercise_sports: { sport_id: string; sports: { name: string } | null }[]
 }
 
 // El nombre del dueño se resuelve aparte (no con embed de PostgREST):
@@ -49,7 +50,8 @@ const SELECT = `
   muscle:muscles(display_name),
   pattern:patterns(display_name),
   exercise_stimulus_types(stimulus_types(display_name)),
-  exercise_media(url, is_primary, type)
+  exercise_media(url, is_primary, type),
+  exercise_sports(sport_id, sports(name))
 `
 
 async function resolveOwnerNames(
@@ -95,6 +97,10 @@ function toLibraryItem(
     ownerId: row.owner_id,
     ownerName: row.owner_id ? (ownerNames.get(row.owner_id) ?? null) : null,
     isMine: row.owner_id != null && row.owner_id === currentProfessorId,
+    sportIds: (row.exercise_sports ?? []).map((s) => s.sport_id),
+    sportNames: (row.exercise_sports ?? [])
+      .map((s) => s.sports?.name)
+      .filter((n): n is string => !!n),
     approxMatch: row.match_status ? APPROX_MATCH_STATUSES.has(row.match_status) : false,
   }
 }
@@ -171,17 +177,20 @@ export const getLibraryExercises = getLibraryItems
 export type LibraryCatalog = {
   patterns: { id: string; name: string }[]
   muscles: { id: string; name: string }[]
+  sports: { id: string; name: string }[]
 }
 
 export async function getLibraryCatalog(): Promise<LibraryCatalog> {
   const supabase = await createClient()
-  const [{ data: patterns }, { data: muscles }] = await Promise.all([
+  const [{ data: patterns }, { data: muscles }, { data: sports }] = await Promise.all([
     supabase.from('patterns').select('id, display_name').order('sort_order'),
     supabase.from('muscles').select('id, display_name').order('sort_order'),
+    supabase.from('sports').select('id, name').eq('status', 'active').order('name'),
   ])
   return {
     patterns: (patterns ?? []).map((p) => ({ id: p.id, name: p.display_name })),
     muscles: (muscles ?? []).map((m) => ({ id: m.id, name: m.display_name })),
+    sports: (sports ?? []).map((s) => ({ id: s.id, name: s.name })),
   }
 }
 

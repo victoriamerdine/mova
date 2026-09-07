@@ -5,7 +5,7 @@ import { Lock, X } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { applyCsvImport, type CsvImportItem, type CsvImportSummary } from '@/app/biblioteca/actions'
-import { matchCatalogId, rowsFromCsv, type CsvRow } from '@/lib/csv-import'
+import { matchCatalogId, matchCatalogIds, rowsFromCsv, type CsvRow } from '@/lib/csv-import'
 import {
   DUPLICATE_SIMILARITY_THRESHOLD,
   nameSimilarity,
@@ -15,7 +15,8 @@ import {
 } from '@/lib/library'
 import type { LibraryCatalog } from '@/lib/supabase/queries/exercises'
 
-const TEMPLATE = 'nombre,patron,musculo,dificultad,video,descripcion\nSentadilla goblet,Dom. Rodilla,Cuádriceps,intermedio,https://youtube.com/shorts/xxxx,'
+const TEMPLATE =
+  'nombre,patron,musculo,dificultad,video,deportes,descripcion\nSentadilla goblet,Dom. Rodilla,Cuádriceps,intermedio,https://youtube.com/shorts/xxxx,"Fútbol, Running",'
 
 type RowDecision = { action: 'create' | 'replace' | 'skip'; targetId: string | null }
 
@@ -94,6 +95,7 @@ export function CsvImportDialog({
       description: row.description,
       instructions: row.instructions,
       videoUrl: row.videoUrl,
+      sportIds: matchCatalogIds(row.sports, catalog.sports),
       owned: row.owned ?? defaultOwned,
     }
   }
@@ -160,9 +162,22 @@ export function CsvImportDialog({
               <p className="text-muted-foreground text-xs">
                 Pegá el CSV (o subí un archivo). Encabezados reconocidos:{' '}
                 <code>nombre</code>, <code>patron</code>, <code>musculo</code>,{' '}
-                <code>dificultad</code>, <code>video</code>, <code>descripcion</code>,{' '}
-                <code>instrucciones</code>, <code>propiedad</code> (mio/publico). Delimitador{' '}
-                <code>,</code> o <code>;</code>.
+                <code>dificultad</code>, <code>video</code>, <code>deportes</code> (nombres
+                separados por coma), <code>descripcion</code>, <code>instrucciones</code>,{' '}
+                <code>propiedad</code> (mio/publico). Delimitador <code>,</code> o <code>;</code>.
+              </p>
+              <p className="text-xs">
+                <a
+                  href="/biblioteca/plantilla"
+                  className="text-primary font-medium hover:underline"
+                  download
+                >
+                  ⬇ Descargar plantilla Excel
+                </a>{' '}
+                <span className="text-muted-foreground">
+                  — con listas desplegables de patrón, músculo y deporte. Completala y guardala
+                  como CSV para subirla acá.
+                </span>
               </p>
               <textarea
                 value={text}
