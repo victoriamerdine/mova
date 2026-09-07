@@ -290,12 +290,6 @@ export function DayEditor({
                         }
                       />
                     </div>
-                    {item.exerciseId && videoIdByExercise.has(item.exerciseId) ? (
-                      <ExerciseVideoPreview
-                        videoId={videoIdByExercise.get(item.exerciseId)!}
-                        exerciseName={item.exerciseName}
-                      />
-                    ) : null}
                     <Button
                       variant="ghost"
                       size="icon-sm"
@@ -317,6 +311,13 @@ export function DayEditor({
                       </Button>
                     ) : null}
                   </div>
+
+                  {item.exerciseId && videoIdByExercise.has(item.exerciseId) ? (
+                    <ExerciseVideoPreview
+                      videoId={videoIdByExercise.get(item.exerciseId)!}
+                      exerciseName={item.exerciseName}
+                    />
+                  ) : null}
 
                   <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                     {!hasRounds ? (
