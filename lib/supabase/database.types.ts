@@ -577,7 +577,22 @@ export type Database = {
         Row: { form_id: string; sport_id: string }
         Insert: Partial<Database['public']['Tables']['form_sports']['Row']>
         Update: Partial<Database['public']['Tables']['form_sports']['Row']>
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: 'form_sports_form_id_fkey'
+            columns: ['form_id']
+            isOneToOne: false
+            referencedRelation: 'forms'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'form_sports_sport_id_fkey'
+            columns: ['sport_id']
+            isOneToOne: false
+            referencedRelation: 'sports'
+            referencedColumns: ['id']
+          },
+        ]
       }
       form_sections: {
         Row: {
@@ -590,7 +605,15 @@ export type Database = {
         }
         Insert: Partial<Database['public']['Tables']['form_sections']['Row']>
         Update: Partial<Database['public']['Tables']['form_sections']['Row']>
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: 'form_sections_form_id_fkey'
+            columns: ['form_id']
+            isOneToOne: false
+            referencedRelation: 'forms'
+            referencedColumns: ['id']
+          },
+        ]
       }
       form_questions: {
         Row: {
@@ -623,7 +646,15 @@ export type Database = {
         }
         Insert: Partial<Database['public']['Tables']['form_questions']['Row']>
         Update: Partial<Database['public']['Tables']['form_questions']['Row']>
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: 'form_questions_form_id_fkey'
+            columns: ['form_id']
+            isOneToOne: false
+            referencedRelation: 'forms'
+            referencedColumns: ['id']
+          },
+        ]
       }
       form_question_options: {
         Row: {
@@ -636,7 +667,15 @@ export type Database = {
         }
         Insert: Partial<Database['public']['Tables']['form_question_options']['Row']>
         Update: Partial<Database['public']['Tables']['form_question_options']['Row']>
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: 'form_question_options_form_id_fkey'
+            columns: ['form_id']
+            isOneToOne: false
+            referencedRelation: 'forms'
+            referencedColumns: ['id']
+          },
+        ]
       }
       form_rules: {
         Row: {
@@ -650,7 +689,15 @@ export type Database = {
         }
         Insert: Partial<Database['public']['Tables']['form_rules']['Row']>
         Update: Partial<Database['public']['Tables']['form_rules']['Row']>
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: 'form_rules_form_id_fkey'
+            columns: ['form_id']
+            isOneToOne: false
+            referencedRelation: 'forms'
+            referencedColumns: ['id']
+          },
+        ]
       }
       form_versions: {
         Row: {
@@ -663,7 +710,15 @@ export type Database = {
         }
         Insert: Partial<Database['public']['Tables']['form_versions']['Row']>
         Update: Partial<Database['public']['Tables']['form_versions']['Row']>
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: 'form_versions_form_id_fkey'
+            columns: ['form_id']
+            isOneToOne: false
+            referencedRelation: 'forms'
+            referencedColumns: ['id']
+          },
+        ]
       }
       form_submissions: {
         Row: {
@@ -685,7 +740,15 @@ export type Database = {
         }
         Insert: Partial<Database['public']['Tables']['form_submissions']['Row']>
         Update: Partial<Database['public']['Tables']['form_submissions']['Row']>
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: 'form_submissions_form_id_fkey'
+            columns: ['form_id']
+            isOneToOne: false
+            referencedRelation: 'forms'
+            referencedColumns: ['id']
+          },
+        ]
       }
       form_answers: {
         Row: {
@@ -698,7 +761,15 @@ export type Database = {
         }
         Insert: Partial<Database['public']['Tables']['form_answers']['Row']>
         Update: Partial<Database['public']['Tables']['form_answers']['Row']>
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: 'form_answers_submission_id_fkey'
+            columns: ['submission_id']
+            isOneToOne: false
+            referencedRelation: 'form_submissions'
+            referencedColumns: ['id']
+          },
+        ]
       }
       form_answer_files: {
         Row: {
@@ -726,7 +797,15 @@ export type Database = {
         }
         Insert: Partial<Database['public']['Tables']['form_submission_summaries']['Row']>
         Update: Partial<Database['public']['Tables']['form_submission_summaries']['Row']>
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: 'form_submission_summaries_submission_id_fkey'
+            columns: ['submission_id']
+            isOneToOne: false
+            referencedRelation: 'form_submissions'
+            referencedColumns: ['id']
+          },
+        ]
       }
     }
     Views: Record<string, never>
