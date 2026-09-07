@@ -3,6 +3,7 @@ import { Dumbbell } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { PasswordInput } from '@/components/ui/password-input'
 import { login } from '@/app/login/actions'
 
 export default async function LoginPage({
@@ -41,7 +42,7 @@ export default async function LoginPage({
 
           <label className="flex flex-col gap-1.5">
             <span className="text-muted-foreground text-xs font-medium">Contraseña</span>
-            <Input type="password" name="password" required autoComplete="current-password" />
+            <PasswordInput name="password" required autoComplete="current-password" />
           </label>
 
           <Button type="submit" className="mt-2 h-10 w-full">
