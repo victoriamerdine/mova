@@ -77,11 +77,14 @@ export function ExerciseCombobox({
             onChange={(e) => {
               setQuery(e.target.value)
               setOpen(true)
-              if (value.exerciseId) onChange({ ...value, exerciseId: null, exerciseName: e.target.value })
+              // Propagar SIEMPRE: si no se elige del dropdown, el texto libre
+              // igual queda como ejercicio/actividad (no es obligatorio que
+              // sea de la biblioteca).
+              onChange({ ...value, exerciseId: null, exerciseName: e.target.value })
             }}
             onFocus={() => setOpen(true)}
             onBlur={() => window.setTimeout(() => setOpen(false), 150)}
-            placeholder="Buscar ejercicio…"
+            placeholder="Buscar o escribir libre…"
             className="h-full w-full min-w-0 bg-transparent text-sm outline-none"
           />
         </div>
