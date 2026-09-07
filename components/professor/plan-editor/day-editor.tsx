@@ -1,14 +1,22 @@
 'use client'
 
-import { useMemo, useState } from 'react'
-import { ChevronDown, Copy, Layers, Plus, Repeat, Trash2 } from 'lucide-react'
+import { useMemo, useState, type DragEvent } from 'react'
+import { ChevronDown, Copy, GripVertical, Layers, Plus, Repeat, Trash2 } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { cn } from '@/lib/utils'
 import { ExerciseCombobox } from '@/components/professor/plan-editor/exercise-combobox'
 import { ExerciseVideoPreview } from '@/components/professor/plan-editor/exercise-video-preview'
-import { emptyItem, nextTempId, type DraftBlock, type DraftItem } from '@/components/professor/plan-editor/draft'
+import {
+  EXERCISE_DRAG_TYPE,
+  ITEM_DRAG_TYPE,
+  emptyItem,
+  nextTempId,
+  type DraftBlock,
+  type DraftItem,
+} from '@/components/professor/plan-editor/draft'
 import { calculateVolumeByGroup } from '@/lib/volume-calc'
 import {
   BLOCK_KIND_LABEL,
@@ -65,6 +73,97 @@ export function DayEditor({
       else next.add(tempId)
       return next
     })
+
+  // ---- Drag & drop de ítems: reordenar y mover entre bloques ----
+  // `dropHint` = dónde caería lo que se está arrastrando:
+  //   { blockTempId, itemTempId }        → justo antes de ese ítem
+  //   { blockTempId, itemTempId: null }  → al final de ese bloque
+  const [dropHint, setDropHint] = useState<{ blockTempId: string; itemTempId: string | null } | null>(
+    null,
+  )
+
+  function dragTypesInclude(e: DragEvent) {
+    return (
+      e.dataTransfer.types.includes(ITEM_DRAG_TYPE) ||
+      e.dataTransfer.types.includes(EXERCISE_DRAG_TYPE)
+    )
+  }
+
+  function relabel(block: DraftBlock): DraftBlock {
+    if (blockHasRounds(block.kind)) {
+      return { ...block, items: block.items.map((it, i) => ({ ...it, label: `A${i + 1}` })) }
+    }
+    return { ...block, items: block.items.map((it) => (it.label ? { ...it, label: '' } : it)) }
+  }
+
+  function insertInto(
+    prevBlocks: DraftBlock[],
+    item: DraftItem,
+    toBlockTempId: string,
+    beforeItemTempId: string | null,
+  ): DraftBlock[] {
+    return prevBlocks.map((block) => {
+      if (block.tempId !== toBlockTempId) return block
+      const items = [...block.items]
+      const idx = beforeItemTempId ? items.findIndex((i) => i.tempId === beforeItemTempId) : -1
+      items.splice(idx === -1 ? items.length : idx, 0, item)
+      return relabel({ ...block, items })
+    })
+  }
+
+  function moveItem(
+    fromBlockTempId: string,
+    fromItemTempId: string,
+    toBlockTempId: string,
+    beforeItemTempId: string | null,
+  ) {
+    if (fromBlockTempId === toBlockTempId && fromItemTempId === beforeItemTempId) return
+    setBlocks((prevBlocks) => {
+      const moving = prevBlocks
+        .find((b) => b.tempId === fromBlockTempId)
+        ?.items.find((i) => i.tempId === fromItemTempId)
+      if (!moving) return prevBlocks
+      const without = prevBlocks.map((b) =>
+        b.tempId === fromBlockTempId
+          ? relabel({ ...b, items: b.items.filter((i) => i.tempId !== fromItemTempId) })
+          : b,
+      )
+      const placed = insertInto(without, { ...moving }, toBlockTempId, beforeItemTempId)
+      return placed.filter((b) => b.items.length > 0)
+    })
+  }
+
+  function libraryItem(ex: { id: string; name: string }): DraftItem {
+    const cat = catalog.exercises.find((c) => c.id === ex.id)
+    const patternOrMuscleId =
+      planType === 'PATTERN' ? (cat?.patternId ?? null) : (cat?.muscleId ?? null)
+    return { ...emptyItem(), exerciseId: ex.id, exerciseName: ex.name, patternOrMuscleId }
+  }
+
+  function handleDropInto(e: DragEvent, toBlockTempId: string, beforeItemTempId: string | null) {
+    const itemRaw = e.dataTransfer.getData(ITEM_DRAG_TYPE)
+    if (itemRaw) {
+      try {
+        const { blockTempId, itemTempId } = JSON.parse(itemRaw) as {
+          blockTempId: string
+          itemTempId: string
+        }
+        moveItem(blockTempId, itemTempId, toBlockTempId, beforeItemTempId)
+      } catch {
+        /* payload inválido */
+      }
+      return
+    }
+    const exRaw = e.dataTransfer.getData(EXERCISE_DRAG_TYPE)
+    if (exRaw) {
+      try {
+        const ex = JSON.parse(exRaw) as { id: string; name: string }
+        setBlocks((prev) => insertInto(prev, libraryItem(ex), toBlockTempId, beforeItemTempId))
+      } catch {
+        /* payload inválido */
+      }
+    }
+  }
 
   const volumeRows = useMemo(() => {
     const inputs = blocks.flatMap((block) =>
@@ -236,14 +335,32 @@ export function DayEditor({
 
       {blocks.map((block) => {
         const hasRounds = blockHasRounds(block.kind)
+        const blockDropActive = dropHint?.blockTempId === block.tempId && dropHint.itemTempId === null
         return (
           <div
             key={block.tempId}
-            className={
+            onDragOver={(e) => {
+              if (!dragTypesInclude(e)) return
+              e.preventDefault()
+              e.stopPropagation()
+              setDropHint({ blockTempId: block.tempId, itemTempId: null })
+            }}
+            onDragLeave={(e) => {
+              if (e.currentTarget.contains(e.relatedTarget as Node)) return
+              setDropHint((h) => (h?.blockTempId === block.tempId && h.itemTempId === null ? null : h))
+            }}
+            onDrop={(e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              handleDropInto(e, block.tempId, null)
+              setDropHint(null)
+            }}
+            className={cn(
               hasRounds
                 ? 'border-primary/30 ring-primary/15 rounded-xl border-l-4 py-3 pr-3 pl-4 ring-1'
-                : 'border-border rounded-xl border p-3'
-            }
+                : 'border-border rounded-xl border p-3',
+              blockDropActive && 'ring-primary/60 ring-2',
+            )}
           >
             <div className="mb-2 flex flex-wrap items-center gap-2">
               {hasRounds ? (
@@ -310,9 +427,51 @@ export function DayEditor({
                 const gridClass = videoId
                   ? 'grid grid-cols-2 gap-2'
                   : 'grid grid-cols-2 gap-2 sm:grid-cols-4'
+                const itemDropActive =
+                  dropHint?.blockTempId === block.tempId && dropHint.itemTempId === item.tempId
                 return (
-                <div key={item.tempId} className="bg-secondary/30 flex flex-col gap-2 rounded-lg border border-border p-2.5">
+                <div
+                  key={item.tempId}
+                  onDragOver={(e) => {
+                    if (!dragTypesInclude(e)) return
+                    e.preventDefault()
+                    e.stopPropagation()
+                    setDropHint({ blockTempId: block.tempId, itemTempId: item.tempId })
+                  }}
+                  onDragLeave={(e) => {
+                    if (e.currentTarget.contains(e.relatedTarget as Node)) return
+                    setDropHint((h) =>
+                      h?.blockTempId === block.tempId && h.itemTempId === item.tempId ? null : h,
+                    )
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    handleDropInto(e, block.tempId, item.tempId)
+                    setDropHint(null)
+                  }}
+                  className={cn(
+                    'bg-secondary/30 flex flex-col gap-2 rounded-lg border border-border p-2.5',
+                    itemDropActive && 'border-t-primary border-t-2',
+                  )}
+                >
                   <div className="flex items-start gap-2">
+                    <span
+                      draggable
+                      onDragStart={(e) => {
+                        e.dataTransfer.setData(
+                          ITEM_DRAG_TYPE,
+                          JSON.stringify({ blockTempId: block.tempId, itemTempId: item.tempId }),
+                        )
+                        e.dataTransfer.effectAllowed = 'move'
+                      }}
+                      onDragEnd={() => setDropHint(null)}
+                      aria-label="Mover ejercicio"
+                      title="Arrastrar para reordenar o mover a otro bloque"
+                      className="text-muted-foreground/50 hover:text-foreground mt-1 shrink-0 cursor-grab active:cursor-grabbing"
+                    >
+                      <GripVertical className="size-4" />
+                    </span>
                     {hasRounds ? (
                       <span className="bg-primary/10 text-primary mt-0.5 flex h-7 w-8 shrink-0 items-center justify-center rounded-md font-mono text-xs font-semibold">
                         {item.label}
@@ -417,6 +576,8 @@ export function DayEditor({
                             label="Tempo"
                             value={item.tempo}
                             onChange={(v) => updateItem(block.tempId, item.tempId, { tempo: v })}
+                            placeholder="3-1-1-0"
+                            hint="Velocidad de cada repetición en segundos: bajada · pausa abajo · subida · pausa arriba. Ej. 3-1-1-0."
                           />
                         </div>
                       ) : null}
@@ -507,11 +668,31 @@ function hasEnduranceFields(item: DraftItem): boolean {
   return Boolean(item.loadPercent || item.distance || item.time || item.pace || item.tempo)
 }
 
-function FreeTextField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+function FreeTextField({
+  label,
+  value,
+  onChange,
+  placeholder,
+  hint,
+}: {
+  label: string
+  value: string
+  onChange: (v: string) => void
+  placeholder?: string
+  hint?: string
+}) {
   return (
-    <label className="flex flex-col gap-0.5">
-      <span className="text-muted-foreground text-[10px] font-medium tracking-wide uppercase">{label}</span>
-      <Input value={value} onChange={(e) => onChange(e.target.value)} className="h-7 text-sm" />
+    <label className="flex flex-col gap-0.5" title={hint}>
+      <span className="text-muted-foreground text-[10px] font-medium tracking-wide uppercase">
+        {label}
+        {hint ? <span className="ml-0.5 cursor-help">ⓘ</span> : null}
+      </span>
+      <Input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="h-7 text-sm"
+      />
     </label>
   )
 }
