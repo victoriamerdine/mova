@@ -10,7 +10,13 @@ import { ExerciseCombobox } from '@/components/professor/plan-editor/exercise-co
 import { ExerciseVideoPreview } from '@/components/professor/plan-editor/exercise-video-preview'
 import { emptyItem, nextTempId, type DraftBlock, type DraftItem } from '@/components/professor/plan-editor/draft'
 import { calculateVolumeByGroup } from '@/lib/volume-calc'
-import { blockHasRounds } from '@/lib/plan-blocks'
+import {
+  BLOCK_KIND_LABEL,
+  NON_ROUNDS_BLOCK_KINDS,
+  SECTION_BLOCK_KINDS,
+  blockHasRounds,
+  type SaveDayBlockKind,
+} from '@/lib/plan-blocks'
 import type { PlanBuilderCatalog } from '@/lib/supabase/queries/plan-editor'
 
 /**
@@ -71,6 +77,17 @@ export function DayEditor({
       ...prevBlocks,
       { tempId: nextTempId(), kind: 'INDIVIDUAL', rounds: '', items: [emptyItem(prev ?? undefined)] },
     ])
+  }
+
+  function addSectionBlock(kind: SaveDayBlockKind) {
+    setBlocks((prevBlocks) => [
+      ...prevBlocks,
+      { tempId: nextTempId(), kind, rounds: '', items: [emptyItem()] },
+    ])
+  }
+
+  function updateBlockKind(blockTempId: string, kind: SaveDayBlockKind) {
+    setBlocks((prevBlocks) => prevBlocks.map((b) => (b.tempId === blockTempId ? { ...b, kind } : b)))
   }
 
   function addCombinedBlock() {
@@ -236,9 +253,18 @@ export function DayEditor({
                   </label>
                 </>
               ) : (
-                <Badge variant="outline" className="text-muted-foreground">
-                  Individual
-                </Badge>
+                <select
+                  value={block.kind}
+                  onChange={(e) => updateBlockKind(block.tempId, e.target.value as SaveDayBlockKind)}
+                  aria-label="Tipo de bloque"
+                  className="border-input h-7 rounded-md border bg-transparent px-2 text-xs font-medium outline-none dark:bg-input/30"
+                >
+                  {NON_ROUNDS_BLOCK_KINDS.map((kind) => (
+                    <option key={kind} value={kind}>
+                      {BLOCK_KIND_LABEL[kind]}
+                    </option>
+                  ))}
+                </select>
               )}
               <div className="ml-auto flex items-center gap-0.5">
                 <Button
@@ -389,6 +415,22 @@ export function DayEditor({
           <Repeat data-icon="inline-start" />
           Bloque circuito
         </Button>
+        <select
+          value=""
+          onChange={(e) => {
+            if (e.target.value) addSectionBlock(e.target.value as SaveDayBlockKind)
+            e.target.value = ''
+          }}
+          aria-label="Añadir sección"
+          className="border-input h-8 rounded-lg border bg-transparent px-2.5 text-sm outline-none dark:bg-input/30"
+        >
+          <option value="">+ Sección…</option>
+          {SECTION_BLOCK_KINDS.map((kind) => (
+            <option key={kind} value={kind}>
+              {BLOCK_KIND_LABEL[kind]}
+            </option>
+          ))}
+        </select>
       </div>
     </div>
   )
