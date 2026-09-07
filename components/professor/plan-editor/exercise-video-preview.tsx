@@ -1,15 +1,13 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Play, X } from 'lucide-react'
 
-import { Button } from '@/components/ui/button'
-
 /**
- * Botón "ver video" que aparece al lado de un ejercicio ya elegido en el
- * Constructor. Abre un modal chico con el embed de YouTube (formato vertical
- * 9:16, igual que la biblioteca) — mismo patrón visual que
- * components/library/exercise-detail-dialog.tsx.
+ * Previsualización del video del ejercicio, embebida en la fila (no un
+ * modal): se muestra siempre una miniatura y al tocarla el video se
+ * reproduce ahí mismo, in situ. Formato vertical 9:16, igual que la
+ * biblioteca.
  */
 export function ExerciseVideoPreview({
   videoId,
@@ -18,66 +16,58 @@ export function ExerciseVideoPreview({
   videoId: string
   exerciseName: string
 }) {
-  const [open, setOpen] = useState(false)
+  const [playing, setPlaying] = useState(false)
+  const [imgError, setImgError] = useState(false)
 
-  useEffect(() => {
-    if (!open) return
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false)
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [open])
+  if (playing) {
+    return (
+      <div className="relative w-40 shrink-0 overflow-hidden rounded-lg bg-zinc-950">
+        <div className="aspect-[9/16] w-full">
+          <iframe
+            key={videoId}
+            src={`https://www.youtube.com/embed/${videoId}?autoplay=1`}
+            title={exerciseName}
+            className="h-full w-full"
+            allow="autoplay; accelerometer; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+          />
+        </div>
+        <button
+          type="button"
+          onClick={() => setPlaying(false)}
+          aria-label="Cerrar video"
+          className="absolute right-1 top-1 flex size-6 items-center justify-center rounded-md bg-black/60 text-white hover:bg-black/80"
+        >
+          <X className="size-3.5" />
+        </button>
+      </div>
+    )
+  }
 
   return (
-    <>
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon-sm"
-        onClick={() => setOpen(true)}
-        aria-label={`Ver video de ${exerciseName}`}
-        className="text-muted-foreground hover:text-primary mt-0.5 shrink-0"
-      >
-        <Play className="size-3.5" />
-      </Button>
-
-      {open ? (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-label={`Video: ${exerciseName}`}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-900/60 p-4 backdrop-blur-sm"
-          onClick={() => setOpen(false)}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="bg-card w-full max-w-xs overflow-hidden rounded-2xl shadow-2xl"
-          >
-            <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-2.5">
-              <p className="truncate text-sm font-medium">{exerciseName}</p>
-              <button
-                type="button"
-                onClick={() => setOpen(false)}
-                aria-label="Cerrar"
-                className="text-muted-foreground hover:bg-muted hover:text-foreground flex size-7 shrink-0 items-center justify-center rounded-md transition-colors"
-              >
-                <X className="size-4" />
-              </button>
-            </div>
-            <div className="aspect-[9/16] w-full bg-zinc-950">
-              <iframe
-                key={videoId}
-                src={`https://www.youtube.com/embed/${videoId}`}
-                title={exerciseName}
-                className="h-full w-full"
-                allow="accelerometer; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-              />
-            </div>
-          </div>
-        </div>
-      ) : null}
-    </>
+    <button
+      type="button"
+      onClick={() => setPlaying(true)}
+      aria-label={`Reproducir video de ${exerciseName}`}
+      className="group relative w-24 shrink-0 overflow-hidden rounded-lg bg-gradient-to-br from-secondary to-muted"
+    >
+      <div className="aspect-[9/16] w-full">
+        {!imgError ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={`https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`}
+            alt=""
+            onError={() => setImgError(true)}
+            className="h-full w-full object-cover"
+          />
+        ) : null}
+      </div>
+      <span className="absolute inset-0 bg-black/15 transition-colors group-hover:bg-black/25" />
+      <span className="absolute inset-0 flex items-center justify-center">
+        <span className="flex size-8 items-center justify-center rounded-full bg-white/90 shadow transition-transform group-hover:scale-105">
+          <Play className="size-4 translate-x-px fill-zinc-900 text-zinc-900" />
+        </span>
+      </span>
+    </button>
   )
 }
