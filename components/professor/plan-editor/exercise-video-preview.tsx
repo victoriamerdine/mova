@@ -21,11 +21,11 @@ export function ExerciseVideoPreview({
 
   if (playing) {
     return (
-      <div className="relative w-40 shrink-0 overflow-hidden rounded-lg bg-zinc-950">
+      <div className="relative w-full overflow-hidden rounded-lg bg-zinc-950">
         <div className="aspect-[9/16] w-full">
           <iframe
             key={videoId}
-            src={`https://www.youtube.com/embed/${videoId}?autoplay=1`}
+            src={`https://www.youtube.com/embed/${videoId}?autoplay=1&playsinline=1&rel=0`}
             title={exerciseName}
             className="h-full w-full"
             allow="autoplay; accelerometer; encrypted-media; gyroscope; picture-in-picture"
@@ -49,7 +49,7 @@ export function ExerciseVideoPreview({
       type="button"
       onClick={() => setPlaying(true)}
       aria-label={`Reproducir video de ${exerciseName}`}
-      className="group relative w-24 shrink-0 overflow-hidden rounded-lg bg-gradient-to-br from-secondary to-muted"
+      className="group relative w-full overflow-hidden rounded-lg bg-gradient-to-br from-secondary to-muted"
     >
       <div className="aspect-[9/16] w-full">
         {!imgError ? (

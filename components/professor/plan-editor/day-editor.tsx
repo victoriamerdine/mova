@@ -263,7 +263,9 @@ export function DayEditor({
             </div>
 
             <div className="flex flex-col gap-2">
-              {block.items.map((item) => (
+              {block.items.map((item) => {
+                const videoId = item.exerciseId ? videoIdByExercise.get(item.exerciseId) : undefined
+                return (
                 <div key={item.tempId} className="bg-secondary/30 flex flex-col gap-2 rounded-lg border border-border p-2.5">
                   <div className="flex items-start gap-2">
                     {hasRounds ? (
@@ -312,44 +314,51 @@ export function DayEditor({
                     ) : null}
                   </div>
 
-                  {item.exerciseId && videoIdByExercise.has(item.exerciseId) ? (
-                    <ExerciseVideoPreview
-                      videoId={videoIdByExercise.get(item.exerciseId)!}
-                      exerciseName={item.exerciseName}
-                    />
-                  ) : null}
-
-                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                    {!hasRounds ? (
+                  <div className="flex items-stretch gap-3">
+                    <div className="flex min-w-0 flex-1 flex-col gap-2">
+                      <div className={videoId ? 'grid grid-cols-2 gap-2' : 'grid grid-cols-2 gap-2 sm:grid-cols-4'}>
+                        {!hasRounds ? (
+                          <FreeTextField
+                            label="Series"
+                            value={item.sets}
+                            onChange={(v) => updateItem(block.tempId, item.tempId, { sets: v })}
+                          />
+                        ) : null}
+                        <FreeTextField
+                          label="Reps"
+                          value={item.reps}
+                          onChange={(v) => updateItem(block.tempId, item.tempId, { reps: v })}
+                        />
+                        <FreeTextField
+                          label="Intensidad"
+                          value={item.intensityRpe}
+                          onChange={(v) => updateItem(block.tempId, item.tempId, { intensityRpe: v })}
+                        />
+                        <FreeTextField
+                          label="Pausa"
+                          value={item.restLabel}
+                          onChange={(v) => updateItem(block.tempId, item.tempId, { restLabel: v })}
+                        />
+                      </div>
                       <FreeTextField
-                        label="Series"
-                        value={item.sets}
-                        onChange={(v) => updateItem(block.tempId, item.tempId, { sets: v })}
+                        label="Notas"
+                        value={item.notes}
+                        onChange={(v) => updateItem(block.tempId, item.tempId, { notes: v })}
                       />
+                    </div>
+
+                    {videoId ? (
+                      <div className="flex w-32 shrink-0 flex-col gap-0.5 sm:w-36">
+                        <span className="text-muted-foreground text-[10px] font-medium tracking-wide uppercase">
+                          Video
+                        </span>
+                        <ExerciseVideoPreview videoId={videoId} exerciseName={item.exerciseName} />
+                      </div>
                     ) : null}
-                    <FreeTextField
-                      label="Reps"
-                      value={item.reps}
-                      onChange={(v) => updateItem(block.tempId, item.tempId, { reps: v })}
-                    />
-                    <FreeTextField
-                      label="Intensidad"
-                      value={item.intensityRpe}
-                      onChange={(v) => updateItem(block.tempId, item.tempId, { intensityRpe: v })}
-                    />
-                    <FreeTextField
-                      label="Pausa"
-                      value={item.restLabel}
-                      onChange={(v) => updateItem(block.tempId, item.tempId, { restLabel: v })}
-                    />
                   </div>
-                  <FreeTextField
-                    label="Notas"
-                    value={item.notes}
-                    onChange={(v) => updateItem(block.tempId, item.tempId, { notes: v })}
-                  />
                 </div>
-              ))}
+                )
+              })}
             </div>
 
             {hasRounds ? (
