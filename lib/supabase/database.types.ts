@@ -428,6 +428,10 @@ export type Database = {
         Args: { p_workout_id: string; p_blocks: Json }
         Returns: void
       }
+      save_week_days: {
+        Args: { p_days: Json }
+        Returns: void
+      }
       duplicate_workout: {
         Args: {
           p_source_workout_id: string
