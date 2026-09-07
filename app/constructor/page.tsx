@@ -1,14 +1,11 @@
-import { AppSidebar } from '@/components/professor/app-sidebar'
-import { ConstructorScreen } from '@/components/professor/constructor-screen'
+import { redirect } from 'next/navigation'
 
-export default function WorkoutBuilderPage() {
-  return (
-    <div className="bg-background flex min-h-svh">
-      <AppSidebar active="Planes" />
-
-      <div className="flex min-w-0 flex-1 flex-col">
-        <ConstructorScreen />
-      </div>
-    </div>
-  )
+/**
+ * `/constructor` era la maqueta estática de "Planes". La sección real vive
+ * ahora en `/planes` (índice de todos los planes del profesor) y el editor
+ * en `/planes/[planId]`. Se mantiene el redirect para no romper enlaces
+ * viejos.
+ */
+export default function ConstructorRedirect() {
+  redirect('/planes')
 }

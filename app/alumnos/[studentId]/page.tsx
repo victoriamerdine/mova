@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { ArrowRight, Plus } from 'lucide-react'
+import { ArrowRight, ChevronDown, Plus } from 'lucide-react'
 
 import { AppSidebar } from '@/components/professor/app-sidebar'
 import { DashboardHeader } from '@/components/professor/dashboard-header'
@@ -121,17 +121,28 @@ export default async function StudentDetailPage({
             </CardContent>
           </Card>
 
-          <Card className="gap-0 py-5">
-            <CardHeader className="px-5">
-              <CardTitle className="text-sm">Objetivos de carga</CardTitle>
-              <CardDescription className="text-xs">
-                Volumen (series/semana) e intensidad (RPE) objetivo por patrón. El editor de plan marca
-                cuando un plan se pasa. Dejá vacío lo que no quieras limitar.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="px-5">
-              <LoadTargetsForm studentId={studentId} patterns={patterns} current={patternTargets} />
-            </CardContent>
+          <Card className="gap-0 overflow-hidden py-0">
+            <details className="group">
+              <summary className="flex cursor-pointer list-none items-center gap-3 px-5 py-4 [&::-webkit-details-marker]:hidden">
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium">Objetivos de carga</p>
+                  <p className="text-muted-foreground text-xs">
+                    Volumen e intensidad objetivo por patrón — opcional.{' '}
+                    {patternTargets.length > 0
+                      ? `${patternTargets.length} patrón${patternTargets.length === 1 ? '' : 'es'} configurado${patternTargets.length === 1 ? '' : 's'}.`
+                      : 'Sin configurar.'}
+                  </p>
+                </div>
+                <ChevronDown className="text-muted-foreground size-4 shrink-0 transition-transform group-open:rotate-180" />
+              </summary>
+              <div className="border-t px-5 py-4">
+                <p className="text-muted-foreground mb-3 text-xs">
+                  Volumen (series/semana) e intensidad (RPE) objetivo por patrón. El editor de plan
+                  marca cuando un plan se pasa. Dejá vacío lo que no quieras limitar.
+                </p>
+                <LoadTargetsForm studentId={studentId} patterns={patterns} current={patternTargets} />
+              </div>
+            </details>
           </Card>
 
           <Card className="gap-0 overflow-hidden py-0">

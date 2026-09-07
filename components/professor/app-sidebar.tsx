@@ -24,16 +24,18 @@ export function AppSidebar({
   active = 'Dashboard',
   libraryCount = FALLBACK_LIBRARY_COUNT,
   studentCount,
+  planCount,
 }: {
   active?: string
   libraryCount?: number
   studentCount?: number
+  planCount?: number
 }) {
   const nav = [
     { label: 'Dashboard', icon: LayoutDashboard, href: '/' },
     { label: 'Alumnos', icon: Users, count: studentCount, href: '/alumnos' },
     { label: 'Biblioteca', icon: LibraryBig, count: libraryCount, href: '/biblioteca' },
-    { label: 'Planes', icon: ClipboardList, count: undefined, href: '/constructor' },
+    { label: 'Planes', icon: ClipboardList, count: planCount, href: '/planes' },
     { label: 'Analítica', icon: BarChart3, href: '#' },
     { label: 'Configuración', icon: Settings, href: '#' },
   ]
