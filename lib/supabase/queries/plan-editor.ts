@@ -63,6 +63,14 @@ export type PlanWeekOption = {
   id: string
   number: number
   name: string | null
+  phaseId: string | null
+}
+
+export type PlanPhaseOption = {
+  id: string
+  name: string
+  kind: string | null
+  order: number
 }
 
 export type PlanForEditor = {
@@ -73,6 +81,8 @@ export type PlanForEditor = {
   endDate: string | null
   studentId: string
   studentName: string
+  /** Fases del plan (nivel opcional Plan → Fase → Semana). Vacío si el plan no usa fases. */
+  phases: PlanPhaseOption[]
   weeks: PlanWeekOption[]
   /** Semana activa en el editor — `weekId` es su id (o '' si el plan no tiene semanas). */
   weekId: string
@@ -123,13 +133,31 @@ export async function getPlanForEditor(planId: string, weekId?: string): Promise
     (plan as unknown as { students: { profiles: { full_name: string } | null } | null }).students
       ?.profiles?.full_name ?? 'Alumno'
 
-  const { data: weekRows } = await supabase
-    .from('plan_weeks')
-    .select('id, number, name')
-    .eq('plan_id', planId)
-    .order('number', { ascending: true })
+  const [{ data: phaseRows }, { data: weekRows }] = await Promise.all([
+    supabase
+      .from('plan_phases')
+      .select('id, name, kind, order')
+      .eq('plan_id', planId)
+      .order('order', { ascending: true }),
+    supabase
+      .from('plan_weeks')
+      .select('id, number, name, phase_id')
+      .eq('plan_id', planId)
+      .order('number', { ascending: true }),
+  ])
 
-  const weeks: PlanWeekOption[] = (weekRows ?? []).map((w) => ({ id: w.id, number: w.number, name: w.name }))
+  const phases: PlanPhaseOption[] = (phaseRows ?? []).map((p) => ({
+    id: p.id,
+    name: p.name,
+    kind: p.kind,
+    order: p.order,
+  }))
+  const weeks: PlanWeekOption[] = (weekRows ?? []).map((w) => ({
+    id: w.id,
+    number: w.number,
+    name: w.name,
+    phaseId: w.phase_id,
+  }))
 
   if (weeks.length === 0) {
     return {
@@ -140,6 +168,7 @@ export async function getPlanForEditor(planId: string, weekId?: string): Promise
       endDate: plan.end_date,
       studentId: plan.student_id,
       studentName,
+      phases,
       weeks: [],
       weekId: '',
       days: [],
@@ -257,6 +286,7 @@ export async function getPlanForEditor(planId: string, weekId?: string): Promise
     endDate: plan.end_date,
     studentId: plan.student_id,
     studentName,
+    phases,
     weeks,
     weekId: activeWeek.id,
     days,

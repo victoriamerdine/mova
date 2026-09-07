@@ -20,6 +20,7 @@ import {
   type LibraryDragPayload,
 } from '@/components/professor/plan-editor/exercise-library-panel'
 import { LoadPanel } from '@/components/professor/plan-editor/load-panel'
+import { PhaseControls } from '@/components/professor/plan-editor/phase-controls'
 import { blockHasRounds } from '@/lib/plan-blocks'
 import { getRenewalBadge } from '@/lib/plan-renewal'
 import { calculateVolumeByGroup, type VolumeInput } from '@/lib/volume-calc'
@@ -308,11 +309,40 @@ export function PlanEditorClient({
             className="border-input h-8 rounded-lg border bg-transparent px-2.5 text-sm outline-none dark:bg-input/30"
             disabled={plan.weeks.length === 0}
           >
-            {plan.weeks.map((week) => (
-              <option key={week.id} value={week.id}>
-                {weekLabel(week)}
-              </option>
-            ))}
+            {plan.phases.length === 0
+              ? plan.weeks.map((week) => (
+                  <option key={week.id} value={week.id}>
+                    {weekLabel(week)}
+                  </option>
+                ))
+              : [
+                  ...plan.phases.map((phase) => {
+                    const phaseWeeks = plan.weeks.filter((w) => w.phaseId === phase.id)
+                    if (phaseWeeks.length === 0) return null
+                    return (
+                      <optgroup key={phase.id} label={phase.name}>
+                        {phaseWeeks.map((week) => (
+                          <option key={week.id} value={week.id}>
+                            {weekLabel(week)}
+                          </option>
+                        ))}
+                      </optgroup>
+                    )
+                  }),
+                  (() => {
+                    const noPhase = plan.weeks.filter((w) => !w.phaseId)
+                    if (noPhase.length === 0) return null
+                    return (
+                      <optgroup key="__none" label="Sin fase">
+                        {noPhase.map((week) => (
+                          <option key={week.id} value={week.id}>
+                            {weekLabel(week)}
+                          </option>
+                        ))}
+                      </optgroup>
+                    )
+                  })(),
+                ]}
           </select>
         </label>
 
@@ -351,6 +381,15 @@ export function PlanEditorClient({
           </form>
         ) : null}
       </div>
+
+      {plan.weeks.length > 0 ? (
+        <PhaseControls
+          planId={plan.id}
+          phases={plan.phases}
+          weeks={plan.weeks}
+          activeWeek={plan.weeks.find((w) => w.id === plan.weekId) ?? null}
+        />
+      ) : null}
 
       {plan.weeks.length === 0 ? (
         <p className="text-muted-foreground rounded-lg border border-dashed border-border px-4 py-8 text-center text-sm">
