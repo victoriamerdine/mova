@@ -31,6 +31,16 @@ export type DraftBlock = {
 let tempIdCounter = 0
 export const nextTempId = () => `tmp-${tempIdCounter++}`
 
+/** Normaliza para búsqueda: sin acentos, minúsculas. */
+export function normalizeText(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+}
+
+export const EXERCISE_DRAG_TYPE = 'application/x-mova-exercise'
+
 export function dayToDraft(day: PlanDay): DraftBlock[] {
   return day.blocks.map((block) => ({
     tempId: nextTempId(),
