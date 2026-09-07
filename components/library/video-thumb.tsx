@@ -20,7 +20,10 @@ export function VideoThumb({
     <div
       className={cn(
         'relative flex w-full items-center justify-center overflow-hidden bg-gradient-to-br from-secondary to-muted',
-        big ? 'aspect-[9/16]' : 'aspect-[9/16] rounded-t-xl',
+        // En las tarjetas del listado el thumbnail va apaisado (16:9) para
+        // ocupar menos alto y reducir el scroll. El detalle (`big`) sí lo
+        // muestra vertical.
+        big ? 'aspect-[9/16]' : 'aspect-video rounded-t-xl',
       )}
     >
       {showImage ? (
@@ -37,13 +40,13 @@ export function VideoThumb({
         <span
           className={cn(
             'relative flex items-center justify-center rounded-full bg-white/90 shadow-lg backdrop-blur transition-transform group-hover:scale-105',
-            big ? 'size-16' : 'size-11',
+            big ? 'size-16' : 'size-8',
           )}
         >
           <Play
             className={cn(
               'translate-x-0.5 fill-zinc-900 text-zinc-900',
-              big ? 'size-7' : 'size-4.5',
+              big ? 'size-7' : 'size-3.5',
             )}
           />
         </span>
