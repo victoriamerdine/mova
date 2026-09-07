@@ -424,6 +424,7 @@ export type Database = {
           activity_id: string | null
           activity_name: string | null
           label: string | null
+          group_label: string | null
           order: number
         }
         Insert: Partial<Database['public']['Tables']['training_items']['Row']>

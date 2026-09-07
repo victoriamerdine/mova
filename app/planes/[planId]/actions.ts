@@ -327,6 +327,7 @@ export type SaveDayItemPayload = {
   exerciseId: string | null
   activityName: string | null
   label: string | null
+  groupLabel: string | null
   sets: string
   reps: string
   loadKg: number | null
