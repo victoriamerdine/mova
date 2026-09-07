@@ -8,6 +8,15 @@ export type PlanPrescription = {
   notes: string | null
 }
 
+/** Fila cruda de workout_prescriptions como la devuelve Supabase (snake_case). */
+type PrescriptionRow = {
+  sets: string | null
+  reps: string | null
+  intensity_rpe: string | null
+  rest_label: string | null
+  notes: string | null
+}
+
 export type PlanTrainingItem = {
   id: string
   exerciseId: string | null
@@ -140,7 +149,9 @@ export async function getPlanForEditor(planId: string, weekId?: string): Promise
         muscles: { display_name: string } | null
         exercise_media: { url: string; is_primary: boolean; type: string }[]
       } | null
-      workout_prescriptions: PlanPrescription[] | PlanPrescription | null
+      // Supabase devuelve los nombres de columna tal cual (snake_case) —
+      // NO son PlanPrescription (camelCase). Se mapean abajo.
+      workout_prescriptions: PrescriptionRow[] | PrescriptionRow | null
     }
     type BlockRow = {
       id: string
@@ -161,7 +172,19 @@ export async function getPlanForEditor(planId: string, weekId?: string): Promise
           const primaryVideo = item.exercises?.exercise_media?.find((m) => m.type === 'video' && m.is_primary)
             ?? item.exercises?.exercise_media?.find((m) => m.type === 'video')
           const prescriptionRaw = item.workout_prescriptions
-          const prescription = Array.isArray(prescriptionRaw) ? prescriptionRaw[0] : prescriptionRaw
+          const raw = Array.isArray(prescriptionRaw) ? prescriptionRaw[0] : prescriptionRaw
+          // Mapeo snake_case → camelCase: sin esto, intensity_rpe y
+          // rest_label volvían como `undefined` al editor y se veían
+          // vacíos aunque estuvieran guardados en la base.
+          const prescription: PlanPrescription | null = raw
+            ? {
+                sets: raw.sets,
+                reps: raw.reps,
+                intensityRpe: raw.intensity_rpe,
+                restLabel: raw.rest_label,
+                notes: raw.notes,
+              }
+            : null
 
           return {
             id: item.id,
@@ -175,7 +198,7 @@ export async function getPlanForEditor(planId: string, weekId?: string): Promise
             muscleId: item.exercises?.muscle_id ?? null,
             muscleName: item.exercises?.muscles?.display_name ?? null,
             videoId: extractYouTubeId(primaryVideo?.url),
-            prescription: prescription ?? null,
+            prescription,
           }
         }),
     }))
