@@ -29,7 +29,9 @@ export function FormRunner({ token }: { token: string }) {
   const [index, setIndex] = useState(0)
   const [consentGiven, setConsentGiven] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const savedFlash = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Carga inicial
   useEffect(() => {
@@ -80,12 +82,20 @@ export function FormRunner({ token }: { token: string }) {
         clearTimeout(saveTimer.current)
         saveTimer.current = null
       }
+      setSaveState('saving')
       const { error } = await supabase.rpc('save_submission_answers', {
         p_token: token,
         p_answers: nextAnswers as never,
         p_progress: { index: nextIndex } as never,
       })
-      if (error) console.error('save_submission_answers falló:', error.message)
+      if (error) {
+        console.error('save_submission_answers falló:', error.message)
+        setSaveState('error')
+      } else {
+        setSaveState('saved')
+        if (savedFlash.current) clearTimeout(savedFlash.current)
+        savedFlash.current = setTimeout(() => setSaveState('idle'), 2000)
+      }
       return error
     },
     [supabase, token],
@@ -290,9 +300,12 @@ export function FormRunner({ token }: { token: string }) {
       <div className="bg-muted mb-6 h-1 w-full overflow-hidden rounded-full">
         <div className="bg-primary h-full rounded-full transition-all" style={{ width: `${pct}%` }} />
       </div>
-      <p className="text-muted-foreground mb-4 text-xs">
-        Pregunta {index + 1} de {visibleQuestions.length}
-      </p>
+      <div className="text-muted-foreground mb-4 flex items-center justify-between text-xs">
+        <span>
+          Pregunta {index + 1} de {visibleQuestions.length}
+        </span>
+        <SaveStatus state={saveState} />
+      </div>
 
       <div className="flex flex-1 flex-col gap-4">
         <div>
@@ -330,5 +343,26 @@ function Shell({ children }: { children: React.ReactNode }) {
     <div className="mx-auto flex min-h-svh w-full max-w-md flex-col justify-center gap-4 px-5 py-10 text-center">
       {children}
     </div>
+  )
+}
+
+function SaveStatus({ state }: { state: 'idle' | 'saving' | 'saved' | 'error' }) {
+  if (state === 'idle') return null
+  if (state === 'saving')
+    return (
+      <span className="inline-flex items-center gap-1">
+        <Loader2 className="size-3 animate-spin" />
+        Guardando…
+      </span>
+    )
+  if (state === 'saved')
+    return (
+      <span className="text-primary inline-flex items-center gap-1">
+        <Check className="size-3" />
+        Guardado
+      </span>
+    )
+  return (
+    <span className="text-destructive">Sin guardar — se reintenta al continuar</span>
   )
 }
