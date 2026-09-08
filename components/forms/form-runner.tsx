@@ -303,7 +303,12 @@ export function FormRunner({ token }: { token: string }) {
           {q.helpText ? <p className="text-muted-foreground mt-1 text-sm">{q.helpText}</p> : null}
         </div>
 
-        <QuestionInput question={q} value={answers[q.id]} onChange={(v) => setAnswer(q.id, v)} />
+        <QuestionInput
+          question={q}
+          value={answers[q.id]}
+          onChange={(v) => setAnswer(q.id, v)}
+          token={token}
+        />
 
         {errorMsg ? <p className="text-destructive text-sm">{errorMsg}</p> : null}
       </div>

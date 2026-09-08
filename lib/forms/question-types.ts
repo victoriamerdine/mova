@@ -178,8 +178,7 @@ export const QUESTION_TYPES: QuestionTypeMeta[] = [
       { key: 'accept', kind: 'text', label: 'Tipos aceptados (ej. image/*,.pdf)' },
       { key: 'maxSizeMB', kind: 'number', label: 'Tamaño máx. (MB)' },
     ],
-    // El bucket + upload por token van en el paso 8.
-    available: false,
+    available: true,
   },
   {
     type: 'video',
