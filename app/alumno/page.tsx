@@ -1,6 +1,20 @@
+import { redirect } from 'next/navigation'
+
+import { createClient } from '@/lib/supabase/server'
 import { WorkoutExecutionScreen } from '@/components/student/workout-execution-screen'
 
-export default function AlumnoPage() {
+export default async function AlumnoPage() {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  // proxy.ts ya cubre "sin sesión". Acá solo desviamos al profesor que
+  // entra por error a la app del alumno.
+  if (!user) redirect('/login')
+  const role = (user.user_metadata as { role?: string } | undefined)?.role
+  if (role && role !== 'student') redirect('/')
+
   return (
     <div className="flex min-h-svh items-center justify-center bg-zinc-100 p-6 dark:bg-zinc-950">
       <div className="relative h-[min(860px,92svh)] w-full max-w-md overflow-hidden rounded-[3rem] border-[10px] border-zinc-950 bg-zinc-950 shadow-2xl">

@@ -17,9 +17,9 @@ export default async function ProfessorDashboardPage() {
 
   // proxy.ts ya protege esta ruta contra visitantes sin sesión; esto además
   // cubre el caso de una sesión válida pero de un rol que no es profesor
-  // (ej. un individual entrando a "/").
+  // (ej. un alumno entrando a "/"): lo mandamos a su app, no al login.
   if (!professor) {
-    redirect('/login')
+    redirect('/alumno')
   }
 
   const [metrics, students] = await Promise.all([
