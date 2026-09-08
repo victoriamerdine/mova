@@ -4,9 +4,13 @@
  * local necesita `AI_GATEWAY_API_KEY` en .env.local; en Vercel usa el
  * token OIDC del proyecto. Cambiar de modelo o proveedor es cambiar el
  * string (o la env `AI_MODEL`), sin tocar el resto del código.
+ *
+ * Haiku para Buscar/Recomendar (alcanza de sobra y es barato); cuando
+ * lleguen Analizar y Generar borradores van a usar Sonnet 4.5 por su
+ * cuenta (una constante por route).
  */
 
-export const AI_MODEL = process.env.AI_MODEL ?? 'anthropic/claude-sonnet-4.5'
+export const AI_MODEL = process.env.AI_MODEL ?? 'anthropic/claude-haiku-4.5'
 
 /** Cortafuegos para el loop de tool-use: máximo de pasos por consulta. */
 export const AI_MAX_STEPS = 6
