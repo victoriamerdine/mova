@@ -85,9 +85,18 @@ export async function logExercise(input: {
     completed_at: new Date().toISOString(),
   }
 
-  const { error } = await supabase
+  // El índice único es parcial (where session_id is not null), así que no
+  // sirve como target de ON CONFLICT. Reescribir la fila de esa serie:
+  // corregir un dato dentro del mismo intento sobrescribe; un intento
+  // nuevo es otra sesión → otras filas.
+  await supabase
     .from('workout_performance')
-    .upsert(row, { onConflict: 'session_id,training_item_id,set_number' })
+    .delete()
+    .eq('session_id', sessionId)
+    .eq('training_item_id', input.trainingItemId)
+    .eq('set_number', input.setNumber)
+
+  const { error } = await supabase.from('workout_performance').insert(row)
   if (error) return { error: error.message }
 
   revalidatePath(`/alumno/dia/${input.workoutId}`)
