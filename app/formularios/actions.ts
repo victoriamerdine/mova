@@ -441,3 +441,53 @@ export async function createSubmission(input: {
   revalidatePath(`/formularios/${input.formId}`)
   return { token, url: `/f/${token}` }
 }
+
+// ============================================================
+// Respuestas — asociar a un alumno / aplicar al perfil (paso 6)
+// ============================================================
+export async function linkSubmissionToStudent(
+  submissionId: string,
+  studentId: string,
+): Promise<Result> {
+  await requireProfessor()
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('form_submissions')
+    .update({ student_id: studentId || null })
+    .eq('id', submissionId)
+  if (error) return { error: error.message }
+  revalidatePath(`/formularios`)
+  return {}
+}
+
+export async function applyAnswersToStudent(
+  formId: string,
+  submissionId: string,
+  studentId: string,
+  patch: {
+    level?: string
+    availability?: string
+    equipmentAccess?: string
+    notes?: string
+    primarySportId?: string | null
+  },
+): Promise<Result> {
+  await requireProfessor()
+  const supabase = await createClient()
+
+  const update: Database['public']['Tables']['students']['Update'] = {}
+  if (patch.level !== undefined) update.level = patch.level.trim() || null
+  if (patch.availability !== undefined) update.availability = patch.availability.trim() || null
+  if (patch.equipmentAccess !== undefined)
+    update.equipment_access = patch.equipmentAccess.trim() || null
+  if (patch.notes !== undefined) update.notes = patch.notes.trim() || null
+  if (patch.primarySportId !== undefined) update.primary_sport_id = patch.primarySportId || null
+
+  if (Object.keys(update).length === 0) return {}
+
+  const { error } = await supabase.from('students').update(update).eq('id', studentId)
+  if (error) return { error: error.message }
+
+  revalidatePath(`/formularios/${formId}/respuestas/${submissionId}`)
+  return {}
+}

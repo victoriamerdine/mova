@@ -3,6 +3,7 @@ import { getCurrentProfessor } from '@/lib/supabase/queries/professor-dashboard'
 import type {
   FormRule,
   FormStatus,
+  FormStructure,
   QuestionConfig,
   QuestionType,
   RuleCondition,
@@ -194,4 +195,168 @@ export async function getSystemTemplates(): Promise<{ id: string; name: string; 
     .is('professor_id', null)
     .order('name')
   return (data ?? []).map((t) => ({ id: t.id, name: t.name, description: t.description }))
+}
+
+// ============================================================
+// Respuestas (paso 6)
+// ============================================================
+export type SubmissionListItem = {
+  id: string
+  respondent: string
+  isProspect: boolean
+  status: 'pending' | 'started' | 'completed' | 'expired'
+  answered: number
+  total: number
+  createdAt: string
+  completedAt: string | null
+  token: string
+}
+
+export async function getFormMeta(formId: string): Promise<{ id: string; name: string } | null> {
+  const supabase = await createClient()
+  const { data } = await supabase.from('forms').select('id, name').eq('id', formId).maybeSingle()
+  return data ? { id: data.id, name: data.name } : null
+}
+
+export async function getFormSubmissions(formId: string): Promise<SubmissionListItem[]> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('form_submissions')
+    .select(
+      `
+      id, status, invitee_name, invitee_contact, token, created_at, completed_at, student_id,
+      students(profiles(full_name)),
+      form_versions(structure),
+      form_answers(id)
+    `,
+    )
+    .eq('form_id', formId)
+    .order('created_at', { ascending: false })
+
+  if (error || !data) return []
+
+  return (data as unknown as {
+    id: string
+    status: SubmissionListItem['status']
+    invitee_name: string | null
+    invitee_contact: string | null
+    token: string
+    created_at: string
+    completed_at: string | null
+    student_id: string | null
+    students: { profiles: { full_name: string } | null } | null
+    form_versions: { structure: { sections: { questions: unknown[] }[] } } | null
+    form_answers: { id: string }[]
+  }[]).map((s) => {
+    const total =
+      s.form_versions?.structure?.sections?.reduce((n, sec) => n + (sec.questions?.length ?? 0), 0) ??
+      0
+    return {
+      id: s.id,
+      respondent:
+        s.students?.profiles?.full_name ??
+        s.invitee_name ??
+        s.invitee_contact ??
+        'Sin nombre',
+      isProspect: s.student_id == null,
+      status: s.status,
+      answered: s.form_answers?.length ?? 0,
+      total,
+      createdAt: s.created_at,
+      completedAt: s.completed_at,
+      token: s.token,
+    }
+  })
+}
+
+export type SubmissionDetail = {
+  id: string
+  formId: string
+  formName: string
+  respondent: string
+  contact: string | null
+  status: SubmissionListItem['status']
+  createdAt: string
+  completedAt: string | null
+  token: string
+  studentId: string | null
+  student: {
+    level: string | null
+    availability: string | null
+    equipmentAccess: string | null
+    notes: string | null
+    primarySportId: string | null
+  } | null
+  structure: FormStructure
+  answers: Record<string, unknown>
+}
+
+export async function getSubmissionDetail(submissionId: string): Promise<SubmissionDetail | null> {
+  const supabase = await createClient()
+  const { data: s, error } = await supabase
+    .from('form_submissions')
+    .select(
+      `
+      id, form_id, status, invitee_name, invitee_contact, token, created_at, completed_at, student_id,
+      forms(name),
+      form_versions(structure),
+      students(level, availability, equipment_access, notes, primary_sport_id, profiles(full_name))
+    `,
+    )
+    .eq('id', submissionId)
+    .maybeSingle()
+
+  if (error || !s) return null
+  const row = s as unknown as {
+    id: string
+    form_id: string
+    status: SubmissionDetail['status']
+    invitee_name: string | null
+    invitee_contact: string | null
+    token: string
+    created_at: string
+    completed_at: string | null
+    student_id: string | null
+    forms: { name: string } | null
+    form_versions: { structure: FormStructure } | null
+    students: {
+      level: string | null
+      availability: string | null
+      equipment_access: string | null
+      notes: string | null
+      primary_sport_id: string | null
+      profiles: { full_name: string } | null
+    } | null
+  }
+
+  const { data: answerRows } = await supabase
+    .from('form_answers')
+    .select('question_id, value')
+    .eq('submission_id', submissionId)
+  const answers: Record<string, unknown> = {}
+  for (const a of answerRows ?? []) answers[a.question_id] = a.value
+
+  return {
+    id: row.id,
+    formId: row.form_id,
+    formName: row.forms?.name ?? 'Formulario',
+    respondent: row.students?.profiles?.full_name ?? row.invitee_name ?? 'Sin nombre',
+    contact: row.invitee_contact,
+    status: row.status,
+    createdAt: row.created_at,
+    completedAt: row.completed_at,
+    token: row.token,
+    studentId: row.student_id,
+    student: row.students
+      ? {
+          level: row.students.level,
+          availability: row.students.availability,
+          equipmentAccess: row.students.equipment_access,
+          notes: row.students.notes,
+          primarySportId: row.students.primary_sport_id,
+        }
+      : null,
+    structure: row.form_versions?.structure ?? { sections: [], rules: [] },
+    answers,
+  }
 }

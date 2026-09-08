@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
   ChevronDown,
@@ -128,6 +129,11 @@ export function FormBuilder({
             <Send data-icon="inline-start" />
             Enviar a un alumno
           </Button>
+          <Link href={`/formularios/${form.id}/respuestas`}>
+            <Button size="sm" variant="outline">
+              Respuestas
+            </Button>
+          </Link>
           <Button
             size="sm"
             variant="outline"
