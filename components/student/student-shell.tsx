@@ -7,11 +7,9 @@ import { Dumbbell, LogOut } from 'lucide-react'
  * de lo que ayudaba).
  */
 export function StudentShell({
-  name,
   signOut,
   children,
 }: {
-  name: string
   signOut: () => void
   children: ReactNode
 }) {
@@ -35,10 +33,7 @@ export function StudentShell({
           </form>
         </div>
       </header>
-      <main className="mx-auto flex max-w-lg flex-col gap-5 px-4 py-6">
-        <div className="sr-only">{name}</div>
-        {children}
-      </main>
+      <main className="mx-auto flex max-w-lg flex-col gap-5 px-4 py-6">{children}</main>
     </div>
   )
 }

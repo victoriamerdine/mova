@@ -22,7 +22,7 @@ export default async function AlumnoPage() {
   const plan = await getStudentActivePlan(student.id)
 
   return (
-    <StudentShell name={student.fullName} signOut={signOut}>
+    <StudentShell signOut={signOut}>
       {plan ? (
         <StudentHome name={student.fullName} plan={plan} />
       ) : (
