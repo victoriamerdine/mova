@@ -579,6 +579,70 @@ export type Database = {
           },
         ]
       }
+      workout_sessions: {
+        Row: {
+          id: string
+          workout_id: string
+          student_id: string
+          started_at: string
+          completed_at: string | null
+          feeling_note: string | null
+          created_at: string
+        }
+        Insert: Partial<Database['public']['Tables']['workout_sessions']['Row']> & {
+          workout_id: string
+          student_id: string
+        }
+        Update: Partial<Database['public']['Tables']['workout_sessions']['Row']>
+        Relationships: [
+          {
+            foreignKeyName: 'workout_sessions_workout_id_fkey'
+            columns: ['workout_id']
+            isOneToOne: false
+            referencedRelation: 'workouts'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      workout_performance: {
+        Row: {
+          id: string
+          training_item_id: string
+          student_id: string
+          session_id: string | null
+          set_number: number
+          actual_load_kg: number | null
+          actual_reps: string | null
+          actual_duration_sec: number | null
+          actual_distance_m: number | null
+          actual_pace: string | null
+          rpe: number | null
+          completed_at: string
+          comments: string | null
+        }
+        Insert: Partial<Database['public']['Tables']['workout_performance']['Row']> & {
+          training_item_id: string
+          student_id: string
+          set_number: number
+        }
+        Update: Partial<Database['public']['Tables']['workout_performance']['Row']>
+        Relationships: [
+          {
+            foreignKeyName: 'workout_performance_training_item_id_fkey'
+            columns: ['training_item_id']
+            isOneToOne: false
+            referencedRelation: 'training_items'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'workout_performance_session_id_fkey'
+            columns: ['session_id']
+            isOneToOne: false
+            referencedRelation: 'workout_sessions'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       forms: {
         Row: {
           id: string

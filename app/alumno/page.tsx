@@ -1,28 +1,35 @@
 import { redirect } from 'next/navigation'
 
+import { StudentHome } from '@/components/student/student-home'
+import { StudentShell } from '@/components/student/student-shell'
 import { createClient } from '@/lib/supabase/server'
-import { WorkoutExecutionScreen } from '@/components/student/workout-execution-screen'
+import { getCurrentStudent, getStudentActivePlan } from '@/lib/supabase/queries/student-plan'
+import { signOut } from '@/app/login/actions'
+
+export const dynamic = 'force-dynamic'
 
 export default async function AlumnoPage() {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const student = await getCurrentStudent()
+  if (!student) {
+    // proxy.ts ya cubre "sin sesión". Acá: un profesor que entró por error.
+    const supabase = await createClient()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    redirect(user ? '/' : '/login')
+  }
 
-  // proxy.ts ya cubre "sin sesión". Acá solo desviamos al profesor que
-  // entra por error a la app del alumno.
-  if (!user) redirect('/login')
-  const role = (user.user_metadata as { role?: string } | undefined)?.role
-  if (role && role !== 'student') redirect('/')
+  const plan = await getStudentActivePlan(student.id)
 
   return (
-    <div className="flex min-h-svh items-center justify-center bg-zinc-100 p-6 dark:bg-zinc-950">
-      <div className="relative h-[min(860px,92svh)] w-full max-w-md overflow-hidden rounded-[3rem] border-[10px] border-zinc-950 bg-zinc-950 shadow-2xl">
-        <div className="absolute top-0 left-1/2 z-10 h-6 w-32 -translate-x-1/2 rounded-b-2xl bg-zinc-950" />
-        <div className="h-full w-full overflow-hidden rounded-[2.25rem] bg-background">
-          <WorkoutExecutionScreen />
+    <StudentShell name={student.fullName} signOut={signOut}>
+      {plan ? (
+        <StudentHome name={student.fullName} plan={plan} />
+      ) : (
+        <div className="text-muted-foreground rounded-2xl border border-dashed p-8 text-center text-sm">
+          Todavía no tenés un plan activo. Cuando tu profe te asigne uno, va a aparecer acá.
         </div>
-      </div>
-    </div>
+      )}
+    </StudentShell>
   )
 }
