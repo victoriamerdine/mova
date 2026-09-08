@@ -16,13 +16,17 @@ export async function login(formData: FormData) {
   const email = identifier.includes('@') ? identifier : usernameToSyntheticEmail(normalizeUsername(identifier))
 
   const supabase = await createClient()
-  const { error } = await supabase.auth.signInWithPassword({ email, password })
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password })
 
   if (error) {
     redirect(`/login?error=${encodeURIComponent(error.message)}`)
   }
 
-  redirect('/')
+  // El alumno va a su app; profesor / individual al dashboard. Sin esto,
+  // el alumno caía en "/" (dashboard del profesor) → getCurrentProfessor
+  // null → vuelta a /login (parecía que "no entra").
+  const role = (data.user?.user_metadata as { role?: string } | undefined)?.role
+  redirect(role === 'student' ? '/alumno' : '/')
 }
 
 export async function signOut() {
