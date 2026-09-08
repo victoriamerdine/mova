@@ -146,3 +146,41 @@ export async function removeStudent(formData: FormData) {
 
   revalidatePath('/alumnos')
 }
+
+/**
+ * El profesor le pone una contraseña nueva a un alumno que gestiona (útil
+ * cuando el alumno la olvidó o nunca completó la invitación). Devuelve OK
+ * y la UI muestra la contraseña una vez para compartirla — no se guarda
+ * en texto plano en ningún lado.
+ *
+ * Cambiar la contraseña de un usuario de Auth es una operación de
+ * administración → service_role (ver doc-comment de createServiceRoleClient).
+ * La autorización se verifica antes con el cliente normal: la fila de
+ * student_professors solo existe si este profesor gestiona a ese alumno.
+ */
+export async function resetStudentPassword(
+  studentId: string,
+  newPassword: string,
+): Promise<{ error: string | null }> {
+  const professor = await getCurrentProfessor()
+  if (!professor) redirect('/login')
+
+  if (typeof newPassword !== 'string' || newPassword.length < 8) {
+    return { error: 'La contraseña necesita al menos 8 caracteres.' }
+  }
+
+  const supabase = await createClient()
+  const { data: rel } = await supabase
+    .from('student_professors')
+    .select('student_id')
+    .eq('student_id', studentId)
+    .eq('professor_id', professor.id)
+    .maybeSingle()
+  if (!rel) return { error: 'No podés cambiar la contraseña de este alumno.' }
+
+  const admin = createServiceRoleClient()
+  const { error } = await admin.auth.admin.updateUserById(studentId, { password: newPassword })
+  if (error) return { error: error.message }
+
+  return { error: null }
+}

@@ -6,16 +6,9 @@ import { Check, Copy, Eye, EyeOff, MessageCircle, RefreshCw, UserPlus } from 'lu
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { generatePassword } from '@/lib/auth/generate-password'
 import { isValidUsername, normalizeUsername } from '@/lib/auth/student-username'
 import { createStudentWithUsername } from '@/app/alumnos/actions'
-
-const PASSWORD_CHARS = 'abcdefghjkmnpqrstuvwxyz23456789' // sin 0/o/1/l/i — se confunden al dictar por WhatsApp
-
-function generatePassword(length = 10): string {
-  let out = ''
-  for (let i = 0; i < length; i++) out += PASSWORD_CHARS[Math.floor(Math.random() * PASSWORD_CHARS.length)]
-  return out
-}
 
 function CopyButton({ value }: { value: string }) {
   const [copied, setCopied] = useState(false)
