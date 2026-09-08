@@ -25,6 +25,28 @@ export type Json = string | number | boolean | null | { [key: string]: Json | un
 export type Database = {
   public: {
     Tables: {
+      ai_interactions: {
+        Row: {
+          id: string
+          professor_id: string
+          fn: 'search' | 'recommend' | 'analyze' | 'draft'
+          prompt: string
+          model: string | null
+          tool_calls: Json
+          result_ids: Json
+          answer: string | null
+          input_tokens: number | null
+          output_tokens: number | null
+          created_at: string
+        }
+        Insert: Partial<Database['public']['Tables']['ai_interactions']['Row']> & {
+          professor_id: string
+          fn: 'search' | 'recommend' | 'analyze' | 'draft'
+          prompt: string
+        }
+        Update: Partial<Database['public']['Tables']['ai_interactions']['Row']>
+        Relationships: []
+      }
       muscles: {
         Row: {
           id: string

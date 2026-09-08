@@ -136,6 +136,27 @@ export async function getLibraryItems(): Promise<LibraryItem[]> {
   return rows.map((r) => toLibraryItem(r, professor?.id ?? null, ownerNames))
 }
 
+/** Ejercicios por id, en el orden pedido. Para citar resultados de la IA. */
+export async function getExercisesByIds(ids: string[]): Promise<LibraryItem[]> {
+  const unique = [...new Set(ids.filter(Boolean))]
+  if (unique.length === 0) return []
+
+  const supabase = await createClient()
+  const professor = await getCurrentProfessor()
+  const { data, error } = await supabase.from('exercises').select(SELECT).in('id', unique)
+  if (error || !data) return []
+
+  const rows = data as unknown as ExerciseRow[]
+  const ownerNames = await resolveOwnerNames(
+    supabase,
+    rows.map((r) => r.owner_id),
+  )
+  const byId = new Map(
+    rows.map((r) => [r.id, toLibraryItem(r, professor?.id ?? null, ownerNames)]),
+  )
+  return unique.map((id) => byId.get(id)).filter((x): x is LibraryItem => !!x)
+}
+
 /** Solicitudes de cambio pendientes sobre ejercicios de los que soy dueño. */
 export async function getPendingChangeRequestsForOwner(): Promise<ChangeRequest[]> {
   const supabase = await createClient()
