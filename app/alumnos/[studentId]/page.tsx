@@ -6,7 +6,7 @@ import { AppSidebar } from '@/components/professor/app-sidebar'
 import { DashboardHeader } from '@/components/professor/dashboard-header'
 import { AiRecommendPanel } from '@/components/professor/ai-recommend-panel'
 import { LoadTargetsForm } from '@/components/professor/load-targets-form'
-import { ResetPasswordForm } from '@/components/professor/reset-password-form'
+import { StudentAccessCard } from '@/components/professor/student-access-card'
 import { StudentFormsCard } from '@/components/forms/student-forms-card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -17,6 +17,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getCurrentProfessor } from '@/lib/supabase/queries/professor-dashboard'
 import { getStudentSubmissions } from '@/lib/supabase/queries/forms'
 import { getStudentLoadTargets } from '@/lib/supabase/queries/plan-editor'
+import { getStudentUsername } from '@/lib/auth/student-credentials'
 import { createPlan } from '@/app/alumnos/[studentId]/actions'
 
 const PLAN_TYPE_OPTIONS: { value: string; label: string }[] = [
@@ -63,10 +64,11 @@ export default async function StudentDetailPage({
 
   const plans = plansData ?? []
 
-  const [{ data: patternsData }, loadTargets, formSubmissions] = await Promise.all([
+  const [{ data: patternsData }, loadTargets, formSubmissions, username] = await Promise.all([
     supabase.from('patterns').select('id, display_name').order('sort_order'),
     getStudentLoadTargets(studentId),
     getStudentSubmissions(studentId),
+    getStudentUsername(studentId),
   ])
   const patterns = (patternsData ?? []).map((p) => ({ id: p.id, name: p.display_name }))
   const patternTargets = loadTargets
@@ -168,16 +170,17 @@ export default async function StudentDetailPage({
 
           <Card className="gap-0 py-5">
             <CardHeader className="px-5">
-              <CardTitle className="text-sm">Cuenta del alumno</CardTitle>
+              <CardTitle className="text-sm">Acceso del alumno</CardTitle>
               <CardDescription className="text-xs">
-                Si el alumno perdió el acceso, generá una contraseña nueva y compartísela.
+                Su usuario, reenviar el acceso por WhatsApp o generar una contraseña nueva.
               </CardDescription>
             </CardHeader>
             <CardContent className="px-5">
-              <ResetPasswordForm
+              <StudentAccessCard
                 studentId={studentId}
                 studentName={studentName}
                 phone={student?.phone ?? null}
+                username={username}
               />
             </CardContent>
           </Card>
