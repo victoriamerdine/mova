@@ -103,6 +103,8 @@ export type StudentDay = {
   sessionId: string | null
   sessionCompletedAt: string | null
   feelingNote: string | null
+  /** Veces que el alumno completó este día (lo llena getStudentWeek). */
+  timesDone: number
   blocks: StudentDayBlock[]
 }
 
@@ -272,6 +274,7 @@ export async function getStudentDay(
     sessionId: openSession?.id ?? null,
     sessionCompletedAt: openSession?.completed_at ?? null,
     feelingNote: openSession?.feeling_note ?? null,
+    timesDone: 0,
     blocks,
   }
 }
@@ -385,6 +388,19 @@ export async function getStudentWeek(
     (openSessions ?? []).map((s) => [s.workout_id, s as { id: string; completed_at: string | null; feeling_note: string | null }]),
   )
 
+  // Veces completadas por día.
+  const { data: doneRows } = workoutIds.length
+    ? await supabase
+        .from('workout_sessions')
+        .select('workout_id')
+        .eq('student_id', studentId)
+        .not('completed_at', 'is', null)
+        .in('workout_id', workoutIds)
+    : { data: [] }
+  const timesDoneByWorkout = new Map<string, number>()
+  for (const r of doneRows ?? [])
+    timesDoneByWorkout.set(r.workout_id, (timesDoneByWorkout.get(r.workout_id) ?? 0) + 1)
+
   const days: StudentDay[] = []
   for (const wk of workouts ?? []) {
     const { data: blocksData } = await supabase
@@ -406,6 +422,7 @@ export async function getStudentWeek(
       sessionId: open?.id ?? null,
       sessionCompletedAt: open?.completed_at ?? null,
       feelingNote: open?.feeling_note ?? null,
+      timesDone: timesDoneByWorkout.get(wk.id) ?? 0,
       blocks: mapBlocks(blocksData, logsByItem),
     })
   }
