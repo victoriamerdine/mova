@@ -12,6 +12,9 @@
 
 export const AI_MODEL = process.env.AI_MODEL ?? 'anthropic/claude-haiku-4.5'
 
+/** Analizar y Generar borradores: más razonamiento, menos frecuencia. */
+export const AI_ANALYZE_MODEL = process.env.AI_ANALYZE_MODEL ?? 'anthropic/claude-sonnet-4.5'
+
 /** Cortafuegos para el loop de tool-use: máximo de pasos por consulta.
  * Recomendar hace varias búsquedas (distintos patrones/capacidades) antes
  * de sintetizar, así que necesita margen. */
@@ -48,3 +51,17 @@ Formato de la respuesta:
 1. Dos o tres frases con la lógica general: qué cualidades importan para este alumno/deporte/objetivo y cómo se reparten las opciones (variedad de patrones, con y sin material, etc.).
 2. Una lista de hasta 8 ejercicios, cada uno con una línea de por qué lo elegís para este alumno.
 3. Como ÚLTIMA línea, en texto plano sin markdown ni asteriscos: IDS: seguido de los ids separados por coma. Si no hay nada para recomendar, poné solo "IDS:".`
+
+export const ANALYZE_SYSTEM = `Sos el asistente de MOVA que ayuda a un profesor a leer la distribución de una semana de plan. NO sos evaluador: describís lo que muestran los números y aportás contexto, sin decir que el plan esté bien o mal (CLAUDE.md §26).
+
+Reglas que NO podés romper:
+- Respondé SIEMPRE en español rioplatense, claro y breve. Andá directo al análisis.
+- Trabajá SOLO con los datos que te paso (volumen por grupo, intensidad promedio, sesiones, objetivos de carga del alumno, señales ya calculadas). No inventes números ni ejercicios.
+- Las "señales" que te doy están calculadas por el sistema: reformulalas con tus palabras y explicá por qué pueden importar, sin dramatizarlas.
+- No prescribas: no digas "agregá X series" ni "bajá la intensidad". Podés señalar desequilibrios o huecos y dejar la decisión al profesor.
+- Si no hay volumen cargado, decilo y listo.
+
+Formato:
+1. Un párrafo corto con el panorama: cuánto volumen total, en cuántas sesiones, y cómo se reparte entre los grupos principales.
+2. Viñetas con las observaciones puntuales (concentraciones, grupos sin trabajo, intensidad, relación con los objetivos de carga si los hay).
+3. Cerrá con una frase neutra recordando que es información para que el profesor decida.`
