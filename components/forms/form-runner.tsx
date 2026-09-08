@@ -74,26 +74,37 @@ export function FormRunner({ token }: { token: string }) {
     return evaluateRules(structure, answers).requiredQuestionIds
   }, [structure, answers])
 
-  const persist = useCallback(
-    (nextAnswers: Record<string, unknown>, nextIndex: number) => {
-      if (saveTimer.current) clearTimeout(saveTimer.current)
-      saveTimer.current = setTimeout(() => {
-        void supabase.rpc('save_submission_answers', {
-          p_token: token,
-          p_answers: nextAnswers as never,
-          p_progress: { index: nextIndex } as never,
-        })
-      }, 500)
+  const flush = useCallback(
+    async (nextAnswers: Record<string, unknown>, nextIndex: number) => {
+      if (saveTimer.current) {
+        clearTimeout(saveTimer.current)
+        saveTimer.current = null
+      }
+      const { error } = await supabase.rpc('save_submission_answers', {
+        p_token: token,
+        p_answers: nextAnswers as never,
+        p_progress: { index: nextIndex } as never,
+      })
+      if (error) console.error('save_submission_answers falló:', error.message)
+      return error
     },
     [supabase, token],
   )
 
+  const persist = useCallback(
+    (nextAnswers: Record<string, unknown>, nextIndex: number) => {
+      if (saveTimer.current) clearTimeout(saveTimer.current)
+      saveTimer.current = setTimeout(() => {
+        void flush(nextAnswers, nextIndex)
+      }, 500)
+    },
+    [flush],
+  )
+
   function setAnswer(qid: string, value: unknown) {
-    setAnswers((prev) => {
-      const next = { ...prev, [qid]: value }
-      persist(next, index)
-      return next
-    })
+    const next = { ...answers, [qid]: value }
+    setAnswers(next)
+    persist(next, index)
   }
 
   async function begin() {
@@ -135,6 +146,13 @@ export function FormRunner({ token }: { token: string }) {
   async function submit() {
     setBusy(true)
     setErrorMsg(null)
+    // Guardar lo último antes de cerrar — sin esperar al debounce.
+    const saveErr = await flush(answers, index)
+    if (saveErr) {
+      setBusy(false)
+      setErrorMsg(saveErr.message)
+      return
+    }
     const { error } = await supabase.rpc('complete_submission', {
       p_token: token,
       p_consent: consentGiven,
