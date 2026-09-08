@@ -3,14 +3,19 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowRight, Plus, Trash2 } from 'lucide-react'
+import { ArrowRight, Copy, FileText, Plus, Trash2 } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { createForm, createFormFromTemplate, deleteForm } from '@/app/formularios/actions'
-import type { FormListItem } from '@/lib/supabase/queries/forms'
+import {
+  createForm,
+  createFormFromTemplate,
+  deleteForm,
+  duplicateForm,
+} from '@/app/formularios/actions'
+import type { FormListItem, SystemTemplate } from '@/lib/supabase/queries/forms'
 
 const STATUS_LABEL: Record<FormListItem['status'], string> = {
   draft: 'Borrador',
@@ -23,20 +28,40 @@ export function FormsList({
   templates,
 }: {
   forms: FormListItem[]
-  templates: { id: string; name: string; description: string | null }[]
+  templates: SystemTemplate[]
 }) {
   const router = useRouter()
   const [name, setName] = useState('')
-  const [templateId, setTemplateId] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
+  const [busyId, setBusyId] = useState<string | null>(null)
 
-  function create() {
+  function createBlank() {
     setError(null)
     startTransition(async () => {
-      const res = templateId
-        ? await createFormFromTemplate(templateId)
-        : await createForm(name || 'Formulario nuevo')
+      const res = await createForm(name.trim() || 'Formulario nuevo')
+      if (res.error) setError(res.error)
+      else router.push(`/formularios/${res.id}`)
+    })
+  }
+
+  function useTemplate(id: string) {
+    setError(null)
+    setBusyId(id)
+    startTransition(async () => {
+      const res = await createFormFromTemplate(id)
+      setBusyId(null)
+      if (res.error) setError(res.error)
+      else router.push(`/formularios/${res.id}`)
+    })
+  }
+
+  function duplicate(id: string) {
+    setError(null)
+    setBusyId(id)
+    startTransition(async () => {
+      const res = await duplicateForm(id)
+      setBusyId(null)
       if (res.error) setError(res.error)
       else router.push(`/formularios/${res.id}`)
     })
@@ -46,9 +71,9 @@ export function FormsList({
     <>
       <Card className="gap-0 py-5">
         <CardHeader className="px-5">
-          <CardTitle className="text-sm">Crear formulario</CardTitle>
+          <CardTitle className="text-sm">Formulario en blanco</CardTitle>
           <CardDescription className="text-xs">
-            En blanco, o partiendo de una plantilla del sistema.
+            Empezá de cero, o usá una plantilla más abajo.
           </CardDescription>
         </CardHeader>
         <CardContent className="px-5">
@@ -59,34 +84,87 @@ export function FormsList({
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Ej. Evaluación inicial"
-                disabled={!!templateId}
+                onKeyDown={(e) => e.key === 'Enter' && createBlank()}
               />
             </label>
-            {templates.length > 0 ? (
-              <label className="flex flex-col gap-1.5">
-                <span className="text-muted-foreground text-xs font-medium">Plantilla</span>
-                <select
-                  value={templateId}
-                  onChange={(e) => setTemplateId(e.target.value)}
-                  className="border-input h-8 rounded-lg border bg-transparent px-2.5 text-sm outline-none dark:bg-input/30"
-                >
-                  <option value="">— En blanco —</option>
-                  {templates.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            ) : null}
-            <Button className="h-8" onClick={create} disabled={pending}>
+            <Button className="h-8" onClick={createBlank} disabled={pending}>
               <Plus data-icon="inline-start" />
-              {pending ? 'Creando…' : 'Crear'}
+              {pending && !busyId ? 'Creando…' : 'Crear'}
             </Button>
           </div>
           {error ? <p className="text-destructive mt-2 text-xs">{error}</p> : null}
         </CardContent>
       </Card>
+
+      {templates.length > 0 ? (
+        <Card className="gap-0 py-5">
+          <CardHeader className="px-5">
+            <CardTitle className="text-sm">Plantillas</CardTitle>
+            <CardDescription className="text-xs">
+              Copian todas las preguntas a un formulario nuevo tuyo. Después lo editás libremente.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="px-5">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {templates.map((t) => (
+                <div
+                  key={t.id}
+                  className="border-border flex flex-col gap-2 rounded-xl border p-3.5"
+                >
+                  <div className="flex items-start gap-2">
+                    <FileText className="text-muted-foreground mt-0.5 size-4 shrink-0" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium">
+                        {t.name}
+                        {t.own ? (
+                          <Badge variant="secondary" className="ml-1.5 align-middle text-[10px]">
+                            Tuya
+                          </Badge>
+                        ) : null}
+                      </p>
+                      <p className="text-muted-foreground text-[11px]">
+                        {t.questionCount} pregunta{t.questionCount === 1 ? '' : 's'}
+                      </p>
+                    </div>
+                  </div>
+                  {t.description ? (
+                    <p className="text-muted-foreground line-clamp-3 text-xs">{t.description}</p>
+                  ) : null}
+                  <div className="mt-auto flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="w-fit"
+                      disabled={pending}
+                      onClick={() => useTemplate(t.id)}
+                    >
+                      {busyId === t.id ? 'Creando…' : 'Usar plantilla'}
+                    </Button>
+                    {t.own ? (
+                      <button
+                        type="button"
+                        aria-label={`Eliminar plantilla ${t.name}`}
+                        disabled={pending}
+                        onClick={() => {
+                          if (!confirm(`¿Eliminar la plantilla "${t.name}"?`)) return
+                          startTransition(async () => {
+                            const res = await deleteForm(t.id)
+                            if (res.error) setError(res.error)
+                            else router.refresh()
+                          })
+                        }}
+                        className="text-muted-foreground hover:text-destructive"
+                      >
+                        <Trash2 className="size-4" />
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
 
       <Card className="gap-0 overflow-hidden py-0">
         <CardHeader className="border-b px-5 py-4">
@@ -121,6 +199,15 @@ export function FormsList({
                     </Badge>
                     <ArrowRight className="text-muted-foreground size-4 shrink-0" />
                   </Link>
+                  <button
+                    type="button"
+                    aria-label={`Duplicar ${f.name}`}
+                    disabled={pending}
+                    onClick={() => duplicate(f.id)}
+                    className="text-muted-foreground hover:text-foreground shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
+                  >
+                    <Copy className="size-4" />
+                  </button>
                   <button
                     type="button"
                     aria-label={`Eliminar ${f.name}`}
