@@ -4,6 +4,7 @@ import { ArrowRight, ChevronDown, Plus } from 'lucide-react'
 
 import { AppSidebar } from '@/components/professor/app-sidebar'
 import { DashboardHeader } from '@/components/professor/dashboard-header'
+import { AiRecommendPanel } from '@/components/professor/ai-recommend-panel'
 import { LoadTargetsForm } from '@/components/professor/load-targets-form'
 import { ResetPasswordForm } from '@/components/professor/reset-password-form'
 import { StudentFormsCard } from '@/components/forms/student-forms-card'
@@ -92,6 +93,18 @@ export default async function StudentDetailPage({
           ) : null}
 
           <StudentFormsCard submissions={formSubmissions} />
+
+          <Card className="gap-0 py-5">
+            <CardHeader className="px-5">
+              <CardTitle className="text-sm">Recomendaciones de ejercicios</CardTitle>
+              <CardDescription className="text-xs">
+                Ideas de la IA sobre tu biblioteca, según el perfil del alumno.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="px-5">
+              <AiRecommendPanel studentId={studentId} studentName={studentName} />
+            </CardContent>
+          </Card>
 
           <Card className="gap-0 py-5">
             <CardHeader className="px-5">
