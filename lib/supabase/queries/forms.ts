@@ -186,15 +186,44 @@ export async function getFormForEditor(formId: string): Promise<FormForEditor | 
   }
 }
 
-export async function getSystemTemplates(): Promise<{ id: string; name: string; description: string | null }[]> {
+export type SystemTemplate = {
+  id: string
+  name: string
+  description: string | null
+  questionCount: number
+  own: boolean
+}
+
+/**
+ * Plantillas disponibles para el profesor: las del sistema (professor_id
+ * null, visibles para todos por RLS) + las propias ("Guardar como
+ * plantilla"). Las propias van primero.
+ */
+export async function getSystemTemplates(): Promise<SystemTemplate[]> {
   const supabase = await createClient()
+  const professor = await getCurrentProfessor()
+
   const { data } = await supabase
     .from('forms')
-    .select('id, name, description')
+    .select('id, name, description, professor_id, form_questions(count)')
     .eq('is_template', true)
-    .is('professor_id', null)
     .order('name')
-  return (data ?? []).map((t) => ({ id: t.id, name: t.name, description: t.description }))
+
+  const rows = (data as unknown as {
+    id: string
+    name: string
+    description: string | null
+    professor_id: string | null
+    form_questions: { count: number }[]
+  }[] | null ?? []).map((t) => ({
+    id: t.id,
+    name: t.name,
+    description: t.description,
+    questionCount: t.form_questions?.[0]?.count ?? 0,
+    own: professor != null && t.professor_id === professor.id,
+  }))
+
+  return rows.sort((a, b) => Number(b.own) - Number(a.own) || a.name.localeCompare(b.name))
 }
 
 // ============================================================
