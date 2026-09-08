@@ -5,6 +5,7 @@ import { ArrowRight, ChevronDown, Plus } from 'lucide-react'
 import { AppSidebar } from '@/components/professor/app-sidebar'
 import { DashboardHeader } from '@/components/professor/dashboard-header'
 import { LoadTargetsForm } from '@/components/professor/load-targets-form'
+import { ResetPasswordForm } from '@/components/professor/reset-password-form'
 import { StudentFormsCard } from '@/components/forms/student-forms-card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -43,13 +44,15 @@ export default async function StudentDetailPage({
 
   const { data: studentRow } = await supabase
     .from('students')
-    .select('id, profiles(full_name)')
+    .select('id, phone, profiles(full_name)')
     .eq('id', studentId)
     .maybeSingle()
 
-  const studentName =
-    (studentRow as unknown as { profiles: { full_name: string } | null } | null)?.profiles
-      ?.full_name ?? 'Alumno'
+  const student = studentRow as unknown as {
+    phone: string | null
+    profiles: { full_name: string } | null
+  } | null
+  const studentName = student?.profiles?.full_name ?? 'Alumno'
 
   const { data: plansData } = await supabase
     .from('plans')
@@ -148,6 +151,22 @@ export default async function StudentDetailPage({
                 <LoadTargetsForm studentId={studentId} patterns={patterns} current={patternTargets} />
               </div>
             </details>
+          </Card>
+
+          <Card className="gap-0 py-5">
+            <CardHeader className="px-5">
+              <CardTitle className="text-sm">Cuenta del alumno</CardTitle>
+              <CardDescription className="text-xs">
+                Si el alumno perdió el acceso, generá una contraseña nueva y compartísela.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="px-5">
+              <ResetPasswordForm
+                studentId={studentId}
+                studentName={studentName}
+                phone={student?.phone ?? null}
+              />
+            </CardContent>
           </Card>
 
           <Card className="gap-0 overflow-hidden py-0">
