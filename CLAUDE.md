@@ -1699,6 +1699,143 @@ Posteriormente:
 
 ---
 
+## SISTEMA DE FORMULARIOS DE EVALUACIÓN — ESTADO
+
+### En producción
+
+Feature transversal (no es una Fase del roadmap original). El profesor
+arma formularios de evaluación, se los manda al alumno y usa las
+respuestas para planificar. El alumno **NO necesita cuenta ni login**:
+responde por un link con token.
+
+**Modelo de datos** (migración `20260828000026`):
+
+- `forms` — un formulario o una plantilla. `is_template=false` + `professor_id`
+  → formulario del profesor; `is_template=true` + `professor_id` → plantilla
+  privada del profesor; `is_template=true` + `professor_id` null → plantilla
+  del sistema (seed). Estados `draft` / `published` / `archived`.
+- `form_sections` → `form_questions` → `form_question_options`. `form_id`
+  denormalizado en todas las hijas para que las policies sean un simple
+  `can_manage_form(form_id)`.
+- `form_questions.type`: 16 valores en el CHECK. El registry vive en la app
+  (`lib/forms/question-types.ts`) — agregar un tipo = una entrada ahí + el
+  CHECK + el input del alumno, sin cambiar el resto del esquema. Hoy
+  disponibles 15; `video` diferido.
+- `form_rules` — lógica condicional **como datos**:
+  `{ when: [{ questionId, op, value }], match: all|any, action:
+  show|hide|require|skip_to, target: { kind: question|section, id } }`.
+- `form_versions` — **snapshot inmutable**. Al publicar, toda la estructura
+  (secciones/preguntas/opciones/reglas) se congela en `structure` (jsonb) y
+  cada envío queda atado a una versión → editar el borrador después NO
+  rompe respuestas viejas.
+- `form_submissions` — un envío. `student_id` null = prospecto sin cuenta
+  (`invitee_name` / `invitee_contact`); `token` es la única credencial del
+  alumno anónimo; `progress` (jsonb) guarda el estado del wizard para
+  "pausar y seguir". Estados `pending` / `started` / `completed` / `expired`.
+- `form_answers` — una respuesta por pregunta. `question_id` **sin FK**
+  (apunta al id del snapshot, que puede haberse borrado del borrador);
+  `question_type` denormalizado; `value` jsonb.
+- `form_answer_files` — creada, **sin usar en v1** (el valor del archivo va
+  en `form_answers.value` como `{ path, filename, size, mime }`).
+- `form_submission_summaries` — futura IA, vacía. Mismo patrón que
+  `plan_drafts`: un resumen propuesto que el profesor aprueba/rechaza.
+
+**RPCs** (migración `20260828000027`):
+
+- `publish_form` — arma el snapshot y marca `published` (`security invoker`).
+- `create_form_from_template` / `duplicate_form` / `save_form_as_template`
+  — deep-copy vía `_clone_form_contents`, que **remapea los ids** de
+  pregunta/sección dentro de `when[].questionId` y `target.id` de las reglas.
+- Acceso anónimo POR TOKEN (`security definer`, sin grants a las tablas):
+  `get_submission`, `start_submission`, `save_submission_answers`,
+  `complete_submission`.
+- `evaluate_form_rules` + `complete_submission` reescrito (migración
+  `20260828000028`): al completar se re-validan en el servidor las
+  obligatorias **visibles** (no confía en el cliente).
+
+**Lógica condicional** — evaluador puro compartido `lib/forms/rules.ts`
+(`evaluateRules`, `missingRequired`) + espejo en plpgsql. Regla: una
+pregunta/sección **se ve salvo que** una regla `show` la apunte y su
+condición no se cumpla, o una `hide` la apunte y sí se cumpla; `require`
+la vuelve obligatoria si la condición se cumple. Sección oculta arrastra
+sus preguntas. `skip_to` está en el esquema pero el evaluador todavía no
+lo implementa.
+
+**Builder del profesor** (`/formularios`, `/formularios/[id]`,
+desktop-first):
+
+- CRUD de secciones/preguntas/opciones/reglas, reordenar (↑▼), marcar
+  sensible/obligatoria, asociar deportes.
+- Publicar / "Publicar cambios", enviar a un alumno (existente o prospecto
+  → link mágico + copiar + WhatsApp), duplicar, guardar como plantilla,
+  archivar/reactivar.
+- **Vista previa en vivo**: renderiza el borrador como lo ve el alumno, con
+  la lógica condicional aplicándose al responder ("N de M visibles · X
+  ocultas por reglas"). Sin persistencia.
+- Selector "+ Pregunta…" agrupado por categoría (Texto / Elección / Número
+  / Fecha / Medidas / Archivo).
+
+**Formulario del alumno** (`/f/[token]`, público, mobile-first,
+`components/forms/form-runner.tsx`):
+
+- Wizard pregunta por pregunta, barra de progreso, indicador de
+  autoguardado ("Guardando…" / "Guardado", se desvanece), retomable con el
+  mismo link.
+- Pantalla de consentimiento antes de la primera pregunta marcada
+  sensible; pantalla de revisión final.
+- Tipo `file`: sube por `POST /f/[token]/upload` (route handler,
+  service_role, valida token + pregunta + tamaño/`accept`); el valor queda
+  como `{ path, filename, size, mime }` y lo persiste el autosave.
+
+**Respuestas del profesor** (`/formularios/[id]/respuestas`,
+`.../[submissionId]`):
+
+- Lista de envíos (respondente, estado, `N/total` respondidas, fecha).
+- Detalle: **Resumen** de campos clave (por palabra clave), respuestas
+  completas por sección, archivos como link de descarga
+  (`GET .../archivo` — verifica dueño por RLS, firma URL de 120 s con
+  service_role).
+- **"Aplicar al perfil del alumno"** (nivel / disponibilidad /
+  equipamiento / notas / deporte principal) — SIEMPRE con confirmación
+  explícita, **nada automático** (migración `20260828000029`: policy
+  UPDATE en `students` para el profesor).
+- Prospecto sin cuenta → "Asociar a un alumno".
+- Los formularios respondidos del alumno también se muestran en el detalle
+  del alumno y en el editor de plan (`<StudentFormsCard>`), "si es que
+  corresponde".
+
+**Plantillas** (migración `20260828000030`): 8 del sistema — Evaluación
+inicial general, Fuerza / Gimnasio, Hipertrofia, Running, Fútbol, Pádel,
+Karate, Preparación física. Cada una con una sección de lesiones sensible
++ una regla condicional. Más las propias del profesor. Todas se copian a
+un formulario nuevo suyo (`create_form_from_template`).
+
+**Archivos** (migración `20260828000032`): bucket privado `form-uploads`,
+15 MB. Ni el alumno anónimo ni el profesor tocan Storage directo — todo
+pasa por route handlers con la service_role key.
+
+**RLS**: un profesor no ve formularios/envíos/respuestas de otro profesor;
+un alumno logueado solo ve los suyos; las plantillas del sistema las lee
+cualquier profesor.
+
+**Tests**: `pnpm test` (vitest) — 76 tests de lógica pura, incluye
+`lib/forms/rules` (evaluación, obligatoria oculta no se exige, formulario
+modificado) y `lib/forms/question-types` (invariantes del registry).
+
+### Pendiente
+
+- Tipo de pregunta `video`.
+- Poblar `form_answer_files` (hoy el archivo vive solo en
+  `form_answers.value`); limpiar objetos huérfanos de Storage al borrar un
+  envío.
+- Acción `skip_to` de las reglas (definida en el esquema, sin implementar).
+- `form_submission_summaries` + IA: resumen automático de una respuesta que
+  el profesor aprueba/rechaza (§33).
+- Tests de RLS y de las funciones plpgsql (hoy se verifican a mano contra
+  el proyecto real).
+
+---
+
 # 45. ORDEN EXACTO DE DESARROLLO DEL MVP
 
 No desarrollar todo simultáneamente.
