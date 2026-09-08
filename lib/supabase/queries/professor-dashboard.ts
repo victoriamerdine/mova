@@ -6,6 +6,37 @@ export type CurrentProfessor = {
 }
 
 /** null si no hay sesión o el usuario logueado no es profesor. */
+/** Rol + estado del profesor logueado, sin gate. Para el login / /pendiente. */
+export async function getSessionRole(): Promise<{
+  role: string | null
+  professorStatus: 'pending' | 'active' | 'suspended' | null
+}> {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return { role: null, professorStatus: null }
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .maybeSingle()
+  const role = profile?.role ?? null
+
+  let professorStatus: 'pending' | 'active' | 'suspended' | null = null
+  if (role === 'professor') {
+    const { data: prof } = await supabase
+      .from('professors')
+      .select('status')
+      .eq('id', user.id)
+      .maybeSingle()
+    professorStatus = prof?.status ?? null
+  }
+  return { role, professorStatus }
+}
+
+/** null si no hay sesión, no es profesor, o el profesor no está aprobado. */
 export async function getCurrentProfessor(): Promise<CurrentProfessor | null> {
   const supabase = await createClient()
 
@@ -16,11 +47,13 @@ export async function getCurrentProfessor(): Promise<CurrentProfessor | null> {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('id, role, full_name')
+    .select('id, role, full_name, professors(status)')
     .eq('id', user.id)
     .single()
 
   if (!profile || profile.role !== 'professor') return null
+  const status = (profile as unknown as { professors: { status: string } | null }).professors?.status
+  if (status !== 'active') return null
 
   return { id: profile.id, fullName: profile.full_name }
 }

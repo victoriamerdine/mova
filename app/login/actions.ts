@@ -22,11 +22,20 @@ export async function login(formData: FormData) {
     redirect(`/login?error=${encodeURIComponent(error.message)}`)
   }
 
-  // El alumno va a su app; profesor / individual al dashboard. Sin esto,
-  // el alumno caía en "/" (dashboard del profesor) → getCurrentProfessor
-  // null → vuelta a /login (parecía que "no entra").
+  // Redirigir según el rol. El profesor no aprobado va a /pendiente
+  // (si fuera a "/" caería en un loop: getCurrentProfessor lo rechaza).
   const role = (data.user?.user_metadata as { role?: string } | undefined)?.role
-  redirect(role === 'student' ? '/alumno' : '/')
+  if (role === 'admin') redirect('/admin')
+  if (role === 'student') redirect('/alumno')
+  if (role === 'professor') {
+    const { data: prof } = await supabase
+      .from('professors')
+      .select('status')
+      .eq('id', data.user!.id)
+      .maybeSingle()
+    redirect(prof?.status === 'active' ? '/' : '/pendiente')
+  }
+  redirect('/')
 }
 
 export async function signOut() {

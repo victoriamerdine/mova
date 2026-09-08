@@ -10,16 +10,20 @@ import {
   getCurrentProfessor,
   getDashboardMetrics,
   getMyStudents,
+  getSessionRole,
 } from '@/lib/supabase/queries/professor-dashboard'
 
 export default async function ProfessorDashboardPage() {
   const professor = await getCurrentProfessor()
 
-  // proxy.ts ya protege esta ruta contra visitantes sin sesión; esto además
-  // cubre el caso de una sesión válida pero de un rol que no es profesor
-  // (ej. un alumno entrando a "/"): lo mandamos a su app, no al login.
+  // proxy.ts ya cubre "sin sesión". Acá: sesión válida de un rol que no es
+  // profesor activo — cada uno a su lugar (sin loops).
   if (!professor) {
-    redirect('/alumno')
+    const { role, professorStatus } = await getSessionRole()
+    if (role === 'admin') redirect('/admin')
+    if (role === 'student') redirect('/alumno')
+    if (role === 'professor') redirect(professorStatus === 'active' ? '/' : '/pendiente')
+    redirect('/login')
   }
 
   const [metrics, students] = await Promise.all([
