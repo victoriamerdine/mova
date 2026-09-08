@@ -4,7 +4,9 @@ import { notFound, redirect } from 'next/navigation'
 import { AppSidebar } from '@/components/professor/app-sidebar'
 import { DashboardHeader } from '@/components/professor/dashboard-header'
 import { PlanEditorClient } from '@/components/professor/plan-editor/plan-editor-client'
+import { StudentFormsCard } from '@/components/forms/student-forms-card'
 import { getCurrentProfessor } from '@/lib/supabase/queries/professor-dashboard'
+import { getStudentSubmissions } from '@/lib/supabase/queries/forms'
 import {
   getPlanBuilderCatalog,
   getPlanForEditor,
@@ -27,7 +29,10 @@ export default async function PlanEditorPage({
 
   if (!plan) notFound()
 
-  const loadTargets = await getStudentLoadTargets(plan.studentId)
+  const [loadTargets, formSubmissions] = await Promise.all([
+    getStudentLoadTargets(plan.studentId),
+    getStudentSubmissions(plan.studentId),
+  ])
 
   return (
     <div className="bg-background flex min-h-svh">
@@ -49,6 +54,8 @@ export default async function PlanEditorPage({
           {error ? (
             <p className="bg-destructive/10 text-destructive rounded-lg px-3 py-2 text-sm">{error}</p>
           ) : null}
+
+          <StudentFormsCard submissions={formSubmissions} />
 
           <PlanEditorClient plan={plan} catalog={catalog} loadTargets={loadTargets} />
         </main>
