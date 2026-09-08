@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Plus } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
+import { AiSearchPanel } from '@/components/library/ai-search-panel'
 import { FilterBar } from '@/components/library/filter-bar'
 import { ExerciseCard } from '@/components/library/exercise-card'
 import { ExerciseDetailDialog } from '@/components/library/exercise-detail-dialog'
@@ -167,6 +168,8 @@ export function LibraryWorkspace({
           sportOptions={sportOptions}
         />
       </header>
+
+      <AiSearchPanel onSelect={setSelected} />
 
       {toast ? (
         <div className="bg-primary/10 text-primary border-primary/20 mx-4 mt-3 rounded-lg border px-3 py-2 text-xs sm:mx-6">
