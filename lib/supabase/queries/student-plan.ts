@@ -20,148 +20,32 @@ export async function getCurrentStudent(): Promise<CurrentStudent | null> {
   return { id: profile.id, fullName: profile.full_name }
 }
 
-export type StudentWorkout = {
-  id: string
-  name: string
-  type: string | null
-  weekNumber: number
-  weekName: string | null
-  estimatedMin: number | null
-  exerciseCount: number
-  /** intentos completados de ESTA sesión por el alumno */
-  timesDone: number
-  lastDoneAt: string | null
-}
 
-export type StudentActivePlan = {
+export type StudentPlanSummary = {
   id: string
   name: string
   objective: string | null
   startDate: string | null
   endDate: string | null
-  /** longitud del ciclo = total de sesiones en todas las semanas */
-  cycleLength: number
-  /** vuelta actual del ciclo (1-based) */
-  cycleNumber: number
-  /** sesión sugerida para hoy (la siguiente sin hacer en el ciclo) */
-  nextWorkoutId: string | null
-  workouts: StudentWorkout[]
 }
 
-type WorkoutRow = {
-  id: string
-  name: string
-  type: string | null
-  estimated_duration_min: number | null
-  order: number
-  week_id: string
-  workout_blocks: { training_items: { id: string }[] }[]
-}
-
-export async function getStudentActivePlan(studentId: string): Promise<StudentActivePlan | null> {
+/** Todos los planes activos del alumno (puede tener más de uno). */
+export async function getStudentActivePlans(studentId: string): Promise<StudentPlanSummary[]> {
   const supabase = await createClient()
-
-  const { data: plan } = await supabase
+  const { data } = await supabase
     .from('plans')
-    .select('id, name, objective, start_date, end_date')
+    .select('id, name, objective, start_date, end_date, created_at')
     .eq('student_id', studentId)
     .eq('status', 'active')
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle()
-  if (!plan) return null
+    .order('created_at', { ascending: true })
 
-  const { data: weeks } = await supabase
-    .from('plan_weeks')
-    .select('id, number, name')
-    .eq('plan_id', plan.id)
-    .order('number')
-  const weekList = weeks ?? []
-  if (weekList.length === 0) {
-    return {
-      id: plan.id,
-      name: plan.name,
-      objective: plan.objective,
-      startDate: plan.start_date,
-      endDate: plan.end_date,
-      cycleLength: 0,
-      cycleNumber: 1,
-      nextWorkoutId: null,
-      workouts: [],
-    }
-  }
-
-  const weekIds = weekList.map((w) => w.id)
-  const weekById = new Map(weekList.map((w) => [w.id, w]))
-
-  const { data: workoutRows } = await supabase
-    .from('workouts')
-    .select('id, name, type, estimated_duration_min, order, week_id, workout_blocks(training_items(id))')
-    .in('week_id', weekIds)
-    .order('order')
-
-  const rows = (workoutRows ?? []) as unknown as WorkoutRow[]
-  // Orden del ciclo: por número de semana, luego por order de la sesión.
-  rows.sort((a, b) => {
-    const wa = weekById.get(a.week_id)?.number ?? 0
-    const wb = weekById.get(b.week_id)?.number ?? 0
-    return wa - wb || a.order - b.order
-  })
-
-  // Intentos completados por sesión.
-  const { data: sessions } = await supabase
-    .from('workout_sessions')
-    .select('workout_id, completed_at')
-    .eq('student_id', studentId)
-    .not('completed_at', 'is', null)
-    .in(
-      'workout_id',
-      rows.map((r) => r.id),
-    )
-  const doneByWorkout = new Map<string, { count: number; last: string | null }>()
-  for (const s of sessions ?? []) {
-    const cur = doneByWorkout.get(s.workout_id) ?? { count: 0, last: null }
-    cur.count += 1
-    if (!cur.last || (s.completed_at && s.completed_at > cur.last)) cur.last = s.completed_at
-    doneByWorkout.set(s.workout_id, cur)
-  }
-
-  const totalCompleted = [...doneByWorkout.values()].reduce((n, v) => n + v.count, 0)
-  const cycleLength = rows.length
-  const cycleNumber = Math.floor(totalCompleted / cycleLength) + 1
-  const nextIndex = totalCompleted % cycleLength
-  const nextWorkoutId = rows[nextIndex]?.id ?? null
-
-  const workouts: StudentWorkout[] = rows.map((r) => {
-    const w = weekById.get(r.week_id)
-    const done = doneByWorkout.get(r.id)
-    return {
-      id: r.id,
-      name: r.name,
-      type: r.type,
-      weekNumber: w?.number ?? 0,
-      weekName: w?.name ?? null,
-      estimatedMin: r.estimated_duration_min,
-      exerciseCount: (r.workout_blocks ?? []).reduce(
-        (n, b) => n + (b.training_items?.length ?? 0),
-        0,
-      ),
-      timesDone: done?.count ?? 0,
-      lastDoneAt: done?.last ?? null,
-    }
-  })
-
-  return {
-    id: plan.id,
-    name: plan.name,
-    objective: plan.objective,
-    startDate: plan.start_date,
-    endDate: plan.end_date,
-    cycleLength,
-    cycleNumber,
-    nextWorkoutId,
-    workouts,
-  }
+  return (data ?? []).map((p) => ({
+    id: p.id,
+    name: p.name,
+    objective: p.objective,
+    startDate: p.start_date,
+    endDate: p.end_date,
+  }))
 }
 
 // ============================================================
@@ -228,103 +112,48 @@ function ytId(url: string | undefined | null): string | null {
   return m ? m[1] : null
 }
 
-export async function getStudentDay(
-  studentId: string,
-  workoutId: string,
-): Promise<StudentDay | null> {
-  const supabase = await createClient()
+const BLOCKS_SELECT = `
+  id, kind, rounds, order,
+  training_items(
+    id, exercise_id, activity_name, label, order,
+    exercises(canonical_name, patterns(display_name), muscles(display_name), exercise_media(url, is_primary, type)),
+    workout_prescriptions(sets, reps, load_kg, load_percent, intensity_rpe, rest_label, time_sec, distance_m, pace, tempo, notes)
+  )
+`
 
-  const { data: workout } = await supabase
-    .from('workouts')
-    .select('id, name, type, objective, week_id, plan_weeks(number, plans(name))')
-    .eq('id', workoutId)
-    .eq('student_id', studentId)
-    .maybeSingle()
-  if (!workout) return null
+type PrescriptionRow = {
+  sets: string | null
+  reps: string | null
+  load_kg: number | null
+  load_percent: number | null
+  intensity_rpe: string | null
+  rest_label: string | null
+  time_sec: number | null
+  distance_m: number | null
+  pace: string | null
+  tempo: string | null
+  notes: string | null
+}
+type ItemRow = {
+  id: string
+  activity_name: string | null
+  label: string | null
+  order: number
+  exercises: {
+    canonical_name: string
+    patterns: { display_name: string } | null
+    muscles: { display_name: string } | null
+    exercise_media: { url: string; is_primary: boolean; type: string }[]
+  } | null
+  workout_prescriptions: PrescriptionRow[] | PrescriptionRow | null
+}
+type BlockRow = { id: string; kind: string; rounds: number | null; order: number; training_items: ItemRow[] }
 
-  const w = workout as unknown as {
-    id: string
-    name: string
-    type: string | null
-    objective: string | null
-    plan_weeks: { number: number; plans: { name: string } | null } | null
-  }
-
-  const { data: blocksData } = await supabase
-    .from('workout_blocks')
-    .select(
-      `
-      id, kind, rounds, order,
-      training_items(
-        id, exercise_id, activity_name, label, order,
-        exercises(canonical_name, patterns(display_name), muscles(display_name), exercise_media(url, is_primary, type)),
-        workout_prescriptions(sets, reps, load_kg, load_percent, intensity_rpe, rest_label, time_sec, distance_m, pace, tempo, notes)
-      )
-    `,
-    )
-    .eq('workout_id', workoutId)
-    .order('order')
-
-  // Sesión abierta (sin completar) del alumno para este día + lo registrado.
-  const { data: openSession } = await supabase
-    .from('workout_sessions')
-    .select('id, completed_at, feeling_note')
-    .eq('workout_id', workoutId)
-    .eq('student_id', studentId)
-    .is('completed_at', null)
-    .order('started_at', { ascending: false })
-    .limit(1)
-    .maybeSingle()
-
-  const logsByItem = new Map<string, StudentLog[]>()
-  if (openSession) {
-    const { data: perf } = await supabase
-      .from('workout_performance')
-      .select('training_item_id, set_number, actual_load_kg, actual_reps, rpe, comments')
-      .eq('session_id', openSession.id)
-    for (const p of perf ?? []) {
-      const list = logsByItem.get(p.training_item_id) ?? []
-      list.push({
-        setNumber: p.set_number,
-        loadKg: p.actual_load_kg,
-        reps: p.actual_reps,
-        rpe: p.rpe,
-        comments: p.comments,
-      })
-      logsByItem.set(p.training_item_id, list)
-    }
-  }
-
-  type ItemRow = {
-    id: string
-    activity_name: string | null
-    label: string | null
-    order: number
-    exercises: {
-      canonical_name: string
-      patterns: { display_name: string } | null
-      muscles: { display_name: string } | null
-      exercise_media: { url: string; is_primary: boolean; type: string }[]
-    } | null
-    workout_prescriptions:
-      | {
-          sets: string | null
-          reps: string | null
-          load_kg: number | null
-          load_percent: number | null
-          intensity_rpe: string | null
-          rest_label: string | null
-          time_sec: number | null
-          distance_m: number | null
-          pace: string | null
-          tempo: string | null
-          notes: string | null
-        }[]
-      | null
-  }
-  type BlockRow = { id: string; kind: string; rounds: number | null; order: number; training_items: ItemRow[] }
-
-  const blocks: StudentDayBlock[] = ((blocksData ?? []) as unknown as BlockRow[]).map((b) => ({
+function mapBlocks(
+  blocksData: unknown,
+  logsByItem: Map<string, StudentLog[]>,
+): StudentDayBlock[] {
+  return ((blocksData ?? []) as BlockRow[]).map((b) => ({
     id: b.id,
     kind: b.kind,
     rounds: b.rounds,
@@ -364,6 +193,74 @@ export async function getStudentDay(
         }
       }),
   }))
+}
+
+async function openSessionLogs(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  sessionId: string,
+): Promise<Map<string, StudentLog[]>> {
+  const map = new Map<string, StudentLog[]>()
+  const { data: perf } = await supabase
+    .from('workout_performance')
+    .select('training_item_id, set_number, actual_load_kg, actual_reps, rpe, comments')
+    .eq('session_id', sessionId)
+  for (const p of perf ?? []) {
+    const list = map.get(p.training_item_id) ?? []
+    list.push({
+      setNumber: p.set_number,
+      loadKg: p.actual_load_kg,
+      reps: p.actual_reps,
+      rpe: p.rpe,
+      comments: p.comments,
+    })
+    map.set(p.training_item_id, list)
+  }
+  return map
+}
+
+export async function getStudentDay(
+  studentId: string,
+  workoutId: string,
+): Promise<StudentDay | null> {
+  const supabase = await createClient()
+
+  const { data: workout } = await supabase
+    .from('workouts')
+    .select('id, name, type, objective, week_id, plan_weeks(number, plans(name))')
+    .eq('id', workoutId)
+    .eq('student_id', studentId)
+    .maybeSingle()
+  if (!workout) return null
+
+  const w = workout as unknown as {
+    id: string
+    name: string
+    type: string | null
+    objective: string | null
+    plan_weeks: { number: number; plans: { name: string } | null } | null
+  }
+
+  const { data: blocksData } = await supabase
+    .from('workout_blocks')
+    .select(BLOCKS_SELECT)
+    .eq('workout_id', workoutId)
+    .order('order')
+
+  // Sesión abierta (sin completar) del alumno para este día + lo registrado.
+  const { data: openSession } = await supabase
+    .from('workout_sessions')
+    .select('id, completed_at, feeling_note')
+    .eq('workout_id', workoutId)
+    .eq('student_id', studentId)
+    .is('completed_at', null)
+    .order('started_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  const logsByItem = openSession
+    ? await openSessionLogs(supabase, openSession.id)
+    : new Map<string, StudentLog[]>()
+  const blocks = mapBlocks(blocksData, logsByItem)
 
   return {
     workoutId: w.id,
@@ -416,4 +313,154 @@ export async function getStudentHistory(studentId: string): Promise<StudentHisto
     feelingNote: s.feeling_note,
     loggedCount: s.workout_performance?.length ?? 0,
   }))
+}
+
+// ============================================================
+// La semana completa: todos los días con su árbol + resumen de
+// patrones / músculos / ejercicios, para que el alumno elija qué día hacer.
+// ============================================================
+export type WeekTally = { name: string; count: number }
+
+export type StudentWeek = {
+  planName: string
+  weekNumber: number
+  weekName: string | null
+  weekNumbers: number[]
+  cycleNumber: number
+  nextWorkoutId: string | null
+  days: StudentDay[]
+  summary: {
+    dayCount: number
+    exerciseCount: number
+    patterns: WeekTally[]
+    muscles: WeekTally[]
+    exercises: string[]
+  }
+}
+
+export async function getStudentWeek(
+  studentId: string,
+  planId: string,
+  weekNumber?: number,
+): Promise<StudentWeek | null> {
+  const supabase = await createClient()
+
+  const { data: plan } = await supabase
+    .from('plans')
+    .select('id, name')
+    .eq('id', planId)
+    .eq('student_id', studentId)
+    .maybeSingle()
+  if (!plan) return null
+
+  const { data: weeks } = await supabase
+    .from('plan_weeks')
+    .select('id, number, name')
+    .eq('plan_id', planId)
+    .order('number')
+  const weekList = weeks ?? []
+  if (weekList.length === 0) return null
+
+  const weekNumbers = weekList.map((w) => w.number)
+  const targetNumber = weekNumber && weekNumbers.includes(weekNumber) ? weekNumber : weekNumbers[0]
+  const activeWeek = weekList.find((w) => w.number === targetNumber)!
+
+  const { data: workouts } = await supabase
+    .from('workouts')
+    .select('id, name, type, objective, order')
+    .eq('week_id', activeWeek.id)
+    .order('order')
+
+  // Sesiones abiertas del alumno para los días de esta semana.
+  const workoutIds = (workouts ?? []).map((w) => w.id)
+  const { data: openSessions } = workoutIds.length
+    ? await supabase
+        .from('workout_sessions')
+        .select('id, workout_id, completed_at, feeling_note')
+        .eq('student_id', studentId)
+        .is('completed_at', null)
+        .in('workout_id', workoutIds)
+    : { data: [] }
+  const openByWorkout = new Map(
+    (openSessions ?? []).map((s) => [s.workout_id, s as { id: string; completed_at: string | null; feeling_note: string | null }]),
+  )
+
+  const days: StudentDay[] = []
+  for (const wk of workouts ?? []) {
+    const { data: blocksData } = await supabase
+      .from('workout_blocks')
+      .select(BLOCKS_SELECT)
+      .eq('workout_id', wk.id)
+      .order('order')
+    const open = openByWorkout.get(wk.id)
+    const logsByItem = open
+      ? await openSessionLogs(supabase, open.id)
+      : new Map<string, StudentLog[]>()
+    days.push({
+      workoutId: wk.id,
+      name: wk.name,
+      type: wk.type,
+      objective: wk.objective,
+      weekNumber: activeWeek.number,
+      planName: plan.name,
+      sessionId: open?.id ?? null,
+      sessionCompletedAt: open?.completed_at ?? null,
+      feelingNote: open?.feeling_note ?? null,
+      blocks: mapBlocks(blocksData, logsByItem),
+    })
+  }
+
+  // Resumen de la semana.
+  const patternCount = new Map<string, number>()
+  const muscleCount = new Map<string, number>()
+  const exNames = new Set<string>()
+  let exerciseCount = 0
+  for (const d of days) {
+    for (const b of d.blocks) {
+      for (const it of b.items) {
+        exerciseCount++
+        if (it.exerciseName) exNames.add(it.exerciseName)
+        if (it.patternName) patternCount.set(it.patternName, (patternCount.get(it.patternName) ?? 0) + 1)
+        if (it.muscleName) muscleCount.set(it.muscleName, (muscleCount.get(it.muscleName) ?? 0) + 1)
+      }
+    }
+  }
+  const tally = (m: Map<string, number>): WeekTally[] =>
+    [...m.entries()].map(([name, count]) => ({ name, count })).sort((a, z) => z.count - a.count)
+
+  // "Seguí por acá" para toda la vuelta del ciclo.
+  const { data: allWorkouts } = await supabase
+    .from('workouts')
+    .select('id, order, week_id')
+    .in('week_id', weekList.map((w) => w.id))
+  const cycleFlat = (allWorkouts ?? [])
+    .map((w) => ({ ...w, wn: weekList.find((x) => x.id === w.week_id)?.number ?? 0 }))
+    .sort((a, z) => a.wn - z.wn || a.order - z.order)
+  const { data: doneSessions } = await supabase
+    .from('workout_sessions')
+    .select('id')
+    .eq('student_id', studentId)
+    .not('completed_at', 'is', null)
+    .in('workout_id', cycleFlat.map((w) => w.id))
+  const totalDone = doneSessions?.length ?? 0
+  const cycleLen = cycleFlat.length || 1
+  const cycleNumber = Math.floor(totalDone / cycleLen) + 1
+  const nextWorkoutId = cycleFlat[totalDone % cycleLen]?.id ?? null
+
+  return {
+    planName: plan.name,
+    weekNumber: activeWeek.number,
+    weekName: activeWeek.name,
+    weekNumbers,
+    cycleNumber,
+    nextWorkoutId,
+    days,
+    summary: {
+      dayCount: days.length,
+      exerciseCount,
+      patterns: tally(patternCount),
+      muscles: tally(muscleCount),
+      exercises: [...exNames].sort(),
+    },
+  }
 }
