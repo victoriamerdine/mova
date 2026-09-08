@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
+import { Paperclip } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -19,6 +20,9 @@ function formatAnswer(q: SnapshotQuestion, value: unknown): string {
     return value
       .map((v) => q.options.find((o) => o.value === v)?.label ?? String(v))
       .join(', ')
+  }
+  if (typeof value === 'object' && value && 'path' in value && 'filename' in value) {
+    return String((value as { filename: string }).filename)
   }
   if (typeof value === 'object' && 'value' in value) {
     const o = value as { value: unknown; unit?: string }
@@ -244,7 +248,9 @@ export function SubmissionDetail({
                 {section.questions.map((q) => (
                   <div key={q.id} className="grid grid-cols-1 gap-0.5 py-2 sm:grid-cols-[1fr_1fr]">
                     <dt className="text-muted-foreground text-sm">{q.label}</dt>
-                    <dd className="text-sm">{formatAnswer(q, detail.answers[q.id])}</dd>
+                    <dd className="text-sm">
+                      <AnswerValue detail={detail} q={q} value={detail.answers[q.id]} />
+                    </dd>
                   </div>
                 ))}
               </dl>
@@ -254,6 +260,35 @@ export function SubmissionDetail({
       </Card>
     </div>
   )
+}
+
+function AnswerValue({
+  detail,
+  q,
+  value,
+}: {
+  detail: Detail
+  q: SnapshotQuestion
+  value: unknown
+}) {
+  if (q.type === 'file' && value && typeof value === 'object' && 'path' in value) {
+    const f = value as { path: string; filename: string; size: number }
+    const href = `/formularios/${detail.formId}/respuestas/${detail.id}/archivo?path=${encodeURIComponent(
+      f.path,
+    )}`
+    return (
+      <a
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-primary inline-flex items-center gap-1 hover:underline"
+      >
+        <Paperclip className="size-3.5 shrink-0" />
+        {f.filename}
+      </a>
+    )
+  }
+  return <>{formatAnswer(q, value)}</>
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
