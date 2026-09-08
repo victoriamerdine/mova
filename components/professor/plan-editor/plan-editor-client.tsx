@@ -21,6 +21,7 @@ import {
   type LibraryDragPayload,
 } from '@/components/professor/plan-editor/exercise-library-panel'
 import { LoadPanel } from '@/components/professor/plan-editor/load-panel'
+import { AiAnalyzeWeek } from '@/components/professor/plan-editor/ai-analyze-week'
 import { PhaseControls } from '@/components/professor/plan-editor/phase-controls'
 import { blockHasRounds } from '@/lib/plan-blocks'
 import { getRenewalBadge } from '@/lib/plan-renewal'
@@ -250,6 +251,42 @@ export function PlanEditorClient({
     [draftsByDay, activeDay, blocksToVolumeInputs],
   )
 
+  const analyzeWeekly = useMemo(
+    () =>
+      weeklyVolume.map((v) => ({
+        group: v.groupName,
+        series: v.series,
+        intensityAvg: v.intensityAvg,
+      })),
+    [weeklyVolume],
+  )
+  const analyzeTargets = useMemo(
+    () =>
+      loadTargets
+        .map((t) => ({
+          group: groupIdToName.get(t.groupId) ?? '',
+          weeklySeries: t.weeklySeries,
+          intensity: t.intensity,
+        }))
+        .filter((t) => t.group),
+    [loadTargets, groupIdToName],
+  )
+  const analyzeByDay = useMemo(
+    () =>
+      plan.days.map((d) => ({
+        name: d.name,
+        groups: calculateVolumeByGroup(blocksToVolumeInputs(draftsByDay[d.id] ?? [])).map((v) => ({
+          group: v.groupName,
+          series: v.series,
+        })),
+      })),
+    [plan.days, draftsByDay, blocksToVolumeInputs],
+  )
+  const activeWeekLabel = useMemo(() => {
+    const w = plan.weeks.find((x) => x.id === plan.weekId)
+    return w ? weekLabel(w) : 'la semana'
+  }, [plan.weeks, plan.weekId])
+
   const showLibrary = plan.weeks.length > 0 && plan.days.length > 0
 
   return (
@@ -478,6 +515,15 @@ export function PlanEditorClient({
             day={activeDayVolume}
             targets={targetsByKey}
             dayCount={plan.days.length}
+          />
+
+          <AiAnalyzeWeek
+            planId={plan.id}
+            weekLabel={activeWeekLabel}
+            sessions={plan.days.length}
+            weekly={analyzeWeekly}
+            targets={analyzeTargets}
+            byDay={analyzeByDay}
           />
 
           {/* Estructura del día activo: renombrar / duplicar / eliminar */}
