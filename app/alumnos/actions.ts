@@ -130,14 +130,18 @@ export async function removeStudent(formData: FormData) {
   // entera sin vuelta atrás), acá el alumno podría tener otro profesor o
   // su propio historial, así que no se destruye su cuenta desde este botón.
   const supabase = await createClient()
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('student_professors')
     .delete()
     .eq('student_id', studentId)
     .eq('professor_id', professor.id)
+    .select('student_id')
 
   if (error) {
     redirect(`/alumnos?error=${encodeURIComponent(error.message)}`)
+  }
+  if (!data || data.length === 0) {
+    redirect(`/alumnos?error=${encodeURIComponent('No se pudo quitar el alumno.')}`)
   }
 
   revalidatePath('/alumnos')

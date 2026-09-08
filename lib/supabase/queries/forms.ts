@@ -389,3 +389,66 @@ export async function getSubmissionDetail(submissionId: string): Promise<Submiss
     answers,
   }
 }
+
+// ============================================================
+// Formularios respondidos por un alumno — se muestran en el detalle del
+// alumno y en el editor de plan (para planificar con esa info a la vista).
+// ============================================================
+export type StudentSubmission = {
+  id: string
+  formId: string
+  formName: string
+  status: SubmissionListItem['status']
+  answered: number
+  total: number
+  completedAt: string | null
+  createdAt: string
+}
+
+export async function getStudentSubmissions(studentId: string): Promise<StudentSubmission[]> {
+  const supabase = await createClient()
+  const professor = await getCurrentProfessor()
+  if (!professor) return []
+
+  const { data, error } = await supabase
+    .from('form_submissions')
+    .select(
+      `
+      id, form_id, status, created_at, completed_at,
+      forms(name),
+      form_versions(structure),
+      form_answers(id)
+    `,
+    )
+    .eq('student_id', studentId)
+    .eq('professor_id', professor.id)
+    .in('status', ['started', 'completed'])
+    .order('completed_at', { ascending: false, nullsFirst: false })
+    .order('created_at', { ascending: false })
+
+  if (error || !data) return []
+
+  return (data as unknown as {
+    id: string
+    form_id: string
+    status: StudentSubmission['status']
+    created_at: string
+    completed_at: string | null
+    forms: { name: string } | null
+    form_versions: { structure: { sections: { questions: unknown[] }[] } } | null
+    form_answers: { id: string }[]
+  }[]).map((s) => ({
+    id: s.id,
+    formId: s.form_id,
+    formName: s.forms?.name ?? 'Formulario',
+    status: s.status,
+    answered: s.form_answers?.length ?? 0,
+    total:
+      s.form_versions?.structure?.sections?.reduce(
+        (n, sec) => n + (sec.questions?.length ?? 0),
+        0,
+      ) ?? 0,
+    completedAt: s.completed_at,
+    createdAt: s.created_at,
+  }))
+}
