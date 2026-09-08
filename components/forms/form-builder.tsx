@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import {
   ChevronDown,
   Copy,
+  Eye,
   GripVertical,
   Plus,
   Send,
@@ -16,8 +17,10 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
+import { QuestionInput } from '@/components/forms/question-input'
 import { AVAILABLE_QUESTION_TYPES, QUESTION_TYPE_BY_KEY } from '@/lib/forms/question-types'
-import type { QuestionConfig, QuestionType } from '@/lib/forms/types'
+import { evaluateRules } from '@/lib/forms/rules'
+import type { FormStructure, QuestionConfig, QuestionType } from '@/lib/forms/types'
 import type { EditorQuestion, EditorSection, FormForEditor } from '@/lib/supabase/queries/forms'
 import {
   addQuestion,
@@ -55,6 +58,7 @@ export function FormBuilder({
   const [pending, startTransition] = useTransition()
   const [toast, setToast] = useState<string | null>(null)
   const [sendOpen, setSendOpen] = useState(false)
+  const [previewOpen, setPreviewOpen] = useState(false)
 
   const [name, setName] = useState(form.name)
   const [description, setDescription] = useState(form.description ?? '')
@@ -136,6 +140,14 @@ export function FormBuilder({
           </Link>
           <Button
             size="sm"
+            variant={previewOpen ? 'default' : 'outline'}
+            onClick={() => setPreviewOpen((v) => !v)}
+          >
+            <Eye data-icon="inline-start" />
+            {previewOpen ? 'Ocultar vista previa' : 'Vista previa'}
+          </Button>
+          <Button
+            size="sm"
             variant="outline"
             disabled={pending}
             onClick={() =>
@@ -204,6 +216,8 @@ export function FormBuilder({
         </div>
       ) : null}
 
+      {previewOpen ? <FormPreview form={form} /> : null}
+
       {/* Secciones */}
       {form.sections.map((section, si) => (
         <SectionEditor
@@ -249,6 +263,15 @@ export function FormBuilder({
 }
 
 type RunFn = (fn: () => Promise<{ error?: string }>, okMsg?: string) => void
+
+const QUESTION_TYPE_GROUPS = [
+  ['texto', 'Texto'],
+  ['elección', 'Elección'],
+  ['número', 'Número'],
+  ['fecha', 'Fecha'],
+  ['medidas', 'Medidas'],
+  ['archivo', 'Archivo'],
+] as const
 
 function SectionEditor({
   formId,
@@ -353,11 +376,19 @@ function SectionEditor({
           className="border-input h-8 rounded-lg border bg-transparent px-2 text-xs outline-none dark:bg-input/30"
         >
           <option value="">+ Pregunta…</option>
-          {AVAILABLE_QUESTION_TYPES.map((t) => (
-            <option key={t.type} value={t.type}>
-              {t.label}
-            </option>
-          ))}
+          {QUESTION_TYPE_GROUPS.map(([group, label]) => {
+            const items = AVAILABLE_QUESTION_TYPES.filter((t) => t.group === group)
+            if (items.length === 0) return null
+            return (
+              <optgroup key={group} label={label}>
+                {items.map((t) => (
+                  <option key={t.type} value={t.type}>
+                    {t.label}
+                  </option>
+                ))}
+              </optgroup>
+            )
+          })}
         </select>
       </div>
     </div>
@@ -570,6 +601,77 @@ function OptionsEditor({
         <Plus data-icon="inline-start" />
         Opción
       </Button>
+    </div>
+  )
+}
+
+/**
+ * Vista previa del borrador tal como lo ve el alumno: preguntas por
+ * sección, con la lógica condicional en vivo. Sin persistencia ni token
+ * (la subida de archivos queda deshabilitada).
+ */
+function FormPreview({ form }: { form: FormForEditor }) {
+  const [answers, setAnswers] = useState<Record<string, unknown>>({})
+
+  const structure: FormStructure = {
+    sections: form.sections,
+    rules: form.rules,
+  }
+  const { hiddenQuestionIds, hiddenSectionIds, requiredQuestionIds } = evaluateRules(
+    structure,
+    answers,
+  )
+
+  const totalQuestions = form.sections.reduce((n, s) => n + s.questions.length, 0)
+  const hiddenCount = hiddenQuestionIds.size
+
+  return (
+    <div className="border-primary/30 bg-primary/[0.03] flex flex-col gap-4 rounded-xl border border-dashed p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm font-medium">Vista previa · lo que ve el alumno</p>
+        <p className="text-muted-foreground text-xs">
+          {totalQuestions - hiddenCount} de {totalQuestions} preguntas visibles
+          {hiddenCount > 0 ? ` · ${hiddenCount} oculta${hiddenCount === 1 ? '' : 's'} por reglas` : ''}
+        </p>
+      </div>
+
+      {totalQuestions === 0 ? (
+        <p className="text-muted-foreground text-sm">Todavía no hay preguntas.</p>
+      ) : (
+        form.sections.map((section) => {
+          if (hiddenSectionIds.has(section.id)) return null
+          const visible = section.questions.filter((q) => !hiddenQuestionIds.has(q.id))
+          if (visible.length === 0) return null
+          return (
+            <div key={section.id} className="flex flex-col gap-3">
+              {section.title ? (
+                <p className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
+                  {section.title}
+                  {section.sensitive ? ' · sensible' : ''}
+                </p>
+              ) : null}
+              {visible.map((q) => (
+                <div key={q.id} className="bg-background rounded-lg border p-3">
+                  <p className="mb-2 text-sm font-medium">
+                    {q.label || <span className="text-muted-foreground">(sin título)</span>}
+                    {q.required || requiredQuestionIds.has(q.id) ? (
+                      <span className="text-destructive"> *</span>
+                    ) : null}
+                  </p>
+                  {q.helpText ? (
+                    <p className="text-muted-foreground mb-2 text-xs">{q.helpText}</p>
+                  ) : null}
+                  <QuestionInput
+                    question={{ ...q, helpText: q.helpText ?? null }}
+                    value={answers[q.id]}
+                    onChange={(v) => setAnswers((prev) => ({ ...prev, [q.id]: v }))}
+                  />
+                </div>
+              ))}
+            </div>
+          )
+        })
+      )}
     </div>
   )
 }
