@@ -15,7 +15,7 @@ export default async function StudentHistoryPage() {
   const entries = await getStudentHistory(student.id)
 
   return (
-    <StudentShell name={student.fullName} signOut={signOut}>
+    <StudentShell signOut={signOut}>
       <Link
         href="/alumno"
         className="text-muted-foreground hover:text-foreground -mb-1 flex items-center gap-1 text-sm"

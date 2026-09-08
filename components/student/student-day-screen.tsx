@@ -68,32 +68,54 @@ export function StudentDayScreen({ day }: { day: StudentDay }) {
         </div>
       ) : null}
 
-      <div className="flex flex-col gap-5">
-        {day.blocks.map((block) => {
-          const label = BLOCK_LABEL[block.kind]
-          const combined = block.kind === 'COMBINADO' || block.kind === 'CIRCUITO'
-          return (
-            <section key={block.id} className="flex flex-col gap-3">
-              {label ? (
-                <p className="text-muted-foreground flex items-center gap-2 text-[11px] font-bold tracking-wide uppercase">
-                  <span className="bg-primary size-1.5 rounded-full" />
-                  {label}
-                  {combined && block.rounds ? ` · ${block.rounds} vueltas` : ''}
-                </p>
-              ) : null}
-              {block.items.map((item) => (
-                <StudentExerciseCard
-                  key={item.id}
-                  workoutId={day.workoutId}
-                  item={item}
-                  blockHasRounds={combined}
-                  rounds={block.rounds}
-                />
-              ))}
-            </section>
-          )
-        })}
-      </div>
+      {totalItems === 0 ? (
+        <p className="text-muted-foreground rounded-2xl border border-dashed p-8 text-center text-sm">
+          Este día todavía no tiene ejercicios cargados. Avisale a tu profe.
+        </p>
+      ) : (
+        <div className="flex flex-col gap-5">
+          {day.blocks.map((block) => {
+            const label = BLOCK_LABEL[block.kind]
+            const combined = block.kind === 'COMBINADO' || block.kind === 'CIRCUITO'
+            if (block.items.length === 0) return null
+            return (
+              <section key={block.id} className="flex flex-col gap-3">
+                {label ? (
+                  <p className="text-muted-foreground flex items-center gap-2 text-[11px] font-bold tracking-wide uppercase">
+                    <span className="bg-primary size-1.5 rounded-full" />
+                    {label}
+                    {combined && block.rounds ? ` · ${block.rounds} vueltas` : ''}
+                  </p>
+                ) : null}
+                {combined && block.items.length > 1 ? (
+                  <div className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-1">
+                    {block.items.map((item) => (
+                      <div key={item.id} className="w-[86%] shrink-0 snap-start sm:w-[22rem]">
+                        <StudentExerciseCard
+                          workoutId={day.workoutId}
+                          item={item}
+                          blockHasRounds
+                          rounds={block.rounds}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  block.items.map((item) => (
+                    <StudentExerciseCard
+                      key={item.id}
+                      workoutId={day.workoutId}
+                      item={item}
+                      blockHasRounds={combined}
+                      rounds={block.rounds}
+                    />
+                  ))
+                )}
+              </section>
+            )
+          })}
+        </div>
+      )}
 
       {totalItems > 0 ? (
         <div className="border-border mt-2 flex flex-col gap-2 rounded-2xl border p-4">

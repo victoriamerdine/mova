@@ -26,6 +26,11 @@ export function StudentHome({ name, plan }: { name: string; plan: StudentActiveP
   const [week, setWeek] = useState(nextWeek)
 
   const daysOfWeek = plan.workouts.filter((w) => w.weekNumber === week)
+  const ended = plan.endDate ? new Date(plan.endDate) < new Date(new Date().toDateString()) : false
+  const range =
+    plan.startDate && plan.endDate
+      ? `${new Date(plan.startDate).toLocaleDateString()} – ${new Date(plan.endDate).toLocaleDateString()}`
+      : null
 
   return (
     <>
@@ -34,16 +39,16 @@ export function StudentHome({ name, plan }: { name: string; plan: StudentActiveP
         <h1 className="text-2xl font-semibold tracking-tight">Hola {name.split(' ')[0]}</h1>
         <p className="text-muted-foreground text-sm">
           Plan: <span className="text-foreground">{plan.name}</span>
-          {plan.cycleLength > 0 ? (
-            <>
-              {' · '}
-              vuelta {plan.cycleNumber} del ciclo
-            </>
-          ) : null}
+          {plan.cycleLength > 0 && !ended ? <> · vuelta {plan.cycleNumber} del ciclo</> : null}
         </p>
+        {range ? <p className="text-muted-foreground text-xs">{range}</p> : null}
       </header>
 
-      {plan.nextWorkoutId ? (
+      {ended ? (
+        <div className="border-border text-muted-foreground rounded-2xl border border-dashed p-4 text-center text-sm">
+          Este plan terminó. Podés seguir mirando las sesiones, pero pedile a tu profe uno nuevo.
+        </div>
+      ) : plan.nextWorkoutId ? (
         <NextCard workout={plan.workouts.find((w) => w.id === plan.nextWorkoutId)!} />
       ) : null}
 

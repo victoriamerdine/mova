@@ -20,7 +20,7 @@ export default async function StudentDayPage({
   if (!day) notFound()
 
   return (
-    <StudentShell name={student.fullName} signOut={signOut}>
+    <StudentShell signOut={signOut}>
       <StudentDayScreen day={day} />
     </StudentShell>
   )
