@@ -1836,6 +1836,71 @@ modificado) y `lib/forms/question-types` (invariantes del registry).
 
 ---
 
+## MÓDULO DE IA — ESTADO
+
+### En producción
+
+Feature transversal (CLAUDE.md §33–34). Principios que NO se rompen: la IA
+**asiste**, el profesor decide; **nunca inventa** ejercicios, videos ni
+métricas — todo sale de los datos de MOVA; toda salida es **trazable**;
+nada se aplica solo.
+
+**Proveedor**: Vercel AI Gateway vía AI SDK (`ai`), modelo por string.
+Necesita créditos pagos en el Gateway del equipo `mova2026` (el free tier
+no incluye modelos de Anthropic). En Vercel usa el token OIDC; en local,
+`AI_GATEWAY_API_KEY`.
+- `AI_MODEL` (default `anthropic/claude-haiku-4.5`) — Buscar y Recomendar.
+- `AI_ANALYZE_MODEL` (default `anthropic/claude-sonnet-4.5`) — Analizar.
+- `AI_MAX_STEPS` 12, `AI_RATE_LIMIT_PER_HOUR` 40 por profesor.
+
+**Trazabilidad**: cada consulta se registra en `ai_interactions`
+(migración `20260828000033`): profesor, `fn`, prompt, `tool_calls`,
+`result_ids` (ids de la biblioteca que se citaron), `answer`, tokens.
+RLS: cada profesor ve/inserta lo suyo. El rate limit cuenta contra esta
+tabla.
+
+**Tools sobre datos internos** (`lib/ai/tools.ts`): `list_taxonomy` y
+`search_exercises` filtran en memoria sobre `getLibraryItems()` (RLS del
+profesor). Cada llamada acumula un `ToolTrace` con los ids devueltos.
+`lib/ai/run.ts` (`runLibraryAssistant`) centraliza rate-limit, tool-use,
+recorte de la línea `IDS:` de la respuesta (acotada a ids que de verdad
+pasaron por una tool) y el log. Lo comparten los routes de Buscar y
+Recomendar.
+
+**1. Buscar** (§33.1) — `POST /api/ai/search`, `<AiSearchPanel>` en
+`/biblioteca`. El profesor pregunta en lenguaje natural y la IA lista
+ejercicios reales de su biblioteca con el porqué de cada uno. Si no hay,
+lo dice.
+
+**2. Recomendar** (§33.2) — `POST /api/ai/recommend`, `<AiRecommendPanel>`
+en el detalle del alumno. Arma el contexto del alumno (deporte, nivel,
+equipamiento, notas desde `students`) + un pedido opcional en texto libre,
+y propone un set variado de ejercicios existentes. El profesor elige — no
+arma el plan.
+
+**3. Analizar** (§33.3 + §26) — `POST /api/ai/analyze`, `<AiAnalyzeWeek>`
+en el editor de plan. Las **señales** las calcula código puro y testeado
+(`lib/analytics/week-alerts.ts`): volumen semanal bajo/alto, concentración
+≥40% en un grupo, RPE alto sostenido, supera el objetivo de carga,
+grupo con objetivo sin volumen. La IA (Sonnet, **sin tools** — trabaja
+sobre datos cerrados) las redacta y da contexto. Es INFORMATIVO: no
+evalúa el plan ni prescribe. El cliente manda el volumen que el editor ya
+calcula, así analiza lo que se ve en pantalla.
+
+### Pendiente
+
+- **4. Generar borradores** (§33.4) — arma un `plan_drafts` completo
+  (`source='ai'`, `prompt`, `model`) con ejercicios reales, pendiente de
+  aprobación del profesor. La tabla existe desde la Fase 1; falta el
+  route + la tool `create_plan_draft` + la UI de revisión. Va con Sonnet.
+- Streaming de las respuestas en la UI (hoy es una sola espera).
+- `form_submission_summaries`: resumir una respuesta de formulario (misma
+  idea, otro origen).
+- Tests de los routes de IA (hoy: `week-alerts` unitario + verificación
+  manual del round-trip).
+
+---
+
 # 45. ORDEN EXACTO DE DESARROLLO DEL MVP
 
 No desarrollar todo simultáneamente.
