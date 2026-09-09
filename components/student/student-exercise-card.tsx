@@ -28,6 +28,22 @@ export function StudentExerciseCard({
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
 
+  // Pre-carga: reps desde la prescripción; carga con la última que el
+  // alumno hizo en este ejercicio (vacío la primera vez).
+  const prescribedReps = p?.reps ?? ''
+  const lastLoadStr = item.lastLoadKg != null ? String(item.lastLoadKg) : ''
+
+  function lastKnownLoad(list: SetForm[]): string {
+    for (let k = list.length - 1; k >= 0; k--) {
+      if (list[k].saved && list[k].load.trim() !== '') return list[k].load
+    }
+    return lastLoadStr
+  }
+
+  function freshSet(setNumber: number, list: SetForm[]): SetForm {
+    return { setNumber, load: lastKnownLoad(list), reps: prescribedReps, rpe: null, saved: false }
+  }
+
   const initial: SetForm[] =
     item.logs.length > 0
       ? item.logs.map((l) => ({
@@ -37,8 +53,14 @@ export function StudentExerciseCard({
           rpe: l.rpe,
           saved: true,
         }))
-      : [{ setNumber: 1, load: '', reps: '', rpe: null, saved: false }]
+      : [freshSet(1, [])]
   const [sets, setSets] = useState<SetForm[]>(initial)
+
+  const prescribedSets = (() => {
+    const m = p?.sets?.match(/\d+/)
+    return m ? parseInt(m[0], 10) : 0
+  })()
+  const maxSetOption = Math.max(prescribedSets, sets.length + 1, 6)
 
   function patch(i: number, next: Partial<SetForm>) {
     setSets((prev) => prev.map((s, j) => (j === i ? { ...s, ...next, saved: false } : s)))
@@ -144,49 +166,59 @@ export function StudentExerciseCard({
         </div>
       ) : null}
 
-      <div className="border-border flex flex-col gap-2 border-t pt-3">
+      <div className="border-border flex flex-col gap-3 border-t pt-3">
         {sets.map((s, i) => (
-          <div key={s.setNumber} className="flex flex-wrap items-end gap-2">
-            <span className="text-muted-foreground w-14 shrink-0 text-xs">Serie {s.setNumber}</span>
-            <label className="flex flex-col gap-0.5">
-              <span className="text-muted-foreground text-[10px]">Carga kg</span>
-              <Input
-                inputMode="decimal"
-                value={s.load}
-                onChange={(e) => patch(i, { load: e.target.value })}
-                className="h-8 w-20"
-              />
-            </label>
-            <label className="flex flex-col gap-0.5">
-              <span className="text-muted-foreground text-[10px]">Reps</span>
-              <Input
-                value={s.reps}
-                onChange={(e) => patch(i, { reps: e.target.value })}
-                className="h-8 w-16"
-              />
-            </label>
-            <Button
-              size="sm"
-              variant={s.saved ? 'outline' : 'default'}
-              disabled={pending}
-              onClick={() => save(i)}
-              className="h-8"
-            >
-              {s.saved ? <Check className="size-3.5" /> : null}
-              {s.saved ? 'Guardado' : 'Registrar'}
-            </Button>
-            <div className="w-full">
-              <RpeSelector value={s.rpe} onChange={(v) => patch(i, { rpe: v })} />
+          <div key={i} className="flex flex-col gap-1.5">
+            <div className="flex items-end gap-1.5">
+              <label className="flex flex-col gap-0.5">
+                <span className="text-muted-foreground text-[10px]">Serie</span>
+                <select
+                  value={s.setNumber}
+                  onChange={(e) => patch(i, { setNumber: Number(e.target.value) })}
+                  className="border-input h-8 w-14 rounded-md border bg-transparent px-1.5 text-sm outline-none dark:bg-input/30"
+                >
+                  {Array.from({ length: maxSetOption }, (_, k) => k + 1).map((n) => (
+                    <option key={n} value={n}>
+                      {n}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="flex flex-col gap-0.5">
+                <span className="text-muted-foreground text-[10px]">Carga kg</span>
+                <Input
+                  inputMode="decimal"
+                  value={s.load}
+                  onChange={(e) => patch(i, { load: e.target.value })}
+                  className="h-8 w-16"
+                />
+              </label>
+              <label className="flex flex-col gap-0.5">
+                <span className="text-muted-foreground text-[10px]">Reps</span>
+                <Input
+                  value={s.reps}
+                  onChange={(e) => patch(i, { reps: e.target.value })}
+                  className="h-8 w-14"
+                />
+              </label>
+              <Button
+                size="sm"
+                variant={s.saved ? 'outline' : 'default'}
+                disabled={pending}
+                onClick={() => save(i)}
+                className="h-8 flex-1 px-2"
+              >
+                {s.saved ? <Check className="size-3.5" /> : null}
+                {s.saved ? 'Guardado' : 'Registrar'}
+              </Button>
             </div>
+            <RpeSelector value={s.rpe} onChange={(v) => patch(i, { rpe: v })} />
           </div>
         ))}
         <button
           type="button"
           onClick={() =>
-            setSets((prev) => [
-              ...prev,
-              { setNumber: prev[prev.length - 1].setNumber + 1, load: '', reps: '', rpe: null, saved: false },
-            ])
+            setSets((prev) => [...prev, freshSet((prev[prev.length - 1]?.setNumber ?? 0) + 1, prev)])
           }
           className="text-muted-foreground hover:text-foreground flex w-fit items-center gap-1 text-xs"
         >
