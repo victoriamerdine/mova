@@ -596,6 +596,7 @@ export type Database = {
           started_at: string
           completed_at: string | null
           feeling_note: string | null
+          difficulty: 'facil' | 'moderado' | 'dificil' | null
           created_at: string
         }
         Insert: Partial<Database['public']['Tables']['workout_sessions']['Row']> & {

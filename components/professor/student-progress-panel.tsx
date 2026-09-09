@@ -1,5 +1,6 @@
 import { MessageSquareText } from 'lucide-react'
 
+import { DIFFICULTY_LABEL } from '@/lib/student-difficulty'
 import type { ProgressSession } from '@/lib/supabase/queries/student-progress'
 
 function fmtDate(iso: string) {
@@ -41,6 +42,12 @@ export function StudentProgressPanel({ sessions }: { sessions: ProgressSession[]
             {s.planName}
             {s.weekNumber != null ? ` · Semana ${s.weekNumber}` : ''}
           </p>
+
+          {s.difficulty ? (
+            <span className="border-border text-muted-foreground mt-1.5 inline-flex rounded-full border px-2 py-0.5 text-[11px] font-medium">
+              Lo sintió: {DIFFICULTY_LABEL[s.difficulty]}
+            </span>
+          ) : null}
 
           {s.feelingNote ? (
             <div className="bg-muted/50 text-foreground mt-2.5 flex gap-2 rounded-lg px-3 py-2 text-sm">

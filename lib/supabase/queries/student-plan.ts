@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import type { SessionDifficulty } from '@/lib/student-difficulty'
 
 export type CurrentStudent = { id: string; fullName: string }
 
@@ -70,7 +71,6 @@ export type StudentLog = {
   setNumber: number
   loadKg: number | null
   reps: string | null
-  rpe: number | null
   comments: string | null
 }
 
@@ -106,6 +106,7 @@ export type StudentDay = {
   sessionId: string | null
   sessionCompletedAt: string | null
   feelingNote: string | null
+  difficulty: SessionDifficulty | null
   /** Veces que el alumno completó este día (lo llena getStudentWeek). */
   timesDone: number
   blocks: StudentDayBlock[]
@@ -239,7 +240,7 @@ async function openSessionLogs(
   const map = new Map<string, StudentLog[]>()
   const { data: perf } = await supabase
     .from('workout_performance')
-    .select('training_item_id, set_number, actual_load_kg, actual_reps, rpe, comments')
+    .select('training_item_id, set_number, actual_load_kg, actual_reps, comments')
     .eq('session_id', sessionId)
   for (const p of perf ?? []) {
     const list = map.get(p.training_item_id) ?? []
@@ -247,7 +248,6 @@ async function openSessionLogs(
       setNumber: p.set_number,
       loadKg: p.actual_load_kg,
       reps: p.actual_reps,
-      rpe: p.rpe,
       comments: p.comments,
     })
     map.set(p.training_item_id, list)
@@ -286,7 +286,7 @@ export async function getStudentDay(
   // Sesión abierta (sin completar) del alumno para este día + lo registrado.
   const { data: openSession } = await supabase
     .from('workout_sessions')
-    .select('id, completed_at, feeling_note')
+    .select('id, completed_at, feeling_note, difficulty')
     .eq('workout_id', workoutId)
     .eq('student_id', studentId)
     .is('completed_at', null)
@@ -310,6 +310,7 @@ export async function getStudentDay(
     sessionId: openSession?.id ?? null,
     sessionCompletedAt: openSession?.completed_at ?? null,
     feelingNote: openSession?.feeling_note ?? null,
+    difficulty: openSession?.difficulty ?? null,
     timesDone: 0,
     blocks,
   }
@@ -324,6 +325,7 @@ export type StudentHistoryEntry = {
   workoutName: string
   completedAt: string
   feelingNote: string | null
+  difficulty: SessionDifficulty | null
   loggedCount: number
 }
 
@@ -331,7 +333,9 @@ export async function getStudentHistory(studentId: string): Promise<StudentHisto
   const supabase = await createClient()
   const { data } = await supabase
     .from('workout_sessions')
-    .select('id, workout_id, completed_at, feeling_note, workouts(name), workout_performance(id)')
+    .select(
+      'id, workout_id, completed_at, feeling_note, difficulty, workouts(name), workout_performance(id)',
+    )
     .eq('student_id', studentId)
     .not('completed_at', 'is', null)
     .order('completed_at', { ascending: false })
@@ -342,6 +346,7 @@ export async function getStudentHistory(studentId: string): Promise<StudentHisto
     workout_id: string
     completed_at: string
     feeling_note: string | null
+    difficulty: SessionDifficulty | null
     workouts: { name: string } | null
     workout_performance: { id: string }[]
   }[]).map((s) => ({
@@ -350,6 +355,7 @@ export async function getStudentHistory(studentId: string): Promise<StudentHisto
     workoutName: s.workouts?.name ?? 'Sesión',
     completedAt: s.completed_at,
     feelingNote: s.feeling_note,
+    difficulty: s.difficulty,
     loggedCount: s.workout_performance?.length ?? 0,
   }))
 }
@@ -406,13 +412,21 @@ export async function getStudentWeek(
   const { data: openSessions } = workoutIds.length
     ? await supabase
         .from('workout_sessions')
-        .select('id, workout_id, completed_at, feeling_note')
+        .select('id, workout_id, completed_at, feeling_note, difficulty')
         .eq('student_id', studentId)
         .is('completed_at', null)
         .in('workout_id', workoutIds)
     : { data: [] }
   const openByWorkout = new Map(
-    (openSessions ?? []).map((s) => [s.workout_id, s as { id: string; completed_at: string | null; feeling_note: string | null }]),
+    (openSessions ?? []).map((s) => [
+      s.workout_id,
+      s as {
+        id: string
+        completed_at: string | null
+        feeling_note: string | null
+        difficulty: SessionDifficulty | null
+      },
+    ]),
   )
 
   // Veces completadas por día.
@@ -450,6 +464,7 @@ export async function getStudentWeek(
       sessionId: open?.id ?? null,
       sessionCompletedAt: open?.completed_at ?? null,
       feelingNote: open?.feeling_note ?? null,
+      difficulty: open?.difficulty ?? null,
       timesDone: timesDoneByWorkout.get(wk.id) ?? 0,
       blocks: mapBlocks(blocksData, logsByItem, lastLoadByItem),
     })

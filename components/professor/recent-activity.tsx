@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { Activity } from 'lucide-react'
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { DIFFICULTY_LABEL } from '@/lib/student-difficulty'
 import type { ActivityEntry } from '@/lib/supabase/queries/professor-dashboard'
 
 function rel(iso: string): string {
@@ -48,6 +49,7 @@ export function RecentActivity({ entries }: { entries: ActivityEntry[] }) {
                     {e.workoutName}
                     {e.planName ? ` · ${e.planName}` : ''} · {e.loggedCount} registro
                     {e.loggedCount === 1 ? '' : 's'}
+                    {e.difficulty ? ` · lo sintió ${DIFFICULTY_LABEL[e.difficulty].toLowerCase()}` : ''}
                   </span>
                   {e.feelingNote ? (
                     <span className="text-muted-foreground mt-0.5 text-xs italic">

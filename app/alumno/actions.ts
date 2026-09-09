@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation'
 
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentStudent } from '@/lib/supabase/queries/student-plan'
+import { isDifficulty } from '@/lib/student-difficulty'
 import type { Database } from '@/lib/supabase/database.types'
 
 type Result = { error?: string; sessionId?: string }
@@ -64,7 +65,6 @@ export async function logExercise(input: {
   setNumber: number
   loadKg: number | null
   reps: string | null
-  rpe: number | null
   comments: string | null
 }): Promise<Result> {
   const student = await requireStudent()
@@ -80,7 +80,6 @@ export async function logExercise(input: {
     set_number: input.setNumber,
     actual_load_kg: input.loadKg,
     actual_reps: input.reps?.trim() || null,
-    rpe: input.rpe,
     comments: input.comments?.trim() || null,
     completed_at: new Date().toISOString(),
   }
@@ -103,7 +102,11 @@ export async function logExercise(input: {
   return { sessionId }
 }
 
-export async function finishDay(workoutId: string, feelingNote: string): Promise<Result> {
+export async function finishDay(
+  workoutId: string,
+  feelingNote: string,
+  difficulty: string | null,
+): Promise<Result> {
   const student = await requireStudent()
   const supabase = await createClient()
 
@@ -120,7 +123,11 @@ export async function finishDay(workoutId: string, feelingNote: string): Promise
 
   const { error } = await supabase
     .from('workout_sessions')
-    .update({ completed_at: new Date().toISOString(), feeling_note: feelingNote.trim() || null })
+    .update({
+      completed_at: new Date().toISOString(),
+      feeling_note: feelingNote.trim() || null,
+      difficulty: isDifficulty(difficulty) ? difficulty : null,
+    })
     .eq('id', session.id)
   if (error) return { error: error.message }
 

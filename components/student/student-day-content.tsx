@@ -8,6 +8,8 @@ import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { StudentExerciseCard } from '@/components/student/student-exercise-card'
 import { finishDay } from '@/app/alumno/actions'
+import { DIFFICULTY_LABEL, DIFFICULTY_OPTIONS } from '@/lib/student-difficulty'
+import type { SessionDifficulty } from '@/lib/student-difficulty'
 import type { StudentDay } from '@/lib/supabase/queries/student-plan'
 
 const BLOCK_LABEL: Record<string, string> = {
@@ -27,22 +29,24 @@ export function StudentDayContent({ day }: { day: StudentDay }) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
   const [note, setNote] = useState(day.feelingNote ?? '')
+  const [difficulty, setDifficulty] = useState<SessionDifficulty | null>(day.difficulty)
   const [done, setDone] = useState(!!day.sessionCompletedAt)
   const [error, setError] = useState<string | null>(null)
 
   // Al cambiar de día en las tabs, resetear el estado local.
   useEffect(() => {
     setNote(day.feelingNote ?? '')
+    setDifficulty(day.difficulty)
     setDone(!!day.sessionCompletedAt)
     setError(null)
-  }, [day.workoutId, day.feelingNote, day.sessionCompletedAt])
+  }, [day.workoutId, day.feelingNote, day.difficulty, day.sessionCompletedAt])
 
   const totalItems = day.blocks.reduce((n, b) => n + b.items.length, 0)
 
   function finish() {
     setError(null)
     startTransition(async () => {
-      const res = await finishDay(day.workoutId, note)
+      const res = await finishDay(day.workoutId, note, difficulty)
       if (res.error) setError(res.error)
       else {
         setDone(true)
@@ -110,14 +114,36 @@ export function StudentDayContent({ day }: { day: StudentDay }) {
       )}
 
       {totalItems > 0 ? (
-        <div className="border-border mt-2 flex flex-col gap-2 rounded-2xl border p-4">
-          <p className="text-sm font-medium">¿Cómo te fue?</p>
-          <Textarea
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            rows={2}
-            placeholder="Cómo te sentiste, molestias, energía… (lo ve tu profe)"
-          />
+        <div className="border-border mt-2 flex flex-col gap-3 rounded-2xl border p-4">
+          <div className="flex flex-col gap-1.5">
+            <p className="text-sm font-medium">¿Qué tan exigente lo sentiste?</p>
+            <div className="flex gap-2">
+              {DIFFICULTY_OPTIONS.map((opt) => (
+                <button
+                  key={opt}
+                  type="button"
+                  onClick={() => setDifficulty(difficulty === opt ? null : opt)}
+                  className={
+                    'flex-1 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors ' +
+                    (difficulty === opt
+                      ? 'bg-primary text-primary-foreground border-primary'
+                      : 'border-border text-muted-foreground hover:text-foreground')
+                  }
+                >
+                  {DIFFICULTY_LABEL[opt]}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <p className="text-sm font-medium">¿Cómo te fue?</p>
+            <Textarea
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              rows={2}
+              placeholder="Cómo te sentiste, molestias, energía… (lo ve tu profe)"
+            />
+          </div>
           {error ? <p className="text-destructive text-xs">{error}</p> : null}
           <Button onClick={finish} disabled={pending} className="w-full">
             {pending ? 'Guardando…' : done ? 'Actualizar sesión' : 'Terminar sesión'}
