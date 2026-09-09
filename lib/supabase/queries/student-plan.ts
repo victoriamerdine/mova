@@ -335,7 +335,7 @@ export async function getStudentHistory(studentId: string): Promise<StudentHisto
     .eq('student_id', studentId)
     .not('completed_at', 'is', null)
     .order('completed_at', { ascending: false })
-    .limit(60)
+    .limit(180)
 
   return ((data ?? []) as unknown as {
     id: string
