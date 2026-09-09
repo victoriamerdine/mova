@@ -41,7 +41,7 @@ export function AppSidebar({
     { label: 'Planes', icon: ClipboardList, count: planCount, href: '/planes' },
     { label: 'Formularios', icon: ClipboardCheck, count: formCount, href: '/formularios' },
     { label: 'Analítica', icon: BarChart3, href: '#' },
-    { label: 'Configuración', icon: Settings, href: '#' },
+    { label: 'Configuración', icon: Settings, href: '/cuenta' },
   ]
 
   return (
