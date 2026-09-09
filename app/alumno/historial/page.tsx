@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
 
+import { HistoryCalendar } from '@/components/student/history-calendar'
 import { StudentShell } from '@/components/student/student-shell'
 import { getCurrentStudent, getStudentHistory } from '@/lib/supabase/queries/student-plan'
 import { signOut } from '@/app/login/actions'
@@ -30,25 +31,12 @@ export default async function StudentHistoryPage() {
           Todavía no completaste ninguna sesión.
         </p>
       ) : (
-        <ul className="flex flex-col gap-2">
-          {entries.map((e) => (
-            <li key={e.sessionId}>
-              <Link
-                href={`/alumno/dia/${e.workoutId}`}
-                className="border-border hover:bg-muted/50 flex flex-col gap-0.5 rounded-xl border p-3.5"
-              >
-                <span className="text-sm font-medium">{e.workoutName}</span>
-                <span className="text-muted-foreground text-xs">
-                  {new Date(e.completedAt).toLocaleDateString()} · {e.loggedCount} registro
-                  {e.loggedCount === 1 ? '' : 's'}
-                </span>
-                {e.feelingNote ? (
-                  <span className="text-muted-foreground mt-1 text-xs italic">“{e.feelingNote}”</span>
-                ) : null}
-              </Link>
-            </li>
-          ))}
-        </ul>
+        <>
+          <p className="text-muted-foreground text-xs">
+            Los días marcados son los que entrenaste. Tocá uno para ver el resumen.
+          </p>
+          <HistoryCalendar entries={entries} />
+        </>
       )}
     </StudentShell>
   )
