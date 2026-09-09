@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useEffect, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { ChevronDown, Plus, ShieldCheck } from 'lucide-react'
+import { Check, ChevronDown, Copy, MessageCircle, Plus, ShieldCheck } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -14,6 +14,7 @@ import {
   promoteToAdmin,
   resetProfessorPassword,
   setProfessorStatus,
+  updateProfessor,
 } from '@/app/admin/actions'
 import type { AdminProfessor } from '@/lib/supabase/queries/admin'
 
@@ -23,12 +24,35 @@ const STATUS: Record<AdminProfessor['status'], { label: string; cls: string }> =
   suspended: { label: 'Suspendido', cls: 'bg-destructive/10 text-destructive border-transparent' },
 }
 
+const waLink = (phone: string, text: string) =>
+  `https://wa.me/${phone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(text)}`
+
+function CopyBtn({ value }: { value: string }) {
+  const [copied, setCopied] = useState(false)
+  return (
+    <button
+      type="button"
+      className="text-muted-foreground hover:text-foreground inline-flex items-center"
+      aria-label="Copiar"
+      onClick={async () => {
+        await navigator.clipboard.writeText(value)
+        setCopied(true)
+        setTimeout(() => setCopied(false), 1500)
+      }}
+    >
+      {copied ? <Check className="text-primary size-3.5" /> : <Copy className="size-3.5" />}
+    </button>
+  )
+}
+
 export function AdminProfessorsPanel({ professors }: { professors: AdminProfessor[] }) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
   const [toast, setToast] = useState<string | null>(null)
   const [openId, setOpenId] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
+  const [origin, setOrigin] = useState('')
+  useEffect(() => setOrigin(window.location.origin), [])
 
   function run(fn: () => Promise<{ error?: string }>, ok?: string) {
     startTransition(async () => {
@@ -66,6 +90,7 @@ export function AdminProfessorsPanel({ professors }: { professors: AdminProfesso
           <ul className="divide-border divide-y">
             {professors.map((p) => {
               const open = openId === p.id
+              const loginUrl = `${origin}/login`
               return (
                 <li key={p.id}>
                   <button
@@ -88,15 +113,54 @@ export function AdminProfessorsPanel({ professors }: { professors: AdminProfesso
                   </button>
 
                   {open ? (
-                    <div className="bg-muted/30 flex flex-col gap-3 px-5 py-4 text-sm">
-                      <dl className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
-                        <Field label="Documento" value={p.documentId} />
-                        <Field label="Teléfono" value={p.phone} />
-                        <Field label="Dirección" value={p.address} />
-                        <Field label="Alta" value={new Date(p.createdAt).toLocaleDateString()} />
-                      </dl>
+                    <div className="bg-muted/30 flex flex-col gap-4 px-5 py-4 text-sm">
+                      <ProfessorEditForm
+                        professor={p}
+                        pending={pending}
+                        onSave={(f) => run(() => updateProfessor(p.id, f), 'Datos actualizados.')}
+                      />
 
-                      <div className="flex flex-wrap gap-2">
+                      <div className="border-border flex flex-col gap-2 border-t pt-3">
+                        <p className="text-xs font-medium">Acceso</p>
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+                          <span className="text-muted-foreground">Usuario (email):</span>
+                          {p.email ? (
+                            <span className="inline-flex items-center gap-1.5">
+                              <code className="bg-background rounded px-1.5 py-0.5">{p.email}</code>
+                              <CopyBtn value={p.email} />
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {p.phone && p.email ? (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              nativeButton={false}
+                              render={
+                                <a
+                                  href={waLink(
+                                    p.phone,
+                                    `Hola ${p.fullName}! Para entrar a MOVA: ${loginUrl}\n` +
+                                      `Usuario: ${p.email}\n` +
+                                      `Si necesitás la contraseña, avisá y te la reseteo.`,
+                                  )}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                />
+                              }
+                            >
+                              <MessageCircle data-icon="inline-start" />
+                              Enviar acceso por WhatsApp
+                            </Button>
+                          ) : null}
+                          <ResetPassword professor={p} loginUrl={loginUrl} onToast={setToast} />
+                        </div>
+                      </div>
+
+                      <div className="border-border flex flex-wrap gap-2 border-t pt-3">
                         {p.status === 'pending' ? (
                           <Button
                             size="sm"
@@ -130,8 +194,6 @@ export function AdminProfessorsPanel({ professors }: { professors: AdminProfesso
                           </Button>
                         ) : null}
 
-                        <ResetPassword professorId={p.id} onToast={setToast} />
-
                         <Button
                           size="sm"
                           variant="ghost"
@@ -162,20 +224,79 @@ export function AdminProfessorsPanel({ professors }: { professors: AdminProfesso
   )
 }
 
-function Field({ label, value }: { label: string; value: string | null }) {
+type EditFields = {
+  fullName: string
+  email: string
+  documentId: string
+  phone: string
+  address: string
+}
+
+function ProfessorEditForm({
+  professor,
+  pending,
+  onSave,
+}: {
+  professor: AdminProfessor
+  pending: boolean
+  onSave: (f: EditFields) => void
+}) {
+  const [f, setF] = useState<EditFields>({
+    fullName: professor.fullName,
+    email: professor.email ?? '',
+    documentId: professor.documentId ?? '',
+    phone: professor.phone ?? '',
+    address: professor.address ?? '',
+  })
+  const set = (k: keyof EditFields) => (e: React.ChangeEvent<HTMLInputElement>) =>
+    setF((prev) => ({ ...prev, [k]: e.target.value }))
+
+  const dirty =
+    f.fullName.trim() !== professor.fullName ||
+    f.email.trim().toLowerCase() !== (professor.email ?? '').toLowerCase() ||
+    f.documentId.trim() !== (professor.documentId ?? '') ||
+    f.phone.trim() !== (professor.phone ?? '') ||
+    f.address.trim() !== (professor.address ?? '')
+
   return (
-    <div>
-      <dt className="text-muted-foreground text-[11px]">{label}</dt>
-      <dd className="font-medium">{value || '—'}</dd>
+    <div className="flex flex-col gap-3">
+      <p className="text-xs font-medium">Datos del profesor</p>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <Labeled label="Nombre completo">
+          <Input value={f.fullName} onChange={set('fullName')} />
+        </Labeled>
+        <Labeled label="Email (usuario)">
+          <Input type="email" value={f.email} onChange={set('email')} />
+        </Labeled>
+        <Labeled label="Documento">
+          <Input value={f.documentId} onChange={set('documentId')} />
+        </Labeled>
+        <Labeled label="Teléfono">
+          <Input value={f.phone} onChange={set('phone')} />
+        </Labeled>
+        <Labeled label="Dirección">
+          <Input value={f.address} onChange={set('address')} />
+        </Labeled>
+      </div>
+      <Button
+        size="sm"
+        className="w-fit"
+        disabled={pending || !dirty}
+        onClick={() => onSave(f)}
+      >
+        {pending ? 'Guardando…' : 'Guardar cambios'}
+      </Button>
     </div>
   )
 }
 
 function ResetPassword({
-  professorId,
+  professor,
+  loginUrl,
   onToast,
 }: {
-  professorId: string
+  professor: AdminProfessor
+  loginUrl: string
   onToast: (s: string | null) => void
 }) {
   const [pending, startTransition] = useTransition()
@@ -183,17 +304,28 @@ function ResetPassword({
   const [open, setOpen] = useState(false)
 
   if (pw) {
+    const msg =
+      `Hola ${professor.fullName}! Datos para entrar a MOVA: ${loginUrl}\n` +
+      `Usuario: ${professor.email}\n` +
+      `Contraseña: ${pw}`
     return (
-      <span className="inline-flex items-center gap-1.5 text-xs">
-        Nueva contraseña: <code className="bg-background rounded px-1.5 py-0.5">{pw}</code>
-        <button
-          type="button"
-          className="text-primary"
-          onClick={() => navigator.clipboard.writeText(pw)}
-        >
-          copiar
-        </button>
-      </span>
+      <div className="flex flex-wrap items-center gap-2 text-xs">
+        <span className="inline-flex items-center gap-1.5">
+          Contraseña nueva:
+          <code className="bg-background rounded px-1.5 py-0.5">{pw}</code>
+          <CopyBtn value={pw} />
+        </span>
+        {professor.phone && professor.email ? (
+          <Button
+            size="sm"
+            nativeButton={false}
+            render={<a href={waLink(professor.phone, msg)} target="_blank" rel="noopener noreferrer" />}
+          >
+            <MessageCircle data-icon="inline-start" />
+            Enviar por WhatsApp
+          </Button>
+        ) : null}
+      </div>
     )
   }
 
@@ -213,7 +345,7 @@ function ResetPassword({
       onClick={() => {
         const p = generatePassword()
         startTransition(async () => {
-          const res = await resetProfessorPassword(professorId, p)
+          const res = await resetProfessorPassword(professor.id, p)
           if (res.error) onToast(res.error)
           else setPw(p)
         })

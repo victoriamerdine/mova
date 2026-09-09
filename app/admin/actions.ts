@@ -39,6 +39,99 @@ export async function promoteToAdmin(userId: string): Promise<Result> {
   return {}
 }
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+export async function updateProfessor(
+  professorId: string,
+  input: {
+    fullName: string
+    email: string
+    documentId: string
+    phone: string
+    address: string
+  },
+): Promise<Result> {
+  await requireAdmin()
+
+  const fullName = input.fullName.trim()
+  const email = input.email.trim().toLowerCase()
+  const documentId = input.documentId.trim()
+  const phone = input.phone.trim()
+  const address = input.address.trim()
+
+  if (!fullName) return { error: 'El nombre no puede quedar vacío.' }
+  if (!EMAIL_RE.test(email)) return { error: 'El email no es válido.' }
+
+  const supabase = await createClient()
+  const { data: prof } = await supabase
+    .from('professors')
+    .select('id')
+    .eq('id', professorId)
+    .maybeSingle()
+  if (!prof) return { error: 'Profesor no encontrado.' }
+
+  const service = createServiceRoleClient()
+  const { data: current } = await service.auth.admin.getUserById(professorId)
+  const currentEmail = current.user?.email?.toLowerCase() ?? null
+
+  // Auth: email (único a nivel proyecto) + metadata sincronizada, en una llamada.
+  const metadata = {
+    ...(current.user?.user_metadata ?? {}),
+    full_name: fullName,
+    role: 'professor',
+    document_id: documentId || null,
+    phone: phone || null,
+    address: address || null,
+  }
+  const emailChanged = email !== currentEmail
+
+  // Chequeo de unicidad antes de tocar Auth: el error de colisión que
+  // devuelve updateUserById es genérico ("Error updating user").
+  if (emailChanged) {
+    const { data: list } = await service.auth.admin.listUsers({ page: 1, perPage: 1000 })
+    const taken = list?.users.some(
+      (u) => u.id !== professorId && u.email?.toLowerCase() === email,
+    )
+    if (taken) return { error: 'Ese email ya está en uso por otra cuenta.' }
+  }
+
+  const { error: authErr } = await service.auth.admin.updateUserById(professorId, {
+    ...(emailChanged ? { email, email_confirm: true } : {}),
+    user_metadata: metadata,
+  })
+  if (authErr) {
+    const m = authErr.message.toLowerCase()
+    if (m.includes('registered') || m.includes('already exists') || m.includes('duplicate')) {
+      return { error: 'Ese email ya está en uso por otra cuenta.' }
+    }
+    return {
+      error: emailChanged
+        ? 'No se pudo cambiar el email (puede estar en uso por otra cuenta).'
+        : authErr.message,
+    }
+  }
+
+  // Datos de negocio.
+  const { error: pErr } = await supabase
+    .from('profiles')
+    .update({ full_name: fullName })
+    .eq('id', professorId)
+  if (pErr) return { error: pErr.message }
+
+  const { error: prErr } = await supabase
+    .from('professors')
+    .update({
+      document_id: documentId || null,
+      phone: phone || null,
+      address: address || null,
+    })
+    .eq('id', professorId)
+  if (prErr) return { error: prErr.message }
+
+  revalidatePath('/admin')
+  return {}
+}
+
 export async function resetProfessorPassword(
   professorId: string,
   newPassword: string,
