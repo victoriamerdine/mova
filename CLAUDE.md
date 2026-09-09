@@ -1679,10 +1679,23 @@ Construir:
 - `<StudentDayContent>` — bloques COMBINADO/CIRCUITO en carrusel
   horizontal, resto apilado; `<StudentExerciseCard>` por item
   (nombre, patrón/músculo, prescripción, thumbnail de YouTube → embed al
-  tocar, inputs Carga kg / Reps + `<RpeSelector>` + "Registrar" /
-  "Agregar serie"); textarea "¿Cómo te fue?" + "Terminar sesión".
-- Historial: `/alumno/historial` (`getStudentHistory`) — sesiones
-  completadas con nota y cantidad de registros.
+  tocar); textarea "¿Cómo te fue?" + "Terminar sesión".
+- **Registro de series** (`<StudentExerciseCard>`): fila compacta
+  **Serie · Carga kg · Reps** en una línea + "Registrar" / "Guardado", y
+  `<RpeSelector>` debajo. "Serie" es un selector de números (1…N, N =
+  series prescritas o las que haya + 1). Los inputs vienen
+  **pre-cargados**: Reps con la prescripción; Carga con la última carga
+  que el alumno registró en ese ejercicio (`StudentDayItem.lastLoadKg` ←
+  `lastLoadsForItems()`, última `workout_performance.actual_load_kg` no
+  nula; vacío la primera vez). "Agregar serie" arrastra la misma
+  pre-carga.
+- Historial: `/alumno/historial` (`getStudentHistory`, hasta 180
+  sesiones) — **calendario mensual** (`<HistoryCalendar>`): un grid por
+  mes con sesiones, lunes primero, más nuevo arriba; se resaltan los días
+  entrenados (badge con la cantidad si entrenó >1 vez ese día, anillo en
+  hoy). Tocar un día despliega —bajo esa semana, ancho completo, con
+  flechita al día— el resumen: cada sesión con nombre, N registros y la
+  nota, + link a `/alumno/dia/[workoutId]`.
 - Acciones (`app/alumno/actions.ts`): `startDaySession`, `logExercise`,
   `finishDay(workoutId, feelingNote)`.
 
