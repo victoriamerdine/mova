@@ -20,7 +20,7 @@ const BLOCK_LABEL: Record<string, string> = {
   TECNICA: 'Técnica',
   TACTICA: 'Táctica',
   COMBINADO: 'Serie combinada — alterná estos ejercicios',
-  CIRCUITO: 'Circuito — una vuelta de cada uno',
+  CIRCUITO: 'Circuito — una serie de cada uno',
 }
 
 /** Bloques + "¿cómo te fue?" + terminar. Se usa en la ruta /alumno/dia/[id]
@@ -80,7 +80,7 @@ export function StudentDayContent({ day }: { day: StudentDay }) {
                   <p className="text-muted-foreground flex items-center gap-2 text-[11px] font-bold tracking-wide uppercase">
                     <span className="bg-primary size-1.5 rounded-full" />
                     {label}
-                    {combined && block.rounds ? ` · ${block.rounds} vueltas` : ''}
+                    {combined && block.rounds ? ` · ${block.rounds} series` : ''}
                   </p>
                 ) : null}
                 {combined && block.items.length > 1 ? (
