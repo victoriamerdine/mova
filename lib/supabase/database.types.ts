@@ -268,7 +268,16 @@ export type Database = {
         Relationships: []
       }
       professors: {
-        Row: { id: string; bio: string | null; is_approver: boolean; created_at: string }
+        Row: {
+          id: string
+          bio: string | null
+          is_approver: boolean
+          status: 'pending' | 'active' | 'suspended'
+          document_id: string | null
+          phone: string | null
+          address: string | null
+          created_at: string
+        }
         Insert: Partial<Database['public']['Tables']['professors']['Row']>
         Update: Partial<Database['public']['Tables']['professors']['Row']>
         Relationships: [

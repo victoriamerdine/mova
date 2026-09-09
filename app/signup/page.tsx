@@ -59,6 +59,24 @@ export default async function SignupPage({
             <Input type="email" name="email" required autoComplete="email" placeholder="vos@ejemplo.com" />
           </label>
 
+          <p className="text-muted-foreground -mb-1 text-[11px]">
+            Si sos profesor, completá también estos datos (los revisa el administrador):
+          </p>
+          <div className="grid grid-cols-2 gap-3">
+            <label className="flex flex-col gap-1.5">
+              <span className="text-muted-foreground text-xs font-medium">Documento</span>
+              <Input type="text" name="documentId" autoComplete="off" />
+            </label>
+            <label className="flex flex-col gap-1.5">
+              <span className="text-muted-foreground text-xs font-medium">Teléfono</span>
+              <Input type="tel" name="phone" autoComplete="tel" />
+            </label>
+          </div>
+          <label className="flex flex-col gap-1.5">
+            <span className="text-muted-foreground text-xs font-medium">Dirección</span>
+            <Input type="text" name="address" autoComplete="street-address" />
+          </label>
+
           <label className="flex flex-col gap-1.5">
             <span className="text-muted-foreground text-xs font-medium">Contraseña</span>
             <Input

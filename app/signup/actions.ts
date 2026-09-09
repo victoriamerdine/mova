@@ -14,6 +14,14 @@ export async function signup(formData: FormData) {
     redirect('/signup?error=Rol inválido')
   }
 
+  // Datos personales del profesor — obligatorios para el alta.
+  const documentId = String(formData.get('documentId') ?? '').trim()
+  const phone = String(formData.get('phone') ?? '').trim()
+  const address = String(formData.get('address') ?? '').trim()
+  if (role === 'professor' && (!documentId || !phone || !address)) {
+    redirect('/signup?error=' + encodeURIComponent('Completá documento, teléfono y dirección.'))
+  }
+
   const supabase = await createClient()
 
   // profiles/professors/students se crean solos vía trigger
@@ -25,12 +33,24 @@ export async function signup(formData: FormData) {
   const { error } = await supabase.auth.signUp({
     email,
     password,
-    options: { data: { full_name: fullName, role } },
+    options: {
+      data:
+        role === 'professor'
+          ? { full_name: fullName, role, document_id: documentId, phone, address }
+          : { full_name: fullName, role },
+    },
   })
 
   if (error) {
     redirect(`/signup?error=${encodeURIComponent(error.message)}`)
   }
 
-  redirect('/login?message=Revisá tu email para confirmar la cuenta (si hace falta) y después iniciá sesión')
+  redirect(
+    role === 'professor'
+      ? '/login?message=' +
+          encodeURIComponent(
+            'Tu cuenta quedó pendiente de aprobación de un administrador. Te avisamos cuando esté lista.',
+          )
+      : '/login?message=Revisá tu email para confirmar la cuenta (si hace falta) y después iniciá sesión',
+  )
 }

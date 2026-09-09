@@ -17,7 +17,16 @@ import { NextResponse, type NextRequest } from 'next/server'
  * /biblioteca queda deliberadamente fuera de PROTECTED_PATHS — es catálogo
  * público (migración 010), no hace falta sesión para verla.
  */
-const PROTECTED_PATHS = ['/', '/constructor', '/alumnos', '/planes', '/alumno', '/formularios']
+const PROTECTED_PATHS = [
+  '/',
+  '/constructor',
+  '/alumnos',
+  '/planes',
+  '/alumno',
+  '/formularios',
+  '/admin',
+  '/pendiente',
+]
 
 function isProtectedPath(pathname: string) {
   return PROTECTED_PATHS.some((path) => (path === '/' ? pathname === '/' : pathname.startsWith(path)))
