@@ -19,6 +19,14 @@ function setLine(s: { loadKg: number | null; reps: string | null; rpe: number | 
   return parts.length > 0 ? parts.join(' · ') : 'sin datos'
 }
 
+/** El alumno registra N series iguales (misma carga/reps). Si todas
+ *  coinciden, mostrar una sola línea "N series · …"; si no, por serie. */
+function uniform(sets: { loadKg: number | null; reps: string | null; rpe: number | null }[]) {
+  if (sets.length < 2) return false
+  const [a] = sets
+  return sets.every((s) => s.loadKg === a.loadKg && s.reps === a.reps && s.rpe === a.rpe)
+}
+
 export function StudentProgressPanel({ sessions }: { sessions: ProgressSession[] }) {
   if (sessions.length === 0) {
     return (
@@ -61,21 +69,25 @@ export function StudentProgressPanel({ sessions }: { sessions: ProgressSession[]
               {s.exercises.map((ex) => (
                 <div key={ex.trainingItemId}>
                   <p className="text-xs font-medium">{ex.name}</p>
-                  <ul className="text-muted-foreground mt-0.5 flex flex-col gap-0.5 text-xs">
-                    {ex.sets.map((set) => (
-                      <li key={set.setNumber} className="flex gap-2">
-                        <span className="text-muted-foreground/70 tabular-nums">
-                          {set.setNumber}.
-                        </span>
-                        <span className="tabular-nums">{setLine(set)}</span>
-                        {set.comments ? (
-                          <span className="text-muted-foreground/80 italic">
-                            — {set.comments}
+                  {uniform(ex.sets) ? (
+                    <p className="text-muted-foreground mt-0.5 text-xs tabular-nums">
+                      {ex.sets.length} series · {setLine(ex.sets[0])}
+                    </p>
+                  ) : (
+                    <ul className="text-muted-foreground mt-0.5 flex flex-col gap-0.5 text-xs">
+                      {ex.sets.map((set) => (
+                        <li key={set.setNumber} className="flex gap-2">
+                          <span className="text-muted-foreground/70 tabular-nums">
+                            {set.setNumber}.
                           </span>
-                        ) : null}
-                      </li>
-                    ))}
-                  </ul>
+                          <span className="tabular-nums">{setLine(set)}</span>
+                          {set.comments ? (
+                            <span className="text-muted-foreground/80 italic">— {set.comments}</span>
+                          ) : null}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
               ))}
             </div>
