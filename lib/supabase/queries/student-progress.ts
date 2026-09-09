@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import type { SessionDifficulty } from '@/lib/student-difficulty'
 
 // ============================================================
 // Vista del PROFESOR: qué hizo realmente el alumno y cómo se sintió.
@@ -28,6 +29,7 @@ export type ProgressSession = {
   startedAt: string
   completedAt: string
   feelingNote: string | null
+  difficulty: SessionDifficulty | null
   exercises: ProgressExercise[]
 }
 
@@ -40,7 +42,7 @@ export async function getStudentProgress(
   const { data: sessionsData } = await supabase
     .from('workout_sessions')
     .select(
-      'id, started_at, completed_at, feeling_note, workouts(name, plan_weeks(number, plans(name)))',
+      'id, started_at, completed_at, feeling_note, difficulty, workouts(name, plan_weeks(number, plans(name)))',
     )
     .eq('student_id', studentId)
     .not('completed_at', 'is', null)
@@ -52,6 +54,7 @@ export async function getStudentProgress(
     started_at: string
     completed_at: string
     feeling_note: string | null
+    difficulty: SessionDifficulty | null
     workouts: {
       name: string
       plan_weeks: { number: number; plans: { name: string } | null } | null
@@ -123,6 +126,7 @@ export async function getStudentProgress(
       startedAt: s.started_at,
       completedAt: s.completed_at,
       feelingNote: s.feeling_note,
+      difficulty: s.difficulty,
       exercises: [...items.entries()].map(([trainingItemId, sets]) => ({
         trainingItemId,
         name: nameByItem.get(trainingItemId) ?? 'Ejercicio',

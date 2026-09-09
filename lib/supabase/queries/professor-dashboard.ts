@@ -105,6 +105,7 @@ export type ActivityEntry = {
   completedAt: string
   loggedCount: number
   feelingNote: string | null
+  difficulty: 'facil' | 'moderado' | 'dificil' | null
 }
 
 /** Últimas sesiones completadas por los alumnos del profesor. */
@@ -114,7 +115,7 @@ export async function getRecentActivity(limit = 12): Promise<ActivityEntry[]> {
     .from('workout_sessions')
     .select(
       `
-      id, student_id, completed_at, feeling_note,
+      id, student_id, completed_at, feeling_note, difficulty,
       students(profiles(full_name)),
       workouts(name, plan_weeks(plans(name))),
       workout_performance(id)
@@ -129,6 +130,7 @@ export async function getRecentActivity(limit = 12): Promise<ActivityEntry[]> {
     student_id: string
     completed_at: string
     feeling_note: string | null
+    difficulty: 'facil' | 'moderado' | 'dificil' | null
     students: { profiles: { full_name: string } | null } | null
     workouts: { name: string; plan_weeks: { plans: { name: string } | null } | null } | null
     workout_performance: { id: string }[]
@@ -141,6 +143,7 @@ export async function getRecentActivity(limit = 12): Promise<ActivityEntry[]> {
     completedAt: s.completed_at,
     loggedCount: s.workout_performance?.length ?? 0,
     feelingNote: s.feeling_note,
+    difficulty: s.difficulty,
   }))
 }
 

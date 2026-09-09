@@ -5,12 +5,11 @@ import { Check, Dumbbell, Flame, Play, Plus, Repeat, Timer } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { RpeSelector } from '@/components/student/rpe-selector'
 import { formatMToLabel, formatSecToLabel } from '@/lib/prescription-format'
 import { logExercise } from '@/app/alumno/actions'
 import type { StudentDayItem } from '@/lib/supabase/queries/student-plan'
 
-type SetForm = { setNumber: number; load: string; reps: string; rpe: number | null; saved: boolean }
+type SetForm = { setNumber: number; load: string; reps: string; saved: boolean }
 
 export function StudentExerciseCard({
   workoutId,
@@ -41,7 +40,7 @@ export function StudentExerciseCard({
   }
 
   function freshSet(setNumber: number, list: SetForm[]): SetForm {
-    return { setNumber, load: lastKnownLoad(list), reps: prescribedReps, rpe: null, saved: false }
+    return { setNumber, load: lastKnownLoad(list), reps: prescribedReps, saved: false }
   }
 
   const initial: SetForm[] =
@@ -50,7 +49,6 @@ export function StudentExerciseCard({
           setNumber: l.setNumber,
           load: l.loadKg == null ? '' : String(l.loadKg),
           reps: l.reps ?? '',
-          rpe: l.rpe,
           saved: true,
         }))
       : [freshSet(1, [])]
@@ -76,7 +74,6 @@ export function StudentExerciseCard({
         setNumber: s.setNumber,
         loadKg: s.load.trim() === '' ? null : Number(s.load.replace(',', '.')) || null,
         reps: s.reps || null,
-        rpe: s.rpe,
         comments: null,
       })
       if (res.error) setError(res.error)
@@ -166,53 +163,50 @@ export function StudentExerciseCard({
         </div>
       ) : null}
 
-      <div className="border-border flex flex-col gap-3 border-t pt-3">
+      <div className="border-border flex flex-col gap-2 border-t pt-3">
         {sets.map((s, i) => (
-          <div key={i} className="flex flex-col gap-1.5">
-            <div className="flex items-end gap-1.5">
-              <label className="flex flex-col gap-0.5">
-                <span className="text-muted-foreground text-[10px]">Serie</span>
-                <select
-                  value={s.setNumber}
-                  onChange={(e) => patch(i, { setNumber: Number(e.target.value) })}
-                  className="border-input h-8 w-14 rounded-md border bg-transparent px-1.5 text-sm outline-none dark:bg-input/30"
-                >
-                  {Array.from({ length: maxSetOption }, (_, k) => k + 1).map((n) => (
-                    <option key={n} value={n}>
-                      {n}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="flex flex-col gap-0.5">
-                <span className="text-muted-foreground text-[10px]">Carga kg</span>
-                <Input
-                  inputMode="decimal"
-                  value={s.load}
-                  onChange={(e) => patch(i, { load: e.target.value })}
-                  className="h-8 w-16"
-                />
-              </label>
-              <label className="flex flex-col gap-0.5">
-                <span className="text-muted-foreground text-[10px]">Reps</span>
-                <Input
-                  value={s.reps}
-                  onChange={(e) => patch(i, { reps: e.target.value })}
-                  className="h-8 w-14"
-                />
-              </label>
-              <Button
-                size="sm"
-                variant={s.saved ? 'outline' : 'default'}
-                disabled={pending}
-                onClick={() => save(i)}
-                className="h-8 flex-1 px-2"
+          <div key={i} className="flex items-end gap-1.5">
+            <label className="flex flex-col gap-0.5">
+              <span className="text-muted-foreground text-[10px]">Vueltas</span>
+              <select
+                value={s.setNumber}
+                onChange={(e) => patch(i, { setNumber: Number(e.target.value) })}
+                className="border-input h-8 w-14 rounded-md border bg-transparent px-1.5 text-sm outline-none dark:bg-input/30"
               >
-                {s.saved ? <Check className="size-3.5" /> : null}
-                {s.saved ? 'Guardado' : 'Registrar'}
-              </Button>
-            </div>
-            <RpeSelector value={s.rpe} onChange={(v) => patch(i, { rpe: v })} />
+                {Array.from({ length: maxSetOption }, (_, k) => k + 1).map((n) => (
+                  <option key={n} value={n}>
+                    {n}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-0.5">
+              <span className="text-muted-foreground text-[10px]">Carga kg</span>
+              <Input
+                inputMode="decimal"
+                value={s.load}
+                onChange={(e) => patch(i, { load: e.target.value })}
+                className="h-8 w-16"
+              />
+            </label>
+            <label className="flex flex-col gap-0.5">
+              <span className="text-muted-foreground text-[10px]">Reps</span>
+              <Input
+                value={s.reps}
+                onChange={(e) => patch(i, { reps: e.target.value })}
+                className="h-8 w-14"
+              />
+            </label>
+            <Button
+              size="sm"
+              variant={s.saved ? 'outline' : 'default'}
+              disabled={pending}
+              onClick={() => save(i)}
+              className="h-8 flex-1 px-2"
+            >
+              {s.saved ? <Check className="size-3.5" /> : null}
+              {s.saved ? 'Guardado' : 'Registrar'}
+            </Button>
           </div>
         ))}
         <button

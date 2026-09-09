@@ -4,6 +4,7 @@ import { Fragment, useState } from 'react'
 import Link from 'next/link'
 import { ArrowRight, X } from 'lucide-react'
 
+import { DIFFICULTY_LABEL } from '@/lib/student-difficulty'
 import type { StudentHistoryEntry } from '@/lib/supabase/queries/student-plan'
 
 const WEEKDAYS = ['L', 'M', 'M', 'J', 'V', 'S', 'D']
@@ -153,6 +154,7 @@ export function HistoryCalendar({ entries }: { entries: StudentHistoryEntry[] })
                               </span>
                               <span className="text-muted-foreground text-xs">
                                 {e.loggedCount} registro{e.loggedCount === 1 ? '' : 's'}
+                                {e.difficulty ? ` · ${DIFFICULTY_LABEL[e.difficulty]}` : ''}
                               </span>
                               {e.feelingNote ? (
                                 <span className="text-muted-foreground text-xs italic">
