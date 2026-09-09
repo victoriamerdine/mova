@@ -7,6 +7,7 @@ import { DashboardHeader } from '@/components/professor/dashboard-header'
 import { AiRecommendPanel } from '@/components/professor/ai-recommend-panel'
 import { LoadTargetsForm } from '@/components/professor/load-targets-form'
 import { StudentAccessCard } from '@/components/professor/student-access-card'
+import { StudentProgressPanel } from '@/components/professor/student-progress-panel'
 import { StudentFormsCard } from '@/components/forms/student-forms-card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -16,6 +17,7 @@ import { getRenewalBadge } from '@/lib/plan-renewal'
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentProfessor } from '@/lib/supabase/queries/professor-dashboard'
 import { getStudentSubmissions } from '@/lib/supabase/queries/forms'
+import { getStudentProgress } from '@/lib/supabase/queries/student-progress'
 import { getStudentLoadTargets } from '@/lib/supabase/queries/plan-editor'
 import { getStudentUsername } from '@/lib/auth/student-credentials'
 import { createPlan } from '@/app/alumnos/[studentId]/actions'
@@ -64,12 +66,14 @@ export default async function StudentDetailPage({
 
   const plans = plansData ?? []
 
-  const [{ data: patternsData }, loadTargets, formSubmissions, username] = await Promise.all([
-    supabase.from('patterns').select('id, display_name').order('sort_order'),
-    getStudentLoadTargets(studentId),
-    getStudentSubmissions(studentId),
-    getStudentUsername(studentId),
-  ])
+  const [{ data: patternsData }, loadTargets, formSubmissions, username, progress] =
+    await Promise.all([
+      supabase.from('patterns').select('id, display_name').order('sort_order'),
+      getStudentLoadTargets(studentId),
+      getStudentSubmissions(studentId),
+      getStudentUsername(studentId),
+      getStudentProgress(studentId),
+    ])
   const patterns = (patternsData ?? []).map((p) => ({ id: p.id, name: p.display_name }))
   const patternTargets = loadTargets
     .filter((t) => t.groupType === 'pattern')
@@ -95,6 +99,18 @@ export default async function StudentDetailPage({
           ) : null}
 
           <StudentFormsCard submissions={formSubmissions} />
+
+          <Card className="gap-0 overflow-hidden py-0">
+            <CardHeader className="border-b px-5 py-4">
+              <CardTitle className="text-sm">Avance y comentarios</CardTitle>
+              <CardDescription className="text-xs">
+                Sesiones que el alumno completó — carga, repeticiones, RPE y cómo se sintió.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="px-0 py-0">
+              <StudentProgressPanel sessions={progress} />
+            </CardContent>
+          </Card>
 
           <Card className="gap-0 py-5">
             <CardHeader className="px-5">
