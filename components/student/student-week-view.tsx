@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { History } from 'lucide-react'
+import { Check, History } from 'lucide-react'
 
 import { StudentDayContent } from '@/components/student/student-day-content'
 import type { StudentPlanSummary, StudentWeek } from '@/lib/supabase/queries/student-plan'
@@ -143,23 +143,22 @@ export function StudentWeekView({
                     key={d.workoutId}
                     type="button"
                     onClick={() => setTab(i)}
-                    className={chip(i === tab)}
+                    className={chip(i === tab) + ' inline-flex items-center gap-1'}
                   >
                     {d.name}
+                    <DayChecks
+                      times={d.timesDone}
+                      active={i === tab}
+                    />
                   </button>
                 ))}
               </div>
-              {week.days[tab] ? <StudentDayContent key={week.days[tab].workoutId} day={week.days[tab]} /> : null}
+              {week.days[tab] ? (
+                <StudentDayContent key={week.days[tab].workoutId} day={week.days[tab]} />
+              ) : null}
             </>
           ) : (
-            <div className="flex flex-col gap-8">
-              {week.days.map((d) => (
-                <div key={d.workoutId} className="flex flex-col gap-3">
-                  <h2 className="text-base font-semibold tracking-tight">{d.name}</h2>
-                  <StudentDayContent day={d} />
-                </div>
-              ))}
-            </div>
+            <WeekOverview week={week} />
           )}
         </>
       )}
@@ -172,6 +171,68 @@ export function StudentWeekView({
         Ver mi historial
       </Link>
     </>
+  )
+}
+
+function DayChecks({ times, active }: { times: number; active: boolean }) {
+  if (times <= 0) return null
+  const cls = active ? 'text-primary-foreground' : 'text-primary'
+  if (times <= 3) {
+    return (
+      <span className={`inline-flex ${cls}`}>
+        {Array.from({ length: times }).map((_, i) => (
+          <Check key={i} className="size-3.5" strokeWidth={3} />
+        ))}
+      </span>
+    )
+  }
+  return (
+    <span className={`inline-flex items-center ${cls}`}>
+      <Check className="size-3.5" strokeWidth={3} />
+      <span className="text-[11px] font-bold">×{times}</span>
+    </span>
+  )
+}
+
+/** Vista "Semana completa": solo lectura — qué se trabaja cada día. */
+function WeekOverview({ week }: { week: StudentWeek }) {
+  return (
+    <div className="flex flex-col gap-6">
+      {week.days.map((d) => {
+        const items = d.blocks.flatMap((b) => b.items)
+        return (
+          <div key={d.workoutId} className="flex flex-col gap-2">
+            <h2 className="text-primary flex items-center gap-2 text-base font-semibold tracking-tight uppercase">
+              {d.name}
+              <DayChecks times={d.timesDone} active={false} />
+            </h2>
+            {items.length === 0 ? (
+              <p className="text-muted-foreground text-sm">Sin ejercicios cargados.</p>
+            ) : (
+              <ul className="flex flex-col gap-1.5 text-sm">
+                {items.map((it) => (
+                  <li key={it.id} className="flex gap-2">
+                    <span className="text-primary mt-1.5 size-1.5 shrink-0 rounded-full" />
+                    <span>
+                      <span className="font-medium">
+                        {it.label ? `${it.label} · ` : ''}
+                        {it.exerciseName ?? it.activityName ?? 'Ejercicio'}
+                      </span>
+                      {it.patternName || it.muscleName ? (
+                        <span className="text-muted-foreground">
+                          {' — '}
+                          {it.patternName ?? it.muscleName}
+                        </span>
+                      ) : null}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )
+      })}
+    </div>
   )
 }
 
