@@ -32,7 +32,7 @@ export function StudentExerciseCard({
     return m ? parseInt(m[0], 10) : 0
   })()
   const maxSeries = Math.max(prescribedSets, 12)
-  const unit = blockHasRounds ? 'Vueltas' : 'Series'
+  const unit = 'Series'
 
   // Pre-carga: series desde la prescripción (o lo ya registrado); reps
   // desde la prescripción; carga con la última que el alumno hizo en este
@@ -94,7 +94,7 @@ export function StudentExerciseCard({
 
           <div className="text-muted-foreground mt-2 space-y-1 text-xs">
             {blockHasRounds && rounds ? (
-              <Row icon={<Repeat className="text-primary size-3.5" />} label="Vueltas" value={String(rounds)} />
+              <Row icon={<Repeat className="text-primary size-3.5" />} label="Series" value={String(rounds)} />
             ) : p?.sets ? (
               <Row icon={<Dumbbell className="text-primary size-3.5" />} label="Series" value={p.sets} />
             ) : null}
