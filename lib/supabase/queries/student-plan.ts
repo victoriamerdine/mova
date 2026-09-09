@@ -84,6 +84,9 @@ export type StudentDayItem = {
   videoId: string | null
   prescription: StudentPrescription | null
   logs: StudentLog[]
+  /** Última carga (kg) que el alumno registró para este ejercicio en
+   *  cualquier sesión anterior — para pre-cargar el input la 2ª vez. */
+  lastLoadKg: number | null
 }
 
 export type StudentDayBlock = {
@@ -154,6 +157,7 @@ type BlockRow = { id: string; kind: string; rounds: number | null; order: number
 function mapBlocks(
   blocksData: unknown,
   logsByItem: Map<string, StudentLog[]>,
+  lastLoadByItem: Map<string, number> = new Map(),
 ): StudentDayBlock[] {
   return ((blocksData ?? []) as BlockRow[]).map((b) => ({
     id: b.id,
@@ -192,9 +196,40 @@ function mapBlocks(
               }
             : null,
           logs: (logsByItem.get(it.id) ?? []).sort((a, z) => a.setNumber - z.setNumber),
+          lastLoadKg: lastLoadByItem.get(it.id) ?? null,
         }
       }),
   }))
+}
+
+/** Última carga (kg) no nula que el alumno registró por training_item. */
+async function lastLoadsForItems(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  studentId: string,
+  itemIds: string[],
+): Promise<Map<string, number>> {
+  const map = new Map<string, number>()
+  if (itemIds.length === 0) return map
+  const { data } = await supabase
+    .from('workout_performance')
+    .select('training_item_id, actual_load_kg, completed_at')
+    .eq('student_id', studentId)
+    .in('training_item_id', itemIds)
+    .not('actual_load_kg', 'is', null)
+    .order('completed_at', { ascending: false })
+  for (const r of data ?? []) {
+    if (!map.has(r.training_item_id) && r.actual_load_kg != null) {
+      map.set(r.training_item_id, Number(r.actual_load_kg))
+    }
+  }
+  return map
+}
+
+/** Ids de training_item que aparecen en el árbol de bloques crudo. */
+function itemIdsFromBlocks(blocksData: unknown): string[] {
+  return ((blocksData ?? []) as BlockRow[]).flatMap((b) =>
+    (b.training_items ?? []).map((it) => it.id),
+  )
 }
 
 async function openSessionLogs(
@@ -259,10 +294,11 @@ export async function getStudentDay(
     .limit(1)
     .maybeSingle()
 
-  const logsByItem = openSession
-    ? await openSessionLogs(supabase, openSession.id)
-    : new Map<string, StudentLog[]>()
-  const blocks = mapBlocks(blocksData, logsByItem)
+  const [logsByItem, lastLoadByItem] = await Promise.all([
+    openSession ? openSessionLogs(supabase, openSession.id) : new Map<string, StudentLog[]>(),
+    lastLoadsForItems(supabase, studentId, itemIdsFromBlocks(blocksData)),
+  ])
+  const blocks = mapBlocks(blocksData, logsByItem, lastLoadByItem)
 
   return {
     workoutId: w.id,
@@ -400,9 +436,10 @@ export async function getStudentWeek(
       .eq('workout_id', wk.id)
       .order('order')
     const open = openByWorkout.get(wk.id)
-    const logsByItem = open
-      ? await openSessionLogs(supabase, open.id)
-      : new Map<string, StudentLog[]>()
+    const [logsByItem, lastLoadByItem] = await Promise.all([
+      open ? openSessionLogs(supabase, open.id) : new Map<string, StudentLog[]>(),
+      lastLoadsForItems(supabase, studentId, itemIdsFromBlocks(blocksData)),
+    ])
     days.push({
       workoutId: wk.id,
       name: wk.name,
@@ -414,7 +451,7 @@ export async function getStudentWeek(
       sessionCompletedAt: open?.completed_at ?? null,
       feelingNote: open?.feeling_note ?? null,
       timesDone: timesDoneByWorkout.get(wk.id) ?? 0,
-      blocks: mapBlocks(blocksData, logsByItem),
+      blocks: mapBlocks(blocksData, logsByItem, lastLoadByItem),
     })
   }
 
