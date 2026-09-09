@@ -29,7 +29,7 @@ export function DashboardHeader({ professorName }: { professorName: string }) {
   const firstName = professorName.trim().split(/\s+/)[0] || professorName
 
   return (
-    <header className="bg-surface/85 sticky top-0 z-30 border-b border-border backdrop-blur">
+    <header className="bg-surface/85 z-30 border-b border-border backdrop-blur lg:sticky lg:top-0">
       <div className="flex h-16 items-center gap-4 px-6">
         <div className="min-w-0">
           <h1 className="truncate text-base font-semibold tracking-tight">Hola, {firstName}</h1>

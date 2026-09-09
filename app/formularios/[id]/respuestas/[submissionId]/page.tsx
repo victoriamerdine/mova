@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 
 import { AppSidebar } from '@/components/professor/app-sidebar'
+import { MobileNav } from '@/components/professor/mobile-nav'
 import { DashboardHeader } from '@/components/professor/dashboard-header'
 import { SubmissionDetail } from '@/components/forms/submission-detail'
 import { getCurrentProfessor, getMyStudents } from '@/lib/supabase/queries/professor-dashboard'
@@ -28,6 +29,7 @@ export default async function SubmissionDetailPage({
     <div className="bg-background flex min-h-svh">
       <AppSidebar active="Formularios" />
       <div className="flex min-w-0 flex-1 flex-col">
+        <MobileNav />
         <DashboardHeader professorName={professor.fullName} />
         <main className="flex flex-1 flex-col gap-4 px-6 py-6">
           <Link

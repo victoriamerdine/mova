@@ -104,8 +104,8 @@ export function LibraryWorkspace({
 
   return (
     <>
-      <header className="bg-surface/85 sticky top-0 z-20 border-b border-border px-4 py-4 backdrop-blur sm:px-6">
-        <div className="mb-3 flex items-center justify-between gap-3">
+      <header className="bg-surface/85 z-20 border-b border-border px-4 py-4 backdrop-blur sm:px-6 lg:sticky lg:top-0">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="text-base font-semibold tracking-tight text-foreground">
               Biblioteca de Ejercicios
@@ -114,7 +114,7 @@ export function LibraryWorkspace({
               {filtered.length} de {exercises.length} ejercicios
             </p>
           </div>
-          <div className="flex shrink-0 items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {hasActiveFilters ? (
               <Button variant="outline" size="sm" onClick={resetFilters} className="bg-card">
                 Limpiar filtros

@@ -1,4 +1,5 @@
 import { AppSidebar } from '@/components/professor/app-sidebar'
+import { MobileNav } from '@/components/professor/mobile-nav'
 import { LibraryWorkspace } from '@/components/library/library-workspace'
 import {
   getLibraryCatalog,
@@ -20,6 +21,7 @@ export default async function ExerciseLibraryPage() {
       <AppSidebar active="Biblioteca" libraryCount={exercises.length} />
 
       <div className="flex min-w-0 flex-1 flex-col">
+        <MobileNav />
         <LibraryWorkspace
           exercises={exercises}
           catalog={catalog}
