@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { Check, Dumbbell, Flame, Play, Plus, Repeat, Timer } from 'lucide-react'
+import { Check, Dumbbell, Flame, Play, Repeat, Timer } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -9,7 +9,7 @@ import { formatMToLabel, formatSecToLabel } from '@/lib/prescription-format'
 import { logExercise } from '@/app/alumno/actions'
 import type { StudentDayItem } from '@/lib/supabase/queries/student-plan'
 
-type SetForm = { setNumber: number; load: string; reps: string; saved: boolean }
+type DoneForm = { series: string; load: string; reps: string; saved: boolean }
 
 export function StudentExerciseCard({
   workoutId,
@@ -27,57 +27,49 @@ export function StudentExerciseCard({
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
 
-  // Pre-carga: reps desde la prescripción; carga con la última que el
-  // alumno hizo en este ejercicio (vacío la primera vez).
-  const prescribedReps = p?.reps ?? ''
-  const lastLoadStr = item.lastLoadKg != null ? String(item.lastLoadKg) : ''
-
-  function lastKnownLoad(list: SetForm[]): string {
-    for (let k = list.length - 1; k >= 0; k--) {
-      if (list[k].saved && list[k].load.trim() !== '') return list[k].load
-    }
-    return lastLoadStr
-  }
-
-  function freshSet(setNumber: number, list: SetForm[]): SetForm {
-    return { setNumber, load: lastKnownLoad(list), reps: prescribedReps, saved: false }
-  }
-
-  const initial: SetForm[] =
-    item.logs.length > 0
-      ? item.logs.map((l) => ({
-          setNumber: l.setNumber,
-          load: l.loadKg == null ? '' : String(l.loadKg),
-          reps: l.reps ?? '',
-          saved: true,
-        }))
-      : [freshSet(1, [])]
-  const [sets, setSets] = useState<SetForm[]>(initial)
-
   const prescribedSets = (() => {
     const m = p?.sets?.match(/\d+/)
     return m ? parseInt(m[0], 10) : 0
   })()
-  const maxSetOption = Math.max(prescribedSets, sets.length + 1, 6)
+  const maxSeries = Math.max(prescribedSets, 12)
+  const unit = blockHasRounds ? 'Vueltas' : 'Series'
 
-  function patch(i: number, next: Partial<SetForm>) {
-    setSets((prev) => prev.map((s, j) => (j === i ? { ...s, ...next, saved: false } : s)))
+  // Pre-carga: series desde la prescripción (o lo ya registrado); reps
+  // desde la prescripción; carga con la última que el alumno hizo en este
+  // ejercicio (vacío la primera vez).
+  const first = item.logs[0]
+  const initial: DoneForm =
+    item.logs.length > 0
+      ? {
+          series: String(item.logs.length),
+          load: first?.loadKg == null ? '' : String(first.loadKg),
+          reps: first?.reps ?? '',
+          saved: true,
+        }
+      : {
+          series: String(prescribedSets || 1),
+          load: item.lastLoadKg != null ? String(item.lastLoadKg) : '',
+          reps: p?.reps ?? '',
+          saved: false,
+        }
+  const [form, setForm] = useState<DoneForm>(initial)
+
+  function patch(next: Partial<DoneForm>) {
+    setForm((f) => ({ ...f, ...next, saved: false }))
   }
 
-  function save(i: number) {
+  function save() {
     setError(null)
-    const s = sets[i]
     startTransition(async () => {
       const res = await logExercise({
         workoutId,
         trainingItemId: item.id,
-        setNumber: s.setNumber,
-        loadKg: s.load.trim() === '' ? null : Number(s.load.replace(',', '.')) || null,
-        reps: s.reps || null,
-        comments: null,
+        seriesCount: Number(form.series) || 1,
+        loadKg: form.load.trim() === '' ? null : Number(form.load.replace(',', '.')) || null,
+        reps: form.reps || null,
       })
       if (res.error) setError(res.error)
-      else setSets((prev) => prev.map((x, j) => (j === i ? { ...x, saved: true } : x)))
+      else setForm((f) => ({ ...f, saved: true }))
     })
   }
 
@@ -164,61 +156,50 @@ export function StudentExerciseCard({
       ) : null}
 
       <div className="border-border flex flex-col gap-2 border-t pt-3">
-        {sets.map((s, i) => (
-          <div key={i} className="flex items-end gap-1.5">
-            <label className="flex flex-col gap-0.5">
-              <span className="text-muted-foreground text-[10px]">Vueltas</span>
-              <select
-                value={s.setNumber}
-                onChange={(e) => patch(i, { setNumber: Number(e.target.value) })}
-                className="border-input h-8 w-14 rounded-md border bg-transparent px-1.5 text-sm outline-none dark:bg-input/30"
-              >
-                {Array.from({ length: maxSetOption }, (_, k) => k + 1).map((n) => (
-                  <option key={n} value={n}>
-                    {n}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="flex flex-col gap-0.5">
-              <span className="text-muted-foreground text-[10px]">Carga kg</span>
-              <Input
-                inputMode="decimal"
-                value={s.load}
-                onChange={(e) => patch(i, { load: e.target.value })}
-                className="h-8 w-16"
-              />
-            </label>
-            <label className="flex flex-col gap-0.5">
-              <span className="text-muted-foreground text-[10px]">Reps</span>
-              <Input
-                value={s.reps}
-                onChange={(e) => patch(i, { reps: e.target.value })}
-                className="h-8 w-14"
-              />
-            </label>
-            <Button
-              size="sm"
-              variant={s.saved ? 'outline' : 'default'}
-              disabled={pending}
-              onClick={() => save(i)}
-              className="h-8 flex-1 px-2"
+        <p className="text-muted-foreground text-[11px]">Qué hiciste</p>
+        <div className="flex items-end gap-1.5">
+          <label className="flex flex-col gap-0.5">
+            <span className="text-muted-foreground text-[10px]">{unit}</span>
+            <select
+              value={form.series}
+              onChange={(e) => patch({ series: e.target.value })}
+              className="border-input h-8 w-14 rounded-md border bg-transparent px-1.5 text-sm outline-none dark:bg-input/30"
             >
-              {s.saved ? <Check className="size-3.5" /> : null}
-              {s.saved ? 'Guardado' : 'Registrar'}
-            </Button>
-          </div>
-        ))}
-        <button
-          type="button"
-          onClick={() =>
-            setSets((prev) => [...prev, freshSet((prev[prev.length - 1]?.setNumber ?? 0) + 1, prev)])
-          }
-          className="text-muted-foreground hover:text-foreground flex w-fit items-center gap-1 text-xs"
-        >
-          <Plus className="size-3.5" />
-          Agregar serie
-        </button>
+              {Array.from({ length: maxSeries }, (_, k) => k + 1).map((n) => (
+                <option key={n} value={n}>
+                  {n}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex flex-col gap-0.5">
+            <span className="text-muted-foreground text-[10px]">Carga kg</span>
+            <Input
+              inputMode="decimal"
+              value={form.load}
+              onChange={(e) => patch({ load: e.target.value })}
+              className="h-8 w-16"
+            />
+          </label>
+          <label className="flex flex-col gap-0.5">
+            <span className="text-muted-foreground text-[10px]">Reps</span>
+            <Input
+              value={form.reps}
+              onChange={(e) => patch({ reps: e.target.value })}
+              className="h-8 w-14"
+            />
+          </label>
+          <Button
+            size="sm"
+            variant={form.saved ? 'outline' : 'default'}
+            disabled={pending}
+            onClick={save}
+            className="h-8 flex-1 px-2"
+          >
+            {form.saved ? <Check className="size-3.5" /> : null}
+            {form.saved ? 'Guardado' : 'Registrar'}
+          </Button>
+        </div>
         {error ? <p className="text-destructive text-xs">{error}</p> : null}
       </div>
     </div>

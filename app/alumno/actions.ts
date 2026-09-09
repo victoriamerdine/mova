@@ -62,10 +62,10 @@ export async function startDaySession(workoutId: string): Promise<Result> {
 export async function logExercise(input: {
   workoutId: string
   trainingItemId: string
-  setNumber: number
+  /** Cuántas series terminó haciendo el alumno (todas con la misma carga/reps). */
+  seriesCount: number
   loadKg: number | null
   reps: string | null
-  comments: string | null
 }): Promise<Result> {
   const student = await requireStudent()
   const supabase = await createClient()
@@ -73,29 +73,32 @@ export async function logExercise(input: {
   const sessionId = await openSessionId(supabase, student.id, input.workoutId)
   if (!sessionId) return { error: 'No pudimos abrir la sesión.' }
 
-  const row: Database['public']['Tables']['workout_performance']['Insert'] = {
-    session_id: sessionId,
-    training_item_id: input.trainingItemId,
-    student_id: student.id,
-    set_number: input.setNumber,
-    actual_load_kg: input.loadKg,
-    actual_reps: input.reps?.trim() || null,
-    comments: input.comments?.trim() || null,
-    completed_at: new Date().toISOString(),
-  }
+  const n = Math.min(30, Math.max(1, Math.floor(input.seriesCount) || 1))
+  const now = new Date().toISOString()
 
-  // El índice único es parcial (where session_id is not null), así que no
-  // sirve como target de ON CONFLICT. Reescribir la fila de esa serie:
-  // corregir un dato dentro del mismo intento sobrescribe; un intento
-  // nuevo es otra sesión → otras filas.
+  // Una fila por serie realizada, todas con la misma carga/reps. Volver a
+  // registrar este ejercicio en la sesión reemplaza lo anterior (así bajar
+  // de 4 a 3 series borra la 4ª).
   await supabase
     .from('workout_performance')
     .delete()
     .eq('session_id', sessionId)
     .eq('training_item_id', input.trainingItemId)
-    .eq('set_number', input.setNumber)
 
-  const { error } = await supabase.from('workout_performance').insert(row)
+  const rows: Database['public']['Tables']['workout_performance']['Insert'][] = Array.from(
+    { length: n },
+    (_, i) => ({
+      session_id: sessionId,
+      training_item_id: input.trainingItemId,
+      student_id: student.id,
+      set_number: i + 1,
+      actual_load_kg: input.loadKg,
+      actual_reps: input.reps?.trim() || null,
+      completed_at: now,
+    }),
+  )
+
+  const { error } = await supabase.from('workout_performance').insert(rows)
   if (error) return { error: error.message }
 
   revalidatePath(`/alumno/dia/${input.workoutId}`)
