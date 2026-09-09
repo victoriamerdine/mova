@@ -3,13 +3,15 @@ import { redirect } from 'next/navigation'
 import { AppSidebar } from '@/components/professor/app-sidebar'
 import { DashboardHeader } from '@/components/professor/dashboard-header'
 import { MetricCards } from '@/components/professor/metric-cards'
-import { QuickAlerts } from '@/components/professor/quick-alerts'
+import { RecentActivity } from '@/components/professor/recent-activity'
+import { RenewalsPanel } from '@/components/professor/renewals-panel'
 import { StudentsTable } from '@/components/professor/students-table'
-import { VolumePanel } from '@/components/professor/volume-panel'
 import {
   getCurrentProfessor,
   getDashboardMetrics,
   getMyStudents,
+  getPlansToRenew,
+  getRecentActivity,
   getSessionRole,
 } from '@/lib/supabase/queries/professor-dashboard'
 
@@ -26,9 +28,11 @@ export default async function ProfessorDashboardPage() {
     redirect('/login')
   }
 
-  const [metrics, students] = await Promise.all([
+  const [metrics, students, activity, renewals] = await Promise.all([
     getDashboardMetrics(professor.id),
     getMyStudents(professor.id),
+    getRecentActivity(),
+    getPlansToRenew(professor.id),
   ])
 
   return (
@@ -41,9 +45,12 @@ export default async function ProfessorDashboardPage() {
         <main className="flex flex-1 flex-col gap-6 px-6 py-6">
           <MetricCards metrics={metrics} />
 
-          <section aria-label="Alertas y volumen" className="grid gap-4 xl:grid-cols-[1.85fr_1fr]">
-            <QuickAlerts />
-            <VolumePanel />
+          <section
+            aria-label="Actividad y renovaciones"
+            className="grid gap-4 xl:grid-cols-[1.85fr_1fr]"
+          >
+            <RecentActivity entries={activity} />
+            <RenewalsPanel items={renewals} />
           </section>
 
           <StudentsTable students={students} />

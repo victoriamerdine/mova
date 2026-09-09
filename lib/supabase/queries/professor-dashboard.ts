@@ -61,14 +61,15 @@ export async function getCurrentProfessor(): Promise<CurrentProfessor | null> {
 export type DashboardMetrics = {
   totalStudents: number
   activePlans: number
-  workoutsToday: number
+  /** Sesiones que los alumnos completaron en los últimos 7 días. */
+  sessionsThisWeek: number
 }
 
 export async function getDashboardMetrics(professorId: string): Promise<DashboardMetrics> {
   const supabase = await createClient()
-  const today = new Date().toISOString().slice(0, 10)
+  const weekAgo = new Date(Date.now() - 7 * 86_400_000).toISOString()
 
-  const [{ count: totalStudents }, { count: activePlans }, { count: workoutsToday }] =
+  const [{ count: totalStudents }, { count: activePlans }, { count: sessionsThisWeek }] =
     await Promise.all([
       supabase
         .from('student_professors')
@@ -80,18 +81,102 @@ export async function getDashboardMetrics(professorId: string): Promise<Dashboar
         .select('*', { count: 'exact', head: true })
         .eq('professor_id', professorId)
         .eq('status', 'active'),
+      // RLS de workout_sessions acota a los alumnos de este profesor.
       supabase
-        .from('workouts')
+        .from('workout_sessions')
         .select('*', { count: 'exact', head: true })
-        .eq('professor_id', professorId)
-        .eq('date', today),
+        .not('completed_at', 'is', null)
+        .gte('completed_at', weekAgo),
     ])
 
   return {
     totalStudents: totalStudents ?? 0,
     activePlans: activePlans ?? 0,
-    workoutsToday: workoutsToday ?? 0,
+    sessionsThisWeek: sessionsThisWeek ?? 0,
   }
+}
+
+export type ActivityEntry = {
+  sessionId: string
+  studentId: string
+  studentName: string
+  workoutName: string
+  planName: string | null
+  completedAt: string
+  loggedCount: number
+  feelingNote: string | null
+}
+
+/** Últimas sesiones completadas por los alumnos del profesor. */
+export async function getRecentActivity(limit = 12): Promise<ActivityEntry[]> {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('workout_sessions')
+    .select(
+      `
+      id, student_id, completed_at, feeling_note,
+      students(profiles(full_name)),
+      workouts(name, plan_weeks(plans(name))),
+      workout_performance(id)
+    `,
+    )
+    .not('completed_at', 'is', null)
+    .order('completed_at', { ascending: false })
+    .limit(limit)
+
+  return ((data ?? []) as unknown as {
+    id: string
+    student_id: string
+    completed_at: string
+    feeling_note: string | null
+    students: { profiles: { full_name: string } | null } | null
+    workouts: { name: string; plan_weeks: { plans: { name: string } | null } | null } | null
+    workout_performance: { id: string }[]
+  }[]).map((s) => ({
+    sessionId: s.id,
+    studentId: s.student_id,
+    studentName: s.students?.profiles?.full_name ?? 'Alumno',
+    workoutName: s.workouts?.name ?? 'Sesión',
+    planName: s.workouts?.plan_weeks?.plans?.name ?? null,
+    completedAt: s.completed_at,
+    loggedCount: s.workout_performance?.length ?? 0,
+    feelingNote: s.feeling_note,
+  }))
+}
+
+export type RenewalItem = {
+  planId: string
+  planName: string
+  studentId: string
+  studentName: string
+  startDate: string | null
+  endDate: string | null
+}
+
+/** Planes activos del profesor con la fecha de fin cerca o pasada. */
+export async function getPlansToRenew(professorId: string): Promise<RenewalItem[]> {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('plans')
+    .select('id, name, start_date, end_date, student_id, students(profiles(full_name))')
+    .eq('professor_id', professorId)
+    .eq('status', 'active')
+
+  return ((data ?? []) as unknown as {
+    id: string
+    name: string
+    start_date: string | null
+    end_date: string | null
+    student_id: string
+    students: { profiles: { full_name: string } | null } | null
+  }[]).map((p) => ({
+    planId: p.id,
+    planName: p.name,
+    studentId: p.student_id,
+    studentName: p.students?.profiles?.full_name ?? 'Alumno',
+    startDate: p.start_date,
+    endDate: p.end_date,
+  }))
 }
 
 export type MyStudent = {
