@@ -8,7 +8,7 @@ const CARD_DEFS: {
 }[] = [
   { key: 'totalStudents', label: 'Alumnos activos', detail: 'Con relación activa hoy' },
   { key: 'activePlans', label: 'Planes activos', detail: 'En estado "active"' },
-  { key: 'workoutsToday', label: 'Entrenamientos hoy', detail: 'Sesiones con fecha de hoy' },
+  { key: 'sessionsThisWeek', label: 'Sesiones (7 días)', detail: 'Completadas por tus alumnos' },
 ]
 
 export function MetricCards({ metrics }: { metrics: DashboardMetrics }) {
