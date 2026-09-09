@@ -1783,6 +1783,77 @@ Posteriormente:
 
 ---
 
+## ROL ADMIN Y CUENTAS — ESTADO
+
+### En producción
+
+Feature transversal. Un **admin** administra a los profesores; cada
+profesor administra su propia cuenta.
+
+**Modelo** (migraciones `20260828000035` / `…036` / `…037`):
+
+- `profiles.role` puede ser `admin`. Helper `is_admin()` **`security
+  definer`** (lee `profiles` sin RLS — evita la recursión con sus propias
+  policies). Migración 36 lo arregla; 35 lo introdujo.
+- `professors` gana `status` (`pending` / `active` / `suspended`, default
+  `pending`; los existentes → `active`), `document_id`, `phone`,
+  `address`. `is_professor()` recreado: exige `status = 'active'`.
+- `handle_new_user()` soporta `role='admin'` (solo perfil) y guarda los
+  datos personales del profesor (`pending`). Trigger
+  `guard_professor_status()`: un no-admin no puede cambiar su propio
+  `status` (se revierte en silencio).
+- RLS del admin: ve y edita `profiles`, gestiona `professors`, lee
+  `student_professors` y `plans`. Migración 37:
+  `professors` SELECT queda `id = auth.uid() or is_admin()` (no filtrar
+  `document_id`/`phone`/`address` a todos).
+- El email es único a nivel proyecto (lo garantiza Supabase Auth).
+
+**Alta de profesor con aprobación** (`/signup`): el profesor elige "Soy
+profesor", deja nombre / documento / teléfono / dirección / email /
+contraseña; la cuenta queda **pendiente**. Mientras tanto ve `/pendiente`
+(`getSessionRole()` rutea; el login y `/` también). El admin lo aprueba.
+
+**Panel del admin** (`/admin`, `<AdminProfessorsPanel>` +
+`getAdminProfessors` — emails desde Auth con service role):
+
+- Lista de profesores con estado, alumnos y planes. Expandir para:
+  - **Editar datos**: nombre, documento, teléfono, dirección y **email**
+    (`updateProfessor`: `profiles.full_name` + `professors.*` por RLS del
+    admin; el email vía Auth admin sobre el id del profesor, `email_confirm`
+    — al instante, sin mail de confirmación; chequeo de unicidad con
+    `listUsers` + fallback → "Ese email ya está en uso por otra cuenta").
+  - **Acceso**: ver el usuario (email), "Enviar acceso por WhatsApp"
+    (URL de login + usuario) y **Restablecer contraseña** (genera una y
+    ofrece mandarla por WhatsApp con usuario + contraseña).
+  - Aprobar / Suspender / Reactivar (`setProfessorStatus`).
+  - **Hacer admin** (`promoteToAdmin` → `profiles.role='admin'`, con
+    confirmación).
+  - **Crear profesor** (`createProfessorAccount`, service role, queda
+    `active`).
+- Todas las actions hacen `await requireAdmin()`.
+- Bootstrap del primer admin: `update profiles set role='admin'` a mano
+  (por service role / SQL).
+
+**Mi cuenta del profesor** (`/cuenta`, item **"Configuración"** del menú;
+`<ProfessorAccountForm>`):
+
+- Edita sus propios **datos personales + email** (`updateMyProfile`:
+  `profiles`/`professors` por RLS "edita su propia fila"; el email al
+  instante vía Auth admin sobre su MISMO id, misma lógica de unicidad que
+  el panel del admin).
+- **Cambiar contraseña** (`updateMyPassword` → `supabase.auth.updateUser
+  ({ password })` desde su sesión — **no lo desloguea**).
+- `proxy.ts`: `/cuenta` protegido.
+
+### Pendiente
+
+- Registro de auditoría de acciones del admin.
+- 2FA para admins.
+- Que el admin pueda ver/editar el perfil deportivo o los planes de un
+  profesor (hoy solo cuenta y estado).
+
+---
+
 ## SISTEMA DE FORMULARIOS DE EVALUACIÓN — ESTADO
 
 ### En producción
