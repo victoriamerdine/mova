@@ -319,11 +319,9 @@ export async function getStudentHistory(studentId: string): Promise<StudentHisto
 }
 
 // ============================================================
-// La semana completa: todos los días con su árbol + resumen de
-// patrones / músculos / ejercicios, para que el alumno elija qué día hacer.
+// La semana completa: todos los días con su árbol (el alumno elige el día
+// desde las tabs; "Semana completa" es un resumen de solo lectura).
 // ============================================================
-export type WeekTally = { name: string; count: number }
-
 export type StudentWeek = {
   planName: string
   weekNumber: number
@@ -332,13 +330,6 @@ export type StudentWeek = {
   cycleNumber: number
   nextWorkoutId: string | null
   days: StudentDay[]
-  summary: {
-    dayCount: number
-    exerciseCount: number
-    patterns: WeekTally[]
-    muscles: WeekTally[]
-    exercises: string[]
-  }
 }
 
 export async function getStudentWeek(
@@ -427,24 +418,6 @@ export async function getStudentWeek(
     })
   }
 
-  // Resumen de la semana.
-  const patternCount = new Map<string, number>()
-  const muscleCount = new Map<string, number>()
-  const exNames = new Set<string>()
-  let exerciseCount = 0
-  for (const d of days) {
-    for (const b of d.blocks) {
-      for (const it of b.items) {
-        exerciseCount++
-        if (it.exerciseName) exNames.add(it.exerciseName)
-        if (it.patternName) patternCount.set(it.patternName, (patternCount.get(it.patternName) ?? 0) + 1)
-        if (it.muscleName) muscleCount.set(it.muscleName, (muscleCount.get(it.muscleName) ?? 0) + 1)
-      }
-    }
-  }
-  const tally = (m: Map<string, number>): WeekTally[] =>
-    [...m.entries()].map(([name, count]) => ({ name, count })).sort((a, z) => z.count - a.count)
-
   // "Seguí por acá" para toda la vuelta del ciclo.
   const { data: allWorkouts } = await supabase
     .from('workouts')
@@ -472,12 +445,5 @@ export async function getStudentWeek(
     cycleNumber,
     nextWorkoutId,
     days,
-    summary: {
-      dayCount: days.length,
-      exerciseCount,
-      patterns: tally(patternCount),
-      muscles: tally(muscleCount),
-      exercises: [...exNames].sort(),
-    },
   }
 }
