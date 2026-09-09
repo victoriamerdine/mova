@@ -1644,22 +1644,25 @@ Construir:
 
 ### ESTADO — en producción
 
-**Modelo de ejecución** (migración `20260828000034`):
+**Modelo de ejecución** (migraciones `20260828000034`, `…038`):
 
 - El plan es un **ciclo de semanas que se repite** dentro del rango
   `start_date` / `end_date`. No hay fecha fija por sesión: el alumno
   rehace el mismo `workouts` muchas veces y **cada intento genera un
   registro nuevo** (no sobrescribe).
 - `workout_sessions` — una fila por intento (`workout_id`, `student_id`,
-  `started_at`, `completed_at`, `feeling_note`). Trigger
+  `started_at`, `completed_at`, `feeling_note`, `difficulty`). Trigger
   `enforce_session_student_matches_workout`. RLS: el alumno gestiona lo
   suyo (`is_own_student`), el profesor del alumno **lee**
-  (`is_professor_of`).
+  (`is_professor_of`). `difficulty` (migración 38): `text` con check
+  `('facil','moderado','dificil')` — la valoración cualitativa del día.
 - `workout_performance` (migración 005) ahora cuelga de la sesión:
   `session_id uuid` + índice único parcial
   `(session_id, training_item_id, set_number) where session_id is not null`.
   Como el índice es parcial no sirve de target de `ON CONFLICT` →
   `logExercise` hace **delete-then-insert** por `(session_id, item, serie)`.
+  La columna `rpe` se conserva para registros históricos (ya no se pide
+  desde la app).
 - "Seguí por acá": la próxima sesión es
   `cycleFlat[totalSesionesCompletadas % cycleLen]`;
   `cycleNumber = floor(total / cycleLen) + 1`.
@@ -1679,12 +1682,27 @@ Construir:
 - `<StudentDayContent>` — bloques COMBINADO/CIRCUITO en carrusel
   horizontal, resto apilado; `<StudentExerciseCard>` por item
   (nombre, patrón/músculo, prescripción, thumbnail de YouTube → embed al
-  tocar, inputs Carga kg / Reps + `<RpeSelector>` + "Registrar" /
-  "Agregar serie"); textarea "¿Cómo te fue?" + "Terminar sesión".
-- Historial: `/alumno/historial` (`getStudentHistory`) — sesiones
-  completadas con nota y cantidad de registros.
+  tocar).
+- **Registro de series** (`<StudentExerciseCard>`): fila compacta
+  **Vueltas · Carga kg · Reps** en una línea + "Registrar" / "Guardado".
+  "Vueltas" es un selector de números (1…N). Los inputs vienen
+  **pre-cargados**: Reps con la prescripción; Carga con la última carga
+  que el alumno registró en ese ejercicio (`StudentDayItem.lastLoadKg` ←
+  `lastLoadsForItems()`; vacío la primera vez). "Agregar serie" arrastra
+  la pre-carga. **Ya no hay RPE 1-10 por serie.**
+- **Valoración del día**: en "¿Cómo te fue?" hay chips **Fácil /
+  Moderado / Difícil** (`lib/student-difficulty.ts`) — qué tan exigente
+  sintió la sesión. Se guarda en `workout_sessions.difficulty`. Debajo, el
+  textarea de nota libre.
+- Historial: `/alumno/historial` (`getStudentHistory`, hasta 180
+  sesiones) — **calendario mensual** (`<HistoryCalendar>`): un grid por
+  mes con sesiones, lunes primero, más nuevo arriba; se resaltan los días
+  entrenados (badge con la cantidad si entrenó >1 vez ese día, anillo en
+  hoy). Tocar un día despliega —bajo esa semana, ancho completo, con
+  flechita al día— el resumen: cada sesión con nombre, N registros, la
+  valoración y la nota, + link a `/alumno/dia/[workoutId]`.
 - Acciones (`app/alumno/actions.ts`): `startDaySession`, `logExercise`,
-  `finishDay(workoutId, feelingNote)`.
+  `finishDay(workoutId, feelingNote, difficulty)`.
 
 **Avance del alumno visto por el profesor**:
 
@@ -1696,9 +1714,12 @@ Construir:
   comentarios"** (`<StudentProgressPanel>` + `getStudentProgress`, solo
   lectura vía RLS `is_professor_of`): las sesiones que ese alumno
   completó (hasta 30), y por sesión el día / plan / semana / fecha, la
-  nota de **"cómo me sentí"**, y por ejercicio cada serie con
-  **reps · carga · RPE** + comentario de serie. Sin migración nueva —
-  las policies de la migración 34 ya alcanzan.
+  valoración (**"Lo sintió: Fácil/Moderado/Difícil"**), la nota de
+  **"cómo me sentí"**, y por ejercicio cada serie con **reps · carga**
+  (más RPE en registros viejos). Las policies de la migración 34 ya
+  alcanzan; la valoración usa `workout_sessions.difficulty` (migración 38).
+- `<RecentActivity>` y `<HistoryCalendar>` también muestran la valoración
+  del día.
 
 ### Pendiente
 
