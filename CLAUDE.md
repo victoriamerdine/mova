@@ -1642,6 +1642,72 @@ Construir:
 - RPE;
 - finalización.
 
+### ESTADO — en producción
+
+**Modelo de ejecución** (migración `20260828000034`):
+
+- El plan es un **ciclo de semanas que se repite** dentro del rango
+  `start_date` / `end_date`. No hay fecha fija por sesión: el alumno
+  rehace el mismo `workouts` muchas veces y **cada intento genera un
+  registro nuevo** (no sobrescribe).
+- `workout_sessions` — una fila por intento (`workout_id`, `student_id`,
+  `started_at`, `completed_at`, `feeling_note`). Trigger
+  `enforce_session_student_matches_workout`. RLS: el alumno gestiona lo
+  suyo (`is_own_student`), el profesor del alumno **lee**
+  (`is_professor_of`).
+- `workout_performance` (migración 005) ahora cuelga de la sesión:
+  `session_id uuid` + índice único parcial
+  `(session_id, training_item_id, set_number) where session_id is not null`.
+  Como el índice es parcial no sirve de target de `ON CONFLICT` →
+  `logExercise` hace **delete-then-insert** por `(session_id, item, serie)`.
+- "Seguí por acá": la próxima sesión es
+  `cycleFlat[totalSesionesCompletadas % cycleLen]`;
+  `cycleNumber = floor(total / cycleLen) + 1`.
+
+**Vista del alumno** (`/alumno`, mobile-first,
+`components/student/student-week-view.tsx`):
+
+- Header (Hola nombre, vuelta N del ciclo, rango de fechas, banner "este
+  plan terminó"). **El alumno puede tener más de 1 plan activo** →
+  selector de planes con chips (`getStudentActivePlans`); navegación por
+  `?plan=X&week=N` (re-fetch en el server).
+- Selector de semana (si el ciclo tiene >1) + toggle **"Por día" /
+  "Semana completa"** (estilo Focus Entrena).
+- **Tabs de día** con un **check por cada vez que se completó ese día**
+  (`<DayChecks>`: hasta 3 tildes, luego `✓ ×N`). "Semana completa"
+  (`<WeekOverview>`) es solo lectura: qué se trabaja cada día.
+- `<StudentDayContent>` — bloques COMBINADO/CIRCUITO en carrusel
+  horizontal, resto apilado; `<StudentExerciseCard>` por item
+  (nombre, patrón/músculo, prescripción, thumbnail de YouTube → embed al
+  tocar, inputs Carga kg / Reps + `<RpeSelector>` + "Registrar" /
+  "Agregar serie"); textarea "¿Cómo te fue?" + "Terminar sesión".
+- Historial: `/alumno/historial` (`getStudentHistory`) — sesiones
+  completadas con nota y cantidad de registros.
+- Acciones (`app/alumno/actions.ts`): `startDaySession`, `logExercise`,
+  `finishDay(workoutId, feelingNote)`.
+
+**Avance del alumno visto por el profesor**:
+
+- **Dashboard** (`/`) — `<RecentActivity>` lista las últimas sesiones
+  completadas de **todos** sus alumnos (alumno · día · plan · N registros
+  · nota); métrica "Sesiones (7 días)". `<RenewalsPanel>` con los planes
+  por vencer (`getRenewalBadge`).
+- **Detalle del alumno** (`/alumnos/[id]`) — tarjeta **"Avance y
+  comentarios"** (`<StudentProgressPanel>` + `getStudentProgress`, solo
+  lectura vía RLS `is_professor_of`): las sesiones que ese alumno
+  completó (hasta 30), y por sesión el día / plan / semana / fecha, la
+  nota de **"cómo me sentí"**, y por ejercicio cada serie con
+  **reps · carga · RPE** + comentario de serie. Sin migración nueva —
+  las policies de la migración 34 ya alcanzan.
+
+### Pendiente
+
+- Duración real de la sesión (hoy se guarda `started_at` /
+  `completed_at` pero no se muestra el total).
+- Editar / borrar una sesión ya terminada desde la vista del alumno
+  (hoy solo se puede empezar una nueva).
+- Gráfico de evolución de carga por ejercicio (va con Fase 8).
+
 ---
 
 ## FASE 8 — Analytics
