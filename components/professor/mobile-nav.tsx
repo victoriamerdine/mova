@@ -25,7 +25,7 @@ const NAV = [
   { label: 'Planes', icon: ClipboardList, href: '/planes' },
   { label: 'Formularios', icon: ClipboardCheck, href: '/formularios' },
   { label: 'Analítica', icon: BarChart3, href: '#' },
-  { label: 'Configuración', icon: Settings, href: '#' },
+  { label: 'Configuración', icon: Settings, href: '/cuenta' },
 ] as const
 
 function isActive(pathname: string, href: string) {
