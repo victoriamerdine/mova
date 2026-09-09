@@ -117,8 +117,6 @@ export function StudentWeekView({
             </div>
           ) : null}
 
-          <WeekSummary week={week} />
-
           <div className="border-border flex gap-1 rounded-full border p-1">
             {(['dia', 'semana'] as const).map((v) => (
               <button
@@ -236,47 +234,3 @@ function WeekOverview({ week }: { week: StudentWeek }) {
   )
 }
 
-function WeekSummary({ week }: { week: StudentWeek }) {
-  const s = week.summary
-  if (s.exerciseCount === 0) return null
-  return (
-    <details className="border-border bg-card rounded-2xl border p-4" open>
-      <summary className="cursor-pointer list-none text-sm font-medium">
-        Semana {week.weekNumber}: {s.dayCount} día{s.dayCount === 1 ? '' : 's'} · {s.exerciseCount}{' '}
-        ejercicio{s.exerciseCount === 1 ? '' : 's'}
-      </summary>
-      <div className="mt-3 flex flex-col gap-3 text-xs">
-        {s.patterns.length > 0 ? (
-          <Tallies title="Patrones" items={s.patterns} />
-        ) : null}
-        {s.muscles.length > 0 ? <Tallies title="Músculos" items={s.muscles} /> : null}
-        {s.exercises.length > 0 ? (
-          <div>
-            <p className="text-muted-foreground mb-1 font-semibold tracking-wide uppercase">
-              Ejercicios
-            </p>
-            <p className="text-foreground/90">{s.exercises.join(' · ')}</p>
-          </div>
-        ) : null}
-      </div>
-    </details>
-  )
-}
-
-function Tallies({ title, items }: { title: string; items: { name: string; count: number }[] }) {
-  return (
-    <div>
-      <p className="text-muted-foreground mb-1 font-semibold tracking-wide uppercase">{title}</p>
-      <div className="flex flex-wrap gap-1.5">
-        {items.map((it) => (
-          <span
-            key={it.name}
-            className="border-border text-foreground/90 rounded-full border px-2 py-0.5"
-          >
-            {it.name} <span className="text-muted-foreground">×{it.count}</span>
-          </span>
-        ))}
-      </div>
-    </div>
-  )
-}
