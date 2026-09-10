@@ -133,33 +133,11 @@ export function AdminProfessorsPanel({ professors }: { professors: AdminProfesso
                             <span className="text-muted-foreground">—</span>
                           )}
                         </div>
-                        <div className="flex flex-wrap gap-2">
-                          {p.phone && p.email ? (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              nativeButton={false}
-                              render={
-                                <a
-                                  href={waLink(
-                                    p.phone,
-                                    `Hola ${p.fullName}! Para entrar a MOVA: ${loginUrl}\n` +
-                                      `Usuario: ${p.email}`,
-                                  )}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                />
-                              }
-                            >
-                              <MessageCircle data-icon="inline-start" />
-                              Enviar acceso
-                            </Button>
-                          ) : null}
-                          <ResetProfPassword professor={p} loginUrl={loginUrl} onToast={setToast} />
-                        </div>
+                        <AccessActions professor={p} loginUrl={loginUrl} onToast={setToast} />
                         <p className="text-muted-foreground text-xs">
                           "Enviar acceso" manda el link y el usuario por WhatsApp, sin cambiar la
-                          contraseña. "Restablecer contraseña" genera una nueva para mandarla.
+                          contraseña. "Restablecer contraseña" genera una nueva y el mensaje va con
+                          usuario y contraseña juntos.
                         </p>
                       </div>
 
@@ -293,7 +271,7 @@ function ProfessorEditForm({
   )
 }
 
-function ResetProfPassword({
+function AccessActions({
   professor,
   loginUrl,
   onToast,
@@ -304,7 +282,9 @@ function ResetProfPassword({
 }) {
   const [pending, startTransition] = useTransition()
   const [pw, setPw] = useState<string | null>(null)
+  const canWa = Boolean(professor.phone && professor.email)
 
+  // Tras restablecer: solo el mensaje con usuario + contraseña juntos.
   if (pw) {
     const msg =
       `Hola ${professor.fullName}! Datos para entrar a MOVA: ${loginUrl}\n` +
@@ -317,37 +297,65 @@ function ResetProfPassword({
           <code className="bg-background rounded px-1.5 py-0.5">{pw}</code>
           <CopyBtn value={pw} />
         </span>
-        {professor.phone && professor.email ? (
+        {canWa ? (
           <Button
             size="sm"
             nativeButton={false}
-            render={<a href={waLink(professor.phone, msg)} target="_blank" rel="noopener noreferrer" />}
+            render={
+              <a href={waLink(professor.phone!, msg)} target="_blank" rel="noopener noreferrer" />
+            }
           >
             <MessageCircle data-icon="inline-start" />
             Enviar usuario y contraseña por WhatsApp
           </Button>
         ) : null}
+        <Button size="sm" variant="ghost" onClick={() => setPw(null)}>
+          Listo
+        </Button>
       </div>
     )
   }
 
   return (
-    <Button
-      size="sm"
-      variant="ghost"
-      disabled={pending}
-      onClick={() => {
-        const p = generatePassword()
-        startTransition(async () => {
-          const res = await resetProfessorPassword(professor.id, p)
-          if (res.error) onToast(res.error)
-          else setPw(p)
-        })
-      }}
-    >
-      <KeyRound data-icon="inline-start" />
-      {pending ? 'Generando…' : 'Restablecer contraseña'}
-    </Button>
+    <div className="flex flex-wrap gap-2">
+      {canWa ? (
+        <Button
+          size="sm"
+          variant="outline"
+          nativeButton={false}
+          render={
+            <a
+              href={waLink(
+                professor.phone!,
+                `Hola ${professor.fullName}! Para entrar a MOVA: ${loginUrl}\n` +
+                  `Usuario: ${professor.email}`,
+              )}
+              target="_blank"
+              rel="noopener noreferrer"
+            />
+          }
+        >
+          <MessageCircle data-icon="inline-start" />
+          Enviar acceso
+        </Button>
+      ) : null}
+      <Button
+        size="sm"
+        variant="ghost"
+        disabled={pending}
+        onClick={() => {
+          const p = generatePassword()
+          startTransition(async () => {
+            const res = await resetProfessorPassword(professor.id, p)
+            if (res.error) onToast(res.error)
+            else setPw(p)
+          })
+        }}
+      >
+        <KeyRound data-icon="inline-start" />
+        {pending ? 'Generando…' : 'Restablecer contraseña'}
+      </Button>
+    </div>
   )
 }
 
