@@ -3,13 +3,13 @@ import {
   BarChart3,
   ClipboardList,
   ClipboardCheck,
-  Dumbbell,
   LayoutDashboard,
   LibraryBig,
   Settings,
   Users,
 } from 'lucide-react'
 
+import { MovaLogo } from '@/components/brand/mova-logo'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 
@@ -47,12 +47,7 @@ export function AppSidebar({
   return (
     <aside className="bg-sidebar text-sidebar-foreground hidden w-64 shrink-0 flex-col border-r border-sidebar-border lg:flex">
       <div className="flex h-16 items-center gap-2.5 border-b border-sidebar-border px-5">
-        <span className="bg-sidebar-primary text-sidebar-primary-foreground flex size-8 items-center justify-center rounded-md">
-          <Dumbbell className="size-4.5" />
-        </span>
-        <span className="text-sidebar-accent-foreground text-base font-semibold tracking-tight">
-          MOVA
-        </span>
+        <MovaLogo className="text-sidebar-accent-foreground h-6 w-auto" />
         <Badge
           variant="outline"
           className="ml-auto border-sidebar-border text-sidebar-foreground/80 text-[10px] font-medium uppercase"

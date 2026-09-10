@@ -1,5 +1,7 @@
 import type { ReactNode } from 'react'
-import { Dumbbell, LogOut } from 'lucide-react'
+import { LogOut } from 'lucide-react'
+
+import { MovaLogo } from '@/components/brand/mova-logo'
 
 /**
  * Marco de la app del alumno: mobile-first, ancho acotado. En desktop se
@@ -17,10 +19,7 @@ export function StudentShell({
     <div className="bg-background min-h-svh">
       <header className="border-border bg-background/90 sticky top-0 z-10 border-b backdrop-blur">
         <div className="mx-auto flex max-w-lg items-center justify-between px-4 py-3">
-          <span className="text-primary flex items-center gap-2 text-xs font-bold tracking-widest uppercase">
-            <Dumbbell className="size-4" />
-            MOVA
-          </span>
+          <MovaLogo className="text-foreground h-5 w-auto" />
           <form action={signOut}>
             <button
               type="submit"
