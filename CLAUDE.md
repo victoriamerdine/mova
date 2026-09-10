@@ -1634,10 +1634,18 @@ en todas las páginas):
 - Ficha del alumno: formularios respondidos (`<StudentFormsCard>`),
   **Avance y comentarios** (Fase 7), recomendaciones IA, objetivos de
   carga por patrón (`<LoadTargetsForm>`), **Acceso del alumno**
-  (`<StudentAccessCard>`: ver usuario; **"Enviar acceso"** genera una
-  contraseña nueva y arma el WhatsApp con **usuario + contraseña** —la
-  vieja no se puede leer, solo resetear—; **"Elegir contraseña"** para
-  ponerla a mano), lista de planes con badge de renovación.
+  (`<StudentAccessCard>`), lista de planes con badge de renovación.
+
+**Enviar acceso** (`<StudentAccessCard>` para el alumno,
+`<AccessActions>` en el panel del admin para el profesor — misma lógica):
+
+- **"Enviar acceso"**: link de WhatsApp directo con la URL de login + el
+  usuario/email, **sin tocar la contraseña** (la vieja no se puede leer,
+  solo resetear).
+- **"Restablecer contraseña"**: genera una nueva, la resetea
+  (`resetStudentPassword` / `resetProfessorPassword`, service role) y
+  reemplaza la sección por un único botón **"Enviar usuario y contraseña
+  por WhatsApp"** (los dos datos en el mismo mensaje) + "Listo".
 
 **Permisos**: RLS en todo. `is_professor_of(student_id)` (lee
 `student_professors`), `is_own_student(id)`. Un profesor no ve datos de
@@ -1907,11 +1915,10 @@ contraseña; la cuenta queda **pendiente**. Mientras tanto ve `/pendiente`
     admin; el email vía Auth admin sobre el id del profesor, `email_confirm`
     — al instante, sin mail de confirmación; chequeo de unicidad con
     `listUsers` + fallback → "Ese email ya está en uso por otra cuenta").
-  - **Acceso** (`<SendAccess>`): ver el usuario (email) y **"Enviar
-    acceso"** — genera una contraseña nueva, la resetea
-    (`resetProfessorPassword`) y arma el WhatsApp con **email +
-    contraseña** (la vieja no se puede leer, solo resetear). Misma lógica
-    que la ficha del alumno (`<StudentAccessCard>`).
+  - **Acceso** (`<AccessActions>`): ver el usuario (email) + **"Enviar
+    acceso"** (link + usuario, sin resetear) / **"Restablecer
+    contraseña"** → un único botón con **email + contraseña** juntos.
+    Ver "Enviar acceso" en la Fase 5.
   - Aprobar / Suspender / Reactivar (`setProfessorStatus`).
   - **Hacer admin** (`promoteToAdmin` → `profiles.role='admin'`, con
     confirmación).
