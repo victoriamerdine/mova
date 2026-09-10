@@ -1634,8 +1634,10 @@ en todas las páginas):
 - Ficha del alumno: formularios respondidos (`<StudentFormsCard>`),
   **Avance y comentarios** (Fase 7), recomendaciones IA, objetivos de
   carga por patrón (`<LoadTargetsForm>`), **Acceso del alumno**
-  (`<StudentAccessCard>`: ver usuario, reenviar acceso por WhatsApp,
-  restablecer contraseña), lista de planes con badge de renovación.
+  (`<StudentAccessCard>`: ver usuario; **"Enviar acceso"** genera una
+  contraseña nueva y arma el WhatsApp con **usuario + contraseña** —la
+  vieja no se puede leer, solo resetear—; **"Elegir contraseña"** para
+  ponerla a mano), lista de planes con badge de renovación.
 
 **Permisos**: RLS en todo. `is_professor_of(student_id)` (lee
 `student_professors`), `is_own_student(id)`. Un profesor no ve datos de
@@ -1671,6 +1673,44 @@ Soportar:
 - recuperación;
 - técnica;
 - táctica.
+
+### ESTADO — en producción
+
+**Editor** (`/planes/[planId]`, `<PlanEditorClient>` +
+`components/professor/plan-editor/*`):
+
+- Datos del plan (nombre, tipo `MUSCLE`/`PATTERN`/`MIXED`/…, inicio/fin),
+  badge de renovación (`getRenewalBadge`).
+- **Semanas**: selector, añadir / duplicar / eliminar. **Fases**
+  (`plan_phases`, `<PhaseControls>`): opcionales; el selector de semana se
+  agrupa por fase. El plan es un ciclo que repite (ver Fase 7).
+- **Días**: tabs, añadir / renombrar / duplicar / eliminar; toggle
+  **"1 día" / "2 días"** para editar dos en paralelo (desktop).
+- **Día** (`<DayEditor>`): bloques **INDIVIDUAL / COMBINADO / CIRCUITO** +
+  secciones (calentamiento, movilidad, …). Por ítem: selector de
+  ejercicio (`<ExerciseCombobox>` — patrón/músculo + texto libre o de la
+  biblioteca), prescripción (series/reps/carga/intensidad/pausa + campos
+  de resistencia colapsables), preview de video, arrastrar para reordenar
+  o mover entre bloques.
+- **Biblioteca** (`<ExerciseLibraryPanel>`): en desktop, panel fijo a la
+  derecha (buscar + arrastrar o ＋); en **mobile**, botón flotante
+  "Biblioteca" que abre una hoja inferior con la misma búsqueda y ＋ por
+  fila (agrega al día abierto).
+- **Draft en memoria** de todos los días de la semana: navegar entre días
+  no pierde nada; **"Guardar plan"** (`savePlanDays`) persiste todo junto
+  (atómico). Aviso nativo al salir con cambios sin guardar. Las
+  operaciones estructurales (añadir/duplicar/eliminar semana o día) son
+  server actions con `router.refresh()`; el merge de drafts conserva lo
+  cargado de los días que siguen existiendo.
+- **`<LoadPanel>`**: volumen por grupo (semana y día activo) vs. objetivos
+  de carga del alumno (`calculateVolumeByGroup`, `lib/volume-calc.ts`).
+- **`<AiAnalyzeWeek>`**: análisis de la distribución de la semana (Módulo
+  de IA §3).
+
+### Pendiente
+
+- Editar en paralelo "2 días" no está pensado para mobile.
+- Duplicar/mover bloques enteros (hoy: ítems).
 
 ---
 
