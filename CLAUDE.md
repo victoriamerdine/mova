@@ -1784,7 +1784,10 @@ Construir:
   bloque). Pre-carga: Series con la prescripción, Reps con la
   prescripción, Carga con la última que el alumno registró en ese
   ejercicio (`StudentDayItem.lastLoadKg` ← `lastLoadsForItems()`; vacío
-  la primera vez).
+  la primera vez). Una vez guardado, la tarjeta muestra **"Registrado: N
+  series · reps · carga"** con lo que dejó cargado en la sesión en curso
+  (persiste al volver — sale de `item.logs`); si todavía no registró pero
+  hay historial, muestra "Última carga registrada: X kg".
 - **Valoración del día**: en "¿Cómo te fue?" hay chips **Fácil /
   Moderado / Difícil** (`lib/student-difficulty.ts` →
   `workout_sessions.difficulty`). Debajo, el textarea de nota libre.
