@@ -58,6 +58,17 @@ export function StudentExerciseCard({
     setForm((f) => ({ ...f, ...next, saved: false }))
   }
 
+  // Resumen de lo que el alumno dejó registrado en este ejercicio para la
+  // sesión en curso (lo que ve como "lo que hice", frente a la prescripción
+  // de arriba que es "lo que toca").
+  const savedSummary = [
+    `${form.series} ${form.series === '1' ? 'serie' : 'series'}`,
+    form.reps.trim() ? `${form.reps.trim()} reps` : null,
+    form.load.trim() ? `${form.load.trim().replace(',', '.')} kg` : null,
+  ]
+    .filter(Boolean)
+    .join(' · ')
+
   function save() {
     setError(null)
     startTransition(async () => {
@@ -200,6 +211,16 @@ export function StudentExerciseCard({
             {form.saved ? 'Guardado' : 'Registrar'}
           </Button>
         </div>
+        {form.saved ? (
+          <p className="text-primary flex items-center gap-1 text-xs font-medium">
+            <Check className="size-3.5 shrink-0" />
+            Registrado: {savedSummary}
+          </p>
+        ) : item.lastLoadKg != null ? (
+          <p className="text-muted-foreground text-[11px]">
+            Última carga registrada: {item.lastLoadKg} kg
+          </p>
+        ) : null}
         {error ? <p className="text-destructive text-xs">{error}</p> : null}
       </div>
     </div>
