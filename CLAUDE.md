@@ -1928,10 +1928,12 @@ contraseña; la cuenta queda **pendiente**. Mientras tanto ve `/pendiente`
     admin; el email vía Auth admin sobre el id del profesor, `email_confirm`
     — al instante, sin mail de confirmación; chequeo de unicidad con
     `listUsers` + fallback → "Ese email ya está en uso por otra cuenta").
-  - **Acceso** (`<AccessActions>`): ver el usuario (email) + **"Enviar
-    acceso"** (link + usuario, sin resetear) / **"Restablecer
-    contraseña"** → un único botón con **email + contraseña** juntos.
-    Ver "Enviar acceso" en la Fase 5.
+  - **Acceso** (`<AccessActions>` + `<SendMessageButton>`): ver el usuario
+    (email) + **"Enviar acceso"** (link + usuario, sin resetear —
+    reenviable, y si el profesor no tiene teléfono el botón copia el
+    mensaje en vez de abrir WhatsApp) / **"Restablecer contraseña"** → un
+    único botón con **email + contraseña** juntos. Ver "Enviar acceso" en
+    la Fase 5.
   - Aprobar / Suspender / Reactivar (`setProfessorStatus`).
   - **Hacer admin** (`promoteToAdmin` → `profiles.role='admin'`, con
     confirmación).
