@@ -1,25 +1,50 @@
+'use client'
+
+import { useId } from 'react'
 import type { SVGProps } from 'react'
 
 /**
  * Marca MOVA — wordmark con la "V" convertida en una figura (persona con los
- * brazos en alto). Las letras usan `currentColor` (heredan el color del
- * contenedor, así funciona en claro/oscuro); la figura va en el verde de
- * marca (`--primary`, con fallback fijo por si el SVG se usa fuera de la app).
+ * brazos en alto, arcos verde→turquesa→azul). Las letras usan `currentColor`
+ * (heredan el color del contenedor, así funciona en claro/oscuro).
  *
  * - `<MovaLogo>` — lockup horizontal. `withTagline` agrega "Tu vida en
  *   movimiento." debajo.
  * - `<MovaMark>` — solo la figura, en viewBox cuadrado (íconos).
+ *
+ * Client component para poder usar `useId()` y no chocar de id de gradiente
+ * cuando hay varias instancias en la misma página.
  */
 
-const GREEN = 'var(--primary, #3f9e7e)'
+// Figura dibujada en un box local de 100×104, vértice ~(50, 92). Brazo
+// derecho más largo (hace de pata de la "V"); la cabeza entra en el hueco.
+const FIG = {
+  leftArm:
+    'M46 88 C36 74 23 53 13 28 C10 20 21 15 26 25 C36 47 46 67 59 85 C62 91 50 95 46 88 Z',
+  rightArm:
+    'M55 88 C63 66 79 42 93 15 C97 6 108 10 103 21 C91 49 73 74 65 86 C61 93 50 95 55 88 Z',
+  body: 'M43 82 L59 82 L55 99 C54 102 48 102 47 99 Z',
+  head: { cx: 54, cy: 18, r: 13.5 },
+} as const
 
-/** Figura (persona con brazos en alto) centrada en cx; hace de "V". */
-function Figure({ cx }: { cx: number }) {
+function FigureGradient({ id }: { id: string }) {
   return (
-    <g fill="none" stroke={GREEN} strokeLinecap="round" strokeLinejoin="round">
-      <path d={`M${cx - 14} 2 L${cx} 28 L${cx + 14} 2`} strokeWidth="7" />
-      <path d={`M${cx} 28 L${cx} 35`} strokeWidth="7" />
-      <circle cx={cx} cy="8.5" r="4.8" fill={GREEN} stroke="none" />
+    <linearGradient id={id} x1="0.58" y1="0" x2="0.28" y2="1">
+      <stop offset="0" stopColor="#8ad04c" />
+      <stop offset="0.4" stopColor="#57c479" />
+      <stop offset="0.72" stopColor="#22b3aa" />
+      <stop offset="1" stopColor="#1a97db" />
+    </linearGradient>
+  )
+}
+
+function Figure({ fill }: { fill: string }) {
+  return (
+    <g fill={fill}>
+      <path d={FIG.body} />
+      <path d={FIG.leftArm} />
+      <path d={FIG.rightArm} />
+      <circle cx={FIG.head.cx} cy={FIG.head.cy} r={FIG.head.r} />
     </g>
   )
 }
@@ -28,18 +53,21 @@ export function MovaLogo({
   withTagline = false,
   ...props
 }: SVGProps<SVGSVGElement> & { withTagline?: boolean }) {
-  // Coordenadas afinadas a ojo contra Inter 800: "MO" ocupa ~0–55, la figura
-  // hace de "V" en ~56–80, y "A" arranca en ~79.
-  const figureCx = 67
-  const height = withTagline ? 52 : 38
+  const gid = useId()
+  // Inter 800 @ 34: "MO" ≈ 0–55; la figura (box 100, escala 0.5) hace de "V"
+  // solapando un poco la "O"; "A" arranca en ~104.
+  const height = withTagline ? 52 : 39
   return (
     <svg
-      viewBox={`0 0 109 ${height}`}
+      viewBox={`0 0 131 ${height}`}
       role="img"
       aria-label="MOVA — Tu vida en movimiento"
       xmlns="http://www.w3.org/2000/svg"
       {...props}
     >
+      <defs>
+        <FigureGradient id={gid} />
+      </defs>
       <g
         fill="currentColor"
         fontFamily="var(--font-inter), system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif"
@@ -50,11 +78,13 @@ export function MovaLogo({
         <text x="0" y="30">
           MO
         </text>
-        <text x="79" y="30">
+        <text x="104" y="30">
           A
         </text>
       </g>
-      <Figure cx={figureCx} />
+      <g transform="translate(52 -4) scale(0.5)">
+        <Figure fill={`url(#${gid})`} />
+      </g>
       {withTagline ? (
         <text
           x="1"
@@ -62,9 +92,9 @@ export function MovaLogo({
           fill="currentColor"
           fontFamily="var(--font-inter), system-ui, sans-serif"
           fontWeight={600}
-          fontSize="7.4"
-          letterSpacing="1.15"
-          opacity="0.8"
+          fontSize="7"
+          letterSpacing="1.8"
+          opacity="0.85"
         >
           Tu vida en movimiento.
         </text>
@@ -74,18 +104,14 @@ export function MovaLogo({
 }
 
 export function MovaMark(props: SVGProps<SVGSVGElement>) {
+  const gid = useId()
   return (
-    <svg
-      viewBox="0 0 40 40"
-      role="img"
-      aria-label="MOVA"
-      xmlns="http://www.w3.org/2000/svg"
-      {...props}
-    >
-      <g fill="none" stroke={GREEN} strokeLinecap="round" strokeLinejoin="round">
-        <path d="M6 6 L20 33 L34 6" strokeWidth="7.5" />
-        <path d="M20 33 L20 37" strokeWidth="7.5" />
-        <circle cx="20" cy="11" r="6" fill={GREEN} stroke="none" />
+    <svg viewBox="0 0 44 44" role="img" aria-label="MOVA" xmlns="http://www.w3.org/2000/svg" {...props}>
+      <defs>
+        <FigureGradient id={gid} />
+      </defs>
+      <g transform="translate(-2 1) scale(0.44)">
+        <Figure fill={`url(#${gid})`} />
       </g>
     </svg>
   )
