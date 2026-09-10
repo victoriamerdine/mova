@@ -2,12 +2,12 @@
 
 import { useEffect, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { CircleCheck } from 'lucide-react'
+import { CircleCheck, Play, Timer } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { StudentExerciseCard } from '@/components/student/student-exercise-card'
-import { finishDay } from '@/app/alumno/actions'
+import { finishDay, startDaySession } from '@/app/alumno/actions'
 import { DIFFICULTY_LABEL, DIFFICULTY_OPTIONS } from '@/lib/student-difficulty'
 import type { SessionDifficulty } from '@/lib/student-difficulty'
 import type { StudentDay } from '@/lib/supabase/queries/student-plan'
@@ -23,8 +23,18 @@ const BLOCK_LABEL: Record<string, string> = {
   CIRCUITO: 'Circuito — una serie de cada uno',
 }
 
-/** Bloques + "¿cómo te fue?" + terminar. Se usa en la ruta /alumno/dia/[id]
- * y embebido en las tabs de la semana. */
+/** "M:SS" hasta 1 h, después "H:MM:SS". */
+function fmtClock(totalSec: number) {
+  const s = Math.max(0, Math.floor(totalSec))
+  const h = Math.floor(s / 3600)
+  const m = Math.floor((s % 3600) / 60)
+  const sec = s % 60
+  const mm = h > 0 ? String(m).padStart(2, '0') : String(m)
+  return `${h > 0 ? `${h}:` : ''}${mm}:${String(sec).padStart(2, '0')}`
+}
+
+/** Bloques + "iniciar/cronómetro" + "¿cómo te fue?" + terminar. Se usa en la
+ * ruta /alumno/dia/[id] y embebido en las tabs de la semana. */
 export function StudentDayContent({ day }: { day: StudentDay }) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
@@ -32,6 +42,11 @@ export function StudentDayContent({ day }: { day: StudentDay }) {
   const [difficulty, setDifficulty] = useState<SessionDifficulty | null>(day.difficulty)
   const [done, setDone] = useState(!!day.sessionCompletedAt)
   const [error, setError] = useState<string | null>(null)
+  // Cronómetro del día: arranca cuando el alumno toca "Iniciar" (o al
+  // registrar el primer ejercicio). No se limpia solo — así el total queda
+  // congelado en pantalla después de terminar.
+  const [startedAt, setStartedAt] = useState<string | null>(day.sessionStartedAt)
+  const [nowMs, setNowMs] = useState(() => Date.now())
 
   // Al cambiar de día en las tabs, resetear el estado local.
   useEffect(() => {
@@ -39,9 +54,39 @@ export function StudentDayContent({ day }: { day: StudentDay }) {
     setDifficulty(day.difficulty)
     setDone(!!day.sessionCompletedAt)
     setError(null)
-  }, [day.workoutId, day.feelingNote, day.difficulty, day.sessionCompletedAt])
+    setStartedAt(day.sessionStartedAt)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [day.workoutId])
+
+  // Adoptar un inicio que ya exista en el server (sesión abierta desde otro
+  // dispositivo, o creada al registrar un ejercicio). Nunca lo borra.
+  useEffect(() => {
+    if (day.sessionStartedAt) setStartedAt((cur) => cur ?? day.sessionStartedAt)
+  }, [day.sessionStartedAt])
+
+  // Tic del cronómetro mientras la sesión está en curso.
+  useEffect(() => {
+    if (!startedAt || done) return
+    setNowMs(Date.now())
+    const t = setInterval(() => setNowMs(Date.now()), 1000)
+    return () => clearInterval(t)
+  }, [startedAt, done])
 
   const totalItems = day.blocks.reduce((n, b) => n + b.items.length, 0)
+  const elapsedSec = startedAt ? (nowMs - Date.parse(startedAt)) / 1000 : 0
+
+  function start() {
+    setError(null)
+    startTransition(async () => {
+      const res = await startDaySession(day.workoutId)
+      if (res.error) setError(res.error)
+      else {
+        setStartedAt(new Date().toISOString())
+        setNowMs(Date.now())
+        router.refresh()
+      }
+    })
+  }
 
   function finish() {
     setError(null)
@@ -60,9 +105,26 @@ export function StudentDayContent({ day }: { day: StudentDay }) {
       {done ? (
         <div className="border-primary/30 bg-primary/5 text-primary flex items-center gap-2 rounded-xl border p-3 text-sm">
           <CircleCheck className="size-4 shrink-0" />
-          Sesión registrada. Podés volver a hacerla cuando toque otra vez.
+          Sesión registrada
+          {startedAt ? ` · ${fmtClock(elapsedSec)}` : ''}. Podés volver a hacerla cuando toque otra
+          vez.
         </div>
-      ) : null}
+      ) : totalItems === 0 ? null : startedAt ? (
+        <div className="border-primary/30 bg-primary/5 text-primary flex items-center justify-between gap-2 rounded-xl border px-4 py-2.5">
+          <span className="flex items-center gap-2 text-sm font-medium">
+            <Timer className="size-4 shrink-0" />
+            En curso
+          </span>
+          <span className="font-mono text-lg font-semibold tabular-nums">
+            {fmtClock(elapsedSec)}
+          </span>
+        </div>
+      ) : (
+        <Button onClick={start} disabled={pending} className="w-full">
+          <Play data-icon="inline-start" />
+          {pending ? 'Iniciando…' : 'Iniciar'}
+        </Button>
+      )}
 
       {totalItems === 0 ? (
         <p className="text-muted-foreground rounded-2xl border border-dashed p-8 text-center text-sm">
@@ -113,7 +175,7 @@ export function StudentDayContent({ day }: { day: StudentDay }) {
         </div>
       )}
 
-      {totalItems > 0 ? (
+      {totalItems > 0 && !done ? (
         <div className="border-border mt-2 flex flex-col gap-3 rounded-2xl border p-4">
           <div className="flex flex-col gap-1.5">
             <p className="text-sm font-medium">¿Qué tan exigente lo sentiste?</p>
@@ -146,8 +208,11 @@ export function StudentDayContent({ day }: { day: StudentDay }) {
           </div>
           {error ? <p className="text-destructive text-xs">{error}</p> : null}
           <Button onClick={finish} disabled={pending} className="w-full">
-            {pending ? 'Guardando…' : done ? 'Actualizar sesión' : 'Terminar sesión'}
+            {pending ? 'Guardando…' : 'Terminar sesión'}
           </Button>
+          <p className="text-muted-foreground text-center text-xs">
+            Si no registrás nada, se toma como que hiciste todo lo del día.
+          </p>
         </div>
       ) : null}
     </>

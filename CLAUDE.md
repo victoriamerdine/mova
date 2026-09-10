@@ -1785,13 +1785,25 @@ Construir:
 - **Valoración del día**: en "¿Cómo te fue?" hay chips **Fácil /
   Moderado / Difícil** (`lib/student-difficulty.ts` →
   `workout_sessions.difficulty`). Debajo, el textarea de nota libre.
+- **Cronómetro del día**: botón **"Iniciar"** (`startDaySession` → abre la
+  sesión con `started_at = now()`); `<StudentDayContent>` muestra el
+  tiempo corriendo en vivo ("En curso · M:SS") y lo congela al terminar.
+  El día también arranca el reloj si el alumno registra un ejercicio sin
+  haber tocado "Iniciar". `StudentDay.sessionStartedAt` lo trae la query.
+- **Terminar sin registrar nada**: `finishDay` crea la sesión si no hay
+  una abierta y la marca completada — finalizar el día sin ningún registro
+  cuenta como "hizo todo lo que tocaba". Tras terminar, el bloque de
+  valoración/nota se reemplaza por el aviso "Sesión registrada" con el
+  total de tiempo.
 - Historial: `/alumno/historial` (`getStudentHistory`, hasta 180
   sesiones) — **calendario mensual** (`<HistoryCalendar>`): un grid por
   mes con sesiones, lunes primero, más nuevo arriba; se resaltan los días
   entrenados (badge con la cantidad si entrenó >1 vez ese día, anillo en
   hoy). Tocar un día despliega —bajo esa semana, ancho completo, con
-  flechita al día— el resumen: cada sesión con nombre, N registros, la
-  valoración y la nota, + link a `/alumno/dia/[workoutId]`.
+  flechita al día— el resumen: cada sesión con **duración** (si llega a un
+  minuto), N registros, la valoración y la nota, + link a
+  `/alumno/dia/[workoutId]`. La duración = `completed_at − started_at`
+  (`StudentHistoryEntry.durationSec`).
 - Acciones (`app/alumno/actions.ts`): `startDaySession`, `logExercise`,
   `finishDay(workoutId, feelingNote, difficulty)`.
 
@@ -1813,8 +1825,6 @@ Construir:
 
 ### Pendiente
 
-- Duración real de la sesión (hoy se guarda `started_at` /
-  `completed_at` pero no se muestra el total).
 - Editar / borrar una sesión ya terminada desde la vista del alumno
   (hoy solo se puede empezar una nueva).
 - Gráfico de evolución de carga por ejercicio (va con Fase 8).

@@ -17,6 +17,15 @@ function capitalize(s: string) {
   return s.charAt(0).toUpperCase() + s.slice(1)
 }
 
+/** Duración de la sesión legible: "45 min" o "1 h 5 min". */
+function fmtDuration(totalSec: number) {
+  const totalMin = Math.max(1, Math.round(totalSec / 60))
+  const h = Math.floor(totalMin / 60)
+  const m = totalMin % 60
+  if (h === 0) return `${m} min`
+  return m === 0 ? `${h} h` : `${h} h ${m} min`
+}
+
 export function HistoryCalendar({ entries }: { entries: StudentHistoryEntry[] }) {
   const [selected, setSelected] = useState<string | null>(null)
 
@@ -153,6 +162,7 @@ export function HistoryCalendar({ entries }: { entries: StudentHistoryEntry[] })
                                 <ArrowRight className="text-muted-foreground size-3.5" />
                               </span>
                               <span className="text-muted-foreground text-xs">
+                                {e.durationSec != null ? `${fmtDuration(e.durationSec)} · ` : ''}
                                 {e.loggedCount} registro{e.loggedCount === 1 ? '' : 's'}
                                 {e.difficulty ? ` · ${DIFFICULTY_LABEL[e.difficulty]}` : ''}
                               </span>
