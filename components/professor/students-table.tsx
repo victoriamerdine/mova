@@ -1,9 +1,12 @@
+'use client'
+
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { ChevronRight, UserPlus } from 'lucide-react'
 
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
-import { Button, buttonVariants } from '@/components/ui/button'
+import { buttonVariants } from '@/components/ui/button'
 import {
   Card,
   CardAction,
@@ -35,6 +38,7 @@ function getInitials(fullName: string) {
 }
 
 export function StudentsTable({ students }: { students: MyStudent[] }) {
+  const router = useRouter()
   return (
     <Card className="gap-0 overflow-hidden py-0">
       <CardHeader className="items-center border-b px-5 py-4">
@@ -70,9 +74,14 @@ export function StudentsTable({ students }: { students: MyStudent[] }) {
             <TableBody>
               {students.map((student) => {
                 const status = STATUS_META[student.status]
+                const href = `/alumnos/${student.id}`
 
                 return (
-                  <TableRow key={student.id} className="group">
+                  <TableRow
+                    key={student.id}
+                    className="group cursor-pointer"
+                    onClick={() => router.push(href)}
+                  >
                     <TableCell className="pl-5">
                       <div className="flex items-center gap-3">
                         <Avatar className="size-8 rounded-md">
@@ -80,7 +89,13 @@ export function StudentsTable({ students }: { students: MyStudent[] }) {
                             {getInitials(student.fullName)}
                           </AvatarFallback>
                         </Avatar>
-                        <p className="truncate text-sm font-medium">{student.fullName}</p>
+                        <Link
+                          href={href}
+                          onClick={(e) => e.stopPropagation()}
+                          className="truncate text-sm font-medium hover:underline"
+                        >
+                          {student.fullName}
+                        </Link>
                       </div>
                     </TableCell>
 
@@ -95,15 +110,11 @@ export function StudentsTable({ students }: { students: MyStudent[] }) {
                       </span>
                     </TableCell>
 
-                    <TableCell className="pr-5">
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        aria-label={`Abrir ficha de ${student.fullName}`}
-                        className="text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
-                      >
-                        <ChevronRight />
-                      </Button>
+                    <TableCell className="pr-5 text-right">
+                      <ChevronRight
+                        aria-hidden="true"
+                        className="text-muted-foreground/60 group-hover:text-foreground ml-auto size-4 transition-colors"
+                      />
                     </TableCell>
                   </TableRow>
                 )
