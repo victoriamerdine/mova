@@ -55,6 +55,7 @@ export async function startDaySession(workoutId: string): Promise<Result> {
   const supabase = await createClient()
   const sessionId = await openSessionId(supabase, student.id, workoutId)
   if (!sessionId) return { error: 'No pudimos abrir la sesión.' }
+  revalidatePath('/alumno')
   revalidatePath(`/alumno/dia/${workoutId}`)
   return { sessionId }
 }
@@ -113,16 +114,10 @@ export async function finishDay(
   const student = await requireStudent()
   const supabase = await createClient()
 
-  const { data: session } = await supabase
-    .from('workout_sessions')
-    .select('id')
-    .eq('workout_id', workoutId)
-    .eq('student_id', student.id)
-    .is('completed_at', null)
-    .order('started_at', { ascending: false })
-    .limit(1)
-    .maybeSingle()
-  if (!session) return { error: 'No hay nada registrado en esta sesión.' }
+  // Si no hay sesión abierta se crea una ahora: terminar el día sin registrar
+  // ningún ejercicio cuenta como "hice todo lo que tocaba".
+  const sessionId = await openSessionId(supabase, student.id, workoutId)
+  if (!sessionId) return { error: 'No pudimos abrir la sesión.' }
 
   const { error } = await supabase
     .from('workout_sessions')
@@ -131,11 +126,11 @@ export async function finishDay(
       feeling_note: feelingNote.trim() || null,
       difficulty: isDifficulty(difficulty) ? difficulty : null,
     })
-    .eq('id', session.id)
+    .eq('id', sessionId)
   if (error) return { error: error.message }
 
   revalidatePath('/alumno')
   revalidatePath(`/alumno/dia/${workoutId}`)
   revalidatePath('/alumno/historial')
-  return { sessionId: session.id }
+  return { sessionId }
 }

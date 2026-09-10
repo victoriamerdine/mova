@@ -104,6 +104,7 @@ export type StudentDay = {
   weekNumber: number
   planName: string
   sessionId: string | null
+  sessionStartedAt: string | null
   sessionCompletedAt: string | null
   feelingNote: string | null
   difficulty: SessionDifficulty | null
@@ -286,7 +287,7 @@ export async function getStudentDay(
   // Sesión abierta (sin completar) del alumno para este día + lo registrado.
   const { data: openSession } = await supabase
     .from('workout_sessions')
-    .select('id, completed_at, feeling_note, difficulty')
+    .select('id, started_at, completed_at, feeling_note, difficulty')
     .eq('workout_id', workoutId)
     .eq('student_id', studentId)
     .is('completed_at', null)
@@ -308,6 +309,7 @@ export async function getStudentDay(
     weekNumber: w.plan_weeks?.number ?? 0,
     planName: w.plan_weeks?.plans?.name ?? 'Plan',
     sessionId: openSession?.id ?? null,
+    sessionStartedAt: openSession?.started_at ?? null,
     sessionCompletedAt: openSession?.completed_at ?? null,
     feelingNote: openSession?.feeling_note ?? null,
     difficulty: openSession?.difficulty ?? null,
@@ -327,6 +329,9 @@ export type StudentHistoryEntry = {
   feelingNote: string | null
   difficulty: SessionDifficulty | null
   loggedCount: number
+  /** Cuánto le llevó el día en segundos (completed_at − started_at). null si
+   *  no llega a un minuto — normalmente porque no usó "Iniciar". */
+  durationSec: number | null
 }
 
 export async function getStudentHistory(studentId: string): Promise<StudentHistoryEntry[]> {
@@ -334,7 +339,7 @@ export async function getStudentHistory(studentId: string): Promise<StudentHisto
   const { data } = await supabase
     .from('workout_sessions')
     .select(
-      'id, workout_id, completed_at, feeling_note, difficulty, workouts(name), workout_performance(id)',
+      'id, workout_id, started_at, completed_at, feeling_note, difficulty, workouts(name), workout_performance(id)',
     )
     .eq('student_id', studentId)
     .not('completed_at', 'is', null)
@@ -344,20 +349,27 @@ export async function getStudentHistory(studentId: string): Promise<StudentHisto
   return ((data ?? []) as unknown as {
     id: string
     workout_id: string
+    started_at: string | null
     completed_at: string
     feeling_note: string | null
     difficulty: SessionDifficulty | null
     workouts: { name: string } | null
     workout_performance: { id: string }[]
-  }[]).map((s) => ({
-    sessionId: s.id,
-    workoutId: s.workout_id,
-    workoutName: s.workouts?.name ?? 'Sesión',
-    completedAt: s.completed_at,
-    feelingNote: s.feeling_note,
-    difficulty: s.difficulty,
-    loggedCount: s.workout_performance?.length ?? 0,
-  }))
+  }[]).map((s) => {
+    const secs = s.started_at
+      ? Math.round((Date.parse(s.completed_at) - Date.parse(s.started_at)) / 1000)
+      : null
+    return {
+      sessionId: s.id,
+      workoutId: s.workout_id,
+      workoutName: s.workouts?.name ?? 'Sesión',
+      completedAt: s.completed_at,
+      feelingNote: s.feeling_note,
+      difficulty: s.difficulty,
+      loggedCount: s.workout_performance?.length ?? 0,
+      durationSec: secs != null && secs >= 60 ? secs : null,
+    }
+  })
 }
 
 // ============================================================
@@ -412,7 +424,7 @@ export async function getStudentWeek(
   const { data: openSessions } = workoutIds.length
     ? await supabase
         .from('workout_sessions')
-        .select('id, workout_id, completed_at, feeling_note, difficulty')
+        .select('id, workout_id, started_at, completed_at, feeling_note, difficulty')
         .eq('student_id', studentId)
         .is('completed_at', null)
         .in('workout_id', workoutIds)
@@ -422,6 +434,7 @@ export async function getStudentWeek(
       s.workout_id,
       s as {
         id: string
+        started_at: string | null
         completed_at: string | null
         feeling_note: string | null
         difficulty: SessionDifficulty | null
@@ -462,6 +475,7 @@ export async function getStudentWeek(
       weekNumber: activeWeek.number,
       planName: plan.name,
       sessionId: open?.id ?? null,
+      sessionStartedAt: open?.started_at ?? null,
       sessionCompletedAt: open?.completed_at ?? null,
       feelingNote: open?.feeling_note ?? null,
       difficulty: open?.difficulty ?? null,
