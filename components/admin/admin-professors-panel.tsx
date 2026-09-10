@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { Check, ChevronDown, Copy, MessageCircle, Plus, ShieldCheck } from 'lucide-react'
+import { Check, ChevronDown, Copy, KeyRound, MessageCircle, Plus, ShieldCheck } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -133,10 +133,33 @@ export function AdminProfessorsPanel({ professors }: { professors: AdminProfesso
                             <span className="text-muted-foreground">—</span>
                           )}
                         </div>
-                        <SendAccess professor={p} loginUrl={loginUrl} onToast={setToast} />
+                        <div className="flex flex-wrap gap-2">
+                          {p.phone && p.email ? (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              nativeButton={false}
+                              render={
+                                <a
+                                  href={waLink(
+                                    p.phone,
+                                    `Hola ${p.fullName}! Para entrar a MOVA: ${loginUrl}\n` +
+                                      `Usuario: ${p.email}`,
+                                  )}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                />
+                              }
+                            >
+                              <MessageCircle data-icon="inline-start" />
+                              Enviar acceso
+                            </Button>
+                          ) : null}
+                          <ResetProfPassword professor={p} loginUrl={loginUrl} onToast={setToast} />
+                        </div>
                         <p className="text-muted-foreground text-xs">
-                          "Enviar acceso" genera una contraseña nueva y arma el WhatsApp con el
-                          usuario (email) y la contraseña. La anterior deja de funcionar.
+                          "Enviar acceso" manda el link y el usuario por WhatsApp, sin cambiar la
+                          contraseña. "Restablecer contraseña" genera una nueva para mandarla.
                         </p>
                       </div>
 
@@ -270,7 +293,7 @@ function ProfessorEditForm({
   )
 }
 
-function SendAccess({
+function ResetProfPassword({
   professor,
   loginUrl,
   onToast,
@@ -311,8 +334,7 @@ function SendAccess({
   return (
     <Button
       size="sm"
-      variant="outline"
-      className="w-fit"
+      variant="ghost"
       disabled={pending}
       onClick={() => {
         const p = generatePassword()
@@ -323,8 +345,8 @@ function SendAccess({
         })
       }}
     >
-      <MessageCircle data-icon="inline-start" />
-      {pending ? 'Generando…' : 'Enviar acceso'}
+      <KeyRound data-icon="inline-start" />
+      {pending ? 'Generando…' : 'Restablecer contraseña'}
     </Button>
   )
 }
