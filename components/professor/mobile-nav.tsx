@@ -7,7 +7,6 @@ import {
   BarChart3,
   ClipboardCheck,
   ClipboardList,
-  Dumbbell,
   LayoutDashboard,
   LibraryBig,
   Menu,
@@ -16,6 +15,7 @@ import {
   X,
 } from 'lucide-react'
 
+import { MovaLogo } from '@/components/brand/mova-logo'
 import { cn } from '@/lib/utils'
 
 const NAV = [
@@ -68,10 +68,7 @@ export function MobileNav() {
         >
           <Menu className="size-5" />
         </button>
-        <span className="text-primary flex items-center gap-2 text-sm font-bold tracking-widest uppercase">
-          <Dumbbell className="size-4" />
-          MOVA
-        </span>
+        <MovaLogo className="text-foreground h-5 w-auto" />
       </div>
 
       {open ? (
@@ -87,12 +84,7 @@ export function MobileNav() {
             className="bg-sidebar text-sidebar-foreground absolute inset-y-0 left-0 flex w-72 max-w-[80vw] flex-col border-r border-sidebar-border p-3"
           >
             <div className="mb-2 flex h-11 items-center justify-between px-2">
-              <span className="text-sidebar-accent-foreground flex items-center gap-2 text-base font-semibold tracking-tight">
-                <span className="bg-sidebar-primary text-sidebar-primary-foreground flex size-7 items-center justify-center rounded-md">
-                  <Dumbbell className="size-4" />
-                </span>
-                MOVA
-              </span>
+              <MovaLogo className="text-sidebar-accent-foreground h-5 w-auto" />
               <button
                 type="button"
                 onClick={() => setOpen(false)}

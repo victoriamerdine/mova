@@ -1,6 +1,6 @@
 import Link from 'next/link'
-import { Dumbbell } from 'lucide-react'
 
+import { MovaLogo } from '@/components/brand/mova-logo'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { PasswordInput } from '@/components/ui/password-input'
@@ -16,13 +16,9 @@ export default async function LoginPage({
   return (
     <div className="bg-background flex min-h-svh items-center justify-center px-4">
       <div className="w-full max-w-sm">
-        <div className="mb-8 flex flex-col items-center gap-2 text-center">
-          <span className="bg-primary text-primary-foreground flex size-10 items-center justify-center rounded-md">
-            <Dumbbell className="size-5" />
-          </span>
-          <h1 className="text-lg font-semibold tracking-tight text-foreground">
-            Entrar a MOVA
-          </h1>
+        <div className="mb-8 flex flex-col items-center gap-3 text-center">
+          <MovaLogo withTagline className="text-foreground h-14 w-auto" />
+          <h1 className="text-muted-foreground text-sm font-medium tracking-tight">Entrar</h1>
         </div>
 
         <form action={login} className="flex flex-col gap-4 rounded-xl border border-border bg-card p-6 shadow-sm">
