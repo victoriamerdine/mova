@@ -133,31 +133,11 @@ export function AdminProfessorsPanel({ professors }: { professors: AdminProfesso
                             <span className="text-muted-foreground">—</span>
                           )}
                         </div>
-                        <div className="flex flex-wrap gap-2">
-                          {p.phone && p.email ? (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              nativeButton={false}
-                              render={
-                                <a
-                                  href={waLink(
-                                    p.phone,
-                                    `Hola ${p.fullName}! Para entrar a MOVA: ${loginUrl}\n` +
-                                      `Usuario: ${p.email}\n` +
-                                      `Si necesitás la contraseña, avisá y te la reseteo.`,
-                                  )}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                />
-                              }
-                            >
-                              <MessageCircle data-icon="inline-start" />
-                              Enviar acceso por WhatsApp
-                            </Button>
-                          ) : null}
-                          <ResetPassword professor={p} loginUrl={loginUrl} onToast={setToast} />
-                        </div>
+                        <SendAccess professor={p} loginUrl={loginUrl} onToast={setToast} />
+                        <p className="text-muted-foreground text-xs">
+                          "Enviar acceso" genera una contraseña nueva y arma el WhatsApp con el
+                          usuario (email) y la contraseña. La anterior deja de funcionar.
+                        </p>
                       </div>
 
                       <div className="border-border flex flex-wrap gap-2 border-t pt-3">
@@ -290,7 +270,7 @@ function ProfessorEditForm({
   )
 }
 
-function ResetPassword({
+function SendAccess({
   professor,
   loginUrl,
   onToast,
@@ -301,7 +281,6 @@ function ResetPassword({
 }) {
   const [pending, startTransition] = useTransition()
   const [pw, setPw] = useState<string | null>(null)
-  const [open, setOpen] = useState(false)
 
   if (pw) {
     const msg =
@@ -322,18 +301,10 @@ function ResetPassword({
             render={<a href={waLink(professor.phone, msg)} target="_blank" rel="noopener noreferrer" />}
           >
             <MessageCircle data-icon="inline-start" />
-            Enviar por WhatsApp
+            Enviar usuario y contraseña por WhatsApp
           </Button>
         ) : null}
       </div>
-    )
-  }
-
-  if (!open) {
-    return (
-      <Button size="sm" variant="ghost" onClick={() => setOpen(true)}>
-        Restablecer contraseña
-      </Button>
     )
   }
 
@@ -341,6 +312,7 @@ function ResetPassword({
     <Button
       size="sm"
       variant="outline"
+      className="w-fit"
       disabled={pending}
       onClick={() => {
         const p = generatePassword()
@@ -351,7 +323,8 @@ function ResetPassword({
         })
       }}
     >
-      {pending ? 'Generando…' : 'Confirmar contraseña nueva'}
+      <MessageCircle data-icon="inline-start" />
+      {pending ? 'Generando…' : 'Enviar acceso'}
     </Button>
   )
 }
