@@ -608,7 +608,7 @@ export function DayEditor({
                     </div>
 
                     {videoId ? (
-                      <div className="flex w-32 shrink-0 flex-col gap-0.5 sm:w-36">
+                      <div className="hidden w-32 shrink-0 flex-col gap-0.5 sm:flex sm:w-36">
                         <span className="text-muted-foreground text-[10px] font-medium tracking-wide uppercase">
                           Video
                         </span>
