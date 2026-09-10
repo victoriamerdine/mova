@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Check, History } from 'lucide-react'
@@ -31,13 +31,22 @@ export function StudentWeekView({
   const [view, setView] = useState<'dia' | 'semana'>('dia')
   const [tab, setTab] = useState(0)
 
-  // Al recibir una semana nueva (cambio de plan/semana), plantar la tab en
-  // "seguí por acá" si ese día está en la semana visible, si no en la primera.
+  // Plantar la tab en "seguí por acá" SOLO cuando cambia el plan o la semana
+  // visible (navegación real). NO en cada refresco del RSC que dispara una
+  // server action (iniciar / registrar / terminar): antes eso movía la tab
+  // sola y terminabas registrando o cerrando el día equivocado.
+  const landedKey = useRef<string | null>(null)
   useEffect(() => {
     if (!week) return
+    const key = `${activePlanId}:${week.weekNumber}`
+    if (landedKey.current === key) return
+    landedKey.current = key
     const idx = week.days.findIndex((d) => d.workoutId === week.nextWorkoutId)
     setTab(idx >= 0 ? idx : 0)
-  }, [week?.weekNumber, activePlanId, week])
+  }, [week, activePlanId])
+
+  // Si la tab quedó fuera de rango (otra semana con menos días), volver a 0.
+  const safeTab = week && tab < week.days.length ? tab : 0
 
   function go(next: { plan?: string; week?: number }) {
     const params = new URLSearchParams()
@@ -141,18 +150,18 @@ export function StudentWeekView({
                     key={d.workoutId}
                     type="button"
                     onClick={() => setTab(i)}
-                    className={chip(i === tab) + ' inline-flex items-center gap-1'}
+                    className={chip(i === safeTab) + ' inline-flex items-center gap-1'}
                   >
                     {d.name}
-                    <DayChecks
-                      times={d.timesDone}
-                      active={i === tab}
-                    />
+                    <DayChecks times={d.timesDone} active={i === safeTab} />
                   </button>
                 ))}
               </div>
-              {week.days[tab] ? (
-                <StudentDayContent key={week.days[tab].workoutId} day={week.days[tab]} />
+              {week.days[safeTab] ? (
+                <StudentDayContent
+                  key={week.days[safeTab].workoutId}
+                  day={week.days[safeTab]}
+                />
               ) : null}
             </>
           ) : (
