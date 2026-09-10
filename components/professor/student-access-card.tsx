@@ -27,6 +27,57 @@ function CopyBtn({ value }: { value: string }) {
   )
 }
 
+/**
+ * Manda el mensaje por WhatsApp si hay teléfono; si no, lo copia al
+ * portapapeles. Siempre visible y reutilizable.
+ */
+function SendMessageButton({
+  phone,
+  message,
+  label,
+  variant,
+}: {
+  phone: string | null
+  message: string
+  label: string
+  variant?: 'outline'
+}) {
+  const [copied, setCopied] = useState(false)
+  const waHref = phone
+    ? `https://wa.me/${phone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(message)}`
+    : null
+
+  if (waHref) {
+    return (
+      <Button
+        size="sm"
+        variant={variant}
+        nativeButton={false}
+        render={<a href={waHref} target="_blank" rel="noopener noreferrer" />}
+      >
+        <MessageCircle data-icon="inline-start" />
+        {label}
+      </Button>
+    )
+  }
+
+  return (
+    <Button
+      type="button"
+      size="sm"
+      variant={variant}
+      onClick={async () => {
+        await navigator.clipboard.writeText(message)
+        setCopied(true)
+        setTimeout(() => setCopied(false), 1500)
+      }}
+    >
+      {copied ? <Check data-icon="inline-start" /> : <Copy data-icon="inline-start" />}
+      {copied ? 'Copiado' : `${label} (copiar)`}
+    </Button>
+  )
+}
+
 export function StudentAccessCard({
   studentId,
   studentName,
@@ -48,8 +99,6 @@ export function StudentAccessCard({
   useEffect(() => setOrigin(window.location.origin), [])
 
   const loginUrl = `${origin}/login`
-  const wa = (text: string) =>
-    phone ? `https://wa.me/${phone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(text)}` : null
 
   // "Enviar acceso": link + usuario, SIN tocar la contraseña.
   const accessMsg =
@@ -111,16 +160,11 @@ export function StudentAccessCard({
             </span>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            {wa(doneMsg) ? (
-              <Button
-                size="sm"
-                nativeButton={false}
-                render={<a href={wa(doneMsg)!} target="_blank" rel="noopener noreferrer" />}
-              >
-                <MessageCircle data-icon="inline-start" />
-                Enviar usuario y contraseña por WhatsApp
-              </Button>
-            ) : null}
+            <SendMessageButton
+              phone={phone}
+              message={doneMsg}
+              label="Enviar usuario y contraseña"
+            />
             <Button type="button" variant="outline" size="sm" onClick={closeReset}>
               Listo
             </Button>
@@ -178,24 +222,16 @@ export function StudentAccessCard({
       ) : (
         <div className="flex flex-col gap-2">
           <div className="flex flex-wrap gap-2">
-            {wa(accessMsg) ? (
-              <Button
-                size="sm"
-                nativeButton={false}
-                render={<a href={wa(accessMsg)!} target="_blank" rel="noopener noreferrer" />}
-              >
-                <MessageCircle data-icon="inline-start" />
-                Enviar acceso
-              </Button>
-            ) : null}
+            <SendMessageButton phone={phone} message={accessMsg} label="Enviar acceso" />
             <Button variant="outline" size="sm" onClick={() => setResetting(true)}>
               <KeyRound data-icon="inline-start" />
               Restablecer contraseña
             </Button>
           </div>
           <p className="text-muted-foreground text-xs">
-            "Enviar acceso" manda el link y el usuario por WhatsApp, sin cambiar la contraseña.
-            "Restablecer contraseña" genera una nueva para mandársela.
+            "Enviar acceso" manda el link y el usuario por WhatsApp, sin cambiar la contraseña — se
+            puede reenviar las veces que haga falta. Si el alumno no tiene teléfono cargado, copia el
+            mensaje. "Restablecer contraseña" genera una nueva para mandársela.
           </p>
         </div>
       )}

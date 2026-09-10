@@ -136,8 +136,10 @@ export function AdminProfessorsPanel({ professors }: { professors: AdminProfesso
                         <AccessActions professor={p} loginUrl={loginUrl} onToast={setToast} />
                         <p className="text-muted-foreground text-xs">
                           "Enviar acceso" manda el link y el usuario por WhatsApp, sin cambiar la
-                          contraseña. "Restablecer contraseña" genera una nueva y el mensaje va con
-                          usuario y contraseña juntos.
+                          contraseña — se puede reenviar las veces que haga falta. Si el profesor no
+                          tiene teléfono cargado, copia el mensaje para pegarlo donde quieras.
+                          "Restablecer contraseña" genera una nueva y el mensaje va con usuario y
+                          contraseña juntos.
                         </p>
                       </div>
 
@@ -271,6 +273,54 @@ function ProfessorEditForm({
   )
 }
 
+/**
+ * Manda un mensaje por WhatsApp si el profesor tiene teléfono; si no,
+ * lo copia al portapapeles para pegarlo donde sea. Siempre disponible y
+ * reutilizable (no cambia de estado al usarlo).
+ */
+function SendMessageButton({
+  phone,
+  message,
+  label,
+  variant = 'outline',
+}: {
+  phone: string | null
+  message: string
+  label: string
+  variant?: 'default' | 'outline'
+}) {
+  const [copied, setCopied] = useState(false)
+
+  if (phone) {
+    return (
+      <Button
+        size="sm"
+        variant={variant}
+        nativeButton={false}
+        render={<a href={waLink(phone, message)} target="_blank" rel="noopener noreferrer" />}
+      >
+        <MessageCircle data-icon="inline-start" />
+        {label}
+      </Button>
+    )
+  }
+
+  return (
+    <Button
+      size="sm"
+      variant={variant}
+      onClick={async () => {
+        await navigator.clipboard.writeText(message)
+        setCopied(true)
+        setTimeout(() => setCopied(false), 1500)
+      }}
+    >
+      {copied ? <Check data-icon="inline-start" /> : <Copy data-icon="inline-start" />}
+      {copied ? 'Copiado' : `${label} (copiar)`}
+    </Button>
+  )
+}
+
 function AccessActions({
   professor,
   loginUrl,
@@ -282,7 +332,6 @@ function AccessActions({
 }) {
   const [pending, startTransition] = useTransition()
   const [pw, setPw] = useState<string | null>(null)
-  const canWa = Boolean(professor.phone && professor.email)
 
   // Tras restablecer: solo el mensaje con usuario + contraseña juntos.
   if (pw) {
@@ -297,17 +346,13 @@ function AccessActions({
           <code className="bg-background rounded px-1.5 py-0.5">{pw}</code>
           <CopyBtn value={pw} />
         </span>
-        {canWa ? (
-          <Button
-            size="sm"
-            nativeButton={false}
-            render={
-              <a href={waLink(professor.phone!, msg)} target="_blank" rel="noopener noreferrer" />
-            }
-          >
-            <MessageCircle data-icon="inline-start" />
-            Enviar usuario y contraseña por WhatsApp
-          </Button>
+        {professor.email ? (
+          <SendMessageButton
+            phone={professor.phone}
+            message={msg}
+            label="Enviar usuario y contraseña"
+            variant="default"
+          />
         ) : null}
         <Button size="sm" variant="ghost" onClick={() => setPw(null)}>
           Listo
@@ -316,28 +361,13 @@ function AccessActions({
     )
   }
 
+  const accessMsg =
+    `Hola ${professor.fullName}! Para entrar a MOVA: ${loginUrl}\n` + `Usuario: ${professor.email}`
+
   return (
     <div className="flex flex-wrap gap-2">
-      {canWa ? (
-        <Button
-          size="sm"
-          variant="outline"
-          nativeButton={false}
-          render={
-            <a
-              href={waLink(
-                professor.phone!,
-                `Hola ${professor.fullName}! Para entrar a MOVA: ${loginUrl}\n` +
-                  `Usuario: ${professor.email}`,
-              )}
-              target="_blank"
-              rel="noopener noreferrer"
-            />
-          }
-        >
-          <MessageCircle data-icon="inline-start" />
-          Enviar acceso
-        </Button>
+      {professor.email ? (
+        <SendMessageButton phone={professor.phone} message={accessMsg} label="Enviar acceso" />
       ) : null}
       <Button
         size="sm"
