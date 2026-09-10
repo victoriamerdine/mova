@@ -51,6 +51,12 @@ export function StudentAccessCard({
   const wa = (text: string) =>
     phone ? `https://wa.me/${phone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(text)}` : null
 
+  // "Enviar acceso": link + usuario, SIN tocar la contraseña.
+  const accessMsg =
+    `Hola ${studentName}! Para entrar a MOVA: ${loginUrl}\n` +
+    (username ? `Usuario: ${username}\n` : '') +
+    `Si no te acordás la contraseña, pedile a tu profe que la restablezca.`
+
   const doneMsg =
     `Hola ${studentName}! Datos para entrar a MOVA: ${loginUrl}\n` +
     (username ? `Usuario: ${username}\n` : '') +
@@ -62,19 +68,6 @@ export function StudentAccessCard({
       const res = await resetStudentPassword(studentId, password)
       if (res.error) setError(res.error)
       else setDone(password)
-    })
-  }
-
-  // Enviar acceso = generar una contraseña nueva y prepararla para mandar
-  // junto con el usuario (la anterior no se puede leer, solo resetear).
-  function handleSendAccess() {
-    setError(null)
-    const pw = generatePassword()
-    setPassword(pw)
-    startTransition(async () => {
-      const res = await resetStudentPassword(studentId, pw)
-      if (res.error) setError(res.error)
-      else setDone(pw)
     })
   }
 
@@ -184,22 +177,25 @@ export function StudentAccessCard({
         </div>
       ) : (
         <div className="flex flex-col gap-2">
-          {error ? (
-            <p className="bg-destructive/10 text-destructive rounded-lg px-3 py-2 text-sm">{error}</p>
-          ) : null}
           <div className="flex flex-wrap gap-2">
-            <Button size="sm" onClick={handleSendAccess} disabled={pending}>
-              <MessageCircle data-icon="inline-start" />
-              {pending ? 'Generando…' : 'Enviar acceso'}
-            </Button>
+            {wa(accessMsg) ? (
+              <Button
+                size="sm"
+                nativeButton={false}
+                render={<a href={wa(accessMsg)!} target="_blank" rel="noopener noreferrer" />}
+              >
+                <MessageCircle data-icon="inline-start" />
+                Enviar acceso
+              </Button>
+            ) : null}
             <Button variant="outline" size="sm" onClick={() => setResetting(true)}>
               <KeyRound data-icon="inline-start" />
-              Elegir contraseña
+              Restablecer contraseña
             </Button>
           </div>
           <p className="text-muted-foreground text-xs">
-            "Enviar acceso" genera una contraseña nueva y la deja lista para mandar por WhatsApp
-            junto con el usuario. La anterior deja de funcionar.
+            "Enviar acceso" manda el link y el usuario por WhatsApp, sin cambiar la contraseña.
+            "Restablecer contraseña" genera una nueva para mandársela.
           </p>
         </div>
       )}
