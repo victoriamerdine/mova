@@ -1641,7 +1641,10 @@ en todas las páginas):
 
 - **"Enviar acceso"**: link de WhatsApp directo con la URL de login + el
   usuario/email, **sin tocar la contraseña** (la vieja no se puede leer,
-  solo resetear).
+  solo resetear). Siempre visible y **reenviable las veces que haga
+  falta** (es un `<a>`, no cambia de estado). Si el destinatario no tiene
+  teléfono cargado, el botón **copia el mensaje** al portapapeles en vez
+  de abrir WhatsApp (`<SendMessageButton>`).
 - **"Restablecer contraseña"**: genera una nueva, la resetea
   (`resetStudentPassword` / `resetProfessorPassword`, service role) y
   reemplaza la sección por un único botón **"Enviar usuario y contraseña
