@@ -1601,6 +1601,51 @@ Crear:
 - permisos;
 - invitaciones.
 
+### ESTADO — en producción
+
+**Marco del profesor** (desktop-first, `<AppSidebar>` + `<DashboardHeader>`
+en todas las páginas):
+
+- Navegación: `<AppSidebar>` (aside fijo, `hidden lg:flex`) en desktop;
+  **`<MobileNav>`** (barra fija + drawer con hamburguesa, `lg:hidden`)
+  abajo de `lg`. `DashboardHeader` y el header de `/biblioteca` son
+  `lg:sticky` (estáticos en mobile) para no apilar dos barras.
+- Ítems: Dashboard, Alumnos, Biblioteca, Planes, Formularios, Analítica
+  (`#`), Configuración (`/cuenta`).
+
+**Dashboard** (`/`, `getDashboardMetrics` + `getRecentActivity` +
+`getPlansToRenew` + `getMyStudents`):
+
+- `<MetricCards>` — Alumnos activos, Planes activos, **Sesiones (7 días)**
+  (`workout_sessions` completadas por sus alumnos, RLS).
+- `<RecentActivity>` — últimas sesiones completadas de todos sus alumnos
+  (alumno · día · plan · N registros · valoración · nota), link a la ficha.
+- `<RenewalsPanel>` — planes activos por vencer/vencidos
+  (`getRenewalBadge` de `lib/plan-renewal.ts`; solo <7 días o vencido).
+- `<StudentsTable>` — lista de alumnos; **cada fila navega a
+  `/alumnos/[id]`** (row `onClick` + el nombre es un `<Link>` real).
+
+**Alumnos** (`/alumnos`, `/alumnos/[id]`):
+
+- Invitar por **email** (link mágico de Supabase) o por **usuario y
+  contraseña** (email sintético `@alumno.mova.invalid`, sin correo real —
+  ver `lib/auth/student-username.ts`). Listar, sacar (borra la relación
+  `student_professors`).
+- Ficha del alumno: formularios respondidos (`<StudentFormsCard>`),
+  **Avance y comentarios** (Fase 7), recomendaciones IA, objetivos de
+  carga por patrón (`<LoadTargetsForm>`), **Acceso del alumno**
+  (`<StudentAccessCard>`: ver usuario, reenviar acceso por WhatsApp,
+  restablecer contraseña), lista de planes con badge de renovación.
+
+**Permisos**: RLS en todo. `is_professor_of(student_id)` (lee
+`student_professors`), `is_own_student(id)`. Un profesor no ve datos de
+otro profesor ni de alumnos que no son suyos.
+
+### Pendiente
+
+- Buscador global del header (hoy es decorativo).
+- Analítica (Fase 8) y Calendario (Fase 9) — ítems del menú en `#`.
+
 ---
 
 ## FASE 6 — Plan Builder
