@@ -13,7 +13,7 @@ function rel(iso: string): string {
   const d = Math.floor(h / 24)
   if (d === 1) return 'ayer'
   if (d < 7) return `hace ${d} días`
-  return new Date(iso).toLocaleDateString()
+  return new Date(iso).toLocaleDateString('es-AR')
 }
 
 export function RecentActivity({ entries }: { entries: ActivityEntry[] }) {

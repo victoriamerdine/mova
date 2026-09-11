@@ -56,7 +56,7 @@ export function StudentWeekView({
 
   const range =
     activePlan.startDate && activePlan.endDate
-      ? `${new Date(activePlan.startDate).toLocaleDateString()} – ${new Date(activePlan.endDate).toLocaleDateString()}`
+      ? `${new Date(activePlan.startDate).toLocaleDateString('es-AR', { timeZone: 'UTC' })} – ${new Date(activePlan.endDate).toLocaleDateString('es-AR', { timeZone: 'UTC' })}`
       : null
   const ended = activePlan.endDate
     ? new Date(activePlan.endDate) < new Date(new Date().toDateString())

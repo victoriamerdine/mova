@@ -51,8 +51,8 @@ export function SubmissionsList({
                       <p className="text-muted-foreground text-xs">
                         {s.answered}/{s.total} respondidas
                         {s.completedAt
-                          ? ` · ${new Date(s.completedAt).toLocaleDateString()}`
-                          : ` · enviado ${new Date(s.createdAt).toLocaleDateString()}`}
+                          ? ` · ${new Date(s.completedAt).toLocaleDateString('es-AR')}`
+                          : ` · enviado ${new Date(s.createdAt).toLocaleDateString('es-AR')}`}
                       </p>
                     </div>
                     <Badge className={st.cls}>{st.label}</Badge>
