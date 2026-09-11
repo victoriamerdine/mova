@@ -382,7 +382,6 @@ export type StudentWeek = {
   weekName: string | null
   weekNumbers: number[]
   cycleNumber: number
-  nextWorkoutId: string | null
   days: StudentDay[]
 }
 
@@ -484,24 +483,23 @@ export async function getStudentWeek(
     })
   }
 
-  // "Seguí por acá" para toda la vuelta del ciclo.
+  // Vuelta del ciclo en curso.
   const { data: allWorkouts } = await supabase
     .from('workouts')
-    .select('id, order, week_id')
+    .select('id, week_id')
     .in('week_id', weekList.map((w) => w.id))
-  const cycleFlat = (allWorkouts ?? [])
-    .map((w) => ({ ...w, wn: weekList.find((x) => x.id === w.week_id)?.number ?? 0 }))
-    .sort((a, z) => a.wn - z.wn || a.order - z.order)
   const { data: doneSessions } = await supabase
     .from('workout_sessions')
     .select('id')
     .eq('student_id', studentId)
     .not('completed_at', 'is', null)
-    .in('workout_id', cycleFlat.map((w) => w.id))
+    .in(
+      'workout_id',
+      (allWorkouts ?? []).map((w) => w.id),
+    )
   const totalDone = doneSessions?.length ?? 0
-  const cycleLen = cycleFlat.length || 1
+  const cycleLen = allWorkouts?.length || 1
   const cycleNumber = Math.floor(totalDone / cycleLen) + 1
-  const nextWorkoutId = cycleFlat[totalDone % cycleLen]?.id ?? null
 
   return {
     planName: plan.name,
@@ -509,7 +507,6 @@ export async function getStudentWeek(
     weekName: activeWeek.name,
     weekNumbers,
     cycleNumber,
-    nextWorkoutId,
     days,
   }
 }
