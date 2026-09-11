@@ -31,7 +31,7 @@ export function StudentWeekView({
   const [view, setView] = useState<'dia' | 'semana'>('dia')
   const [tab, setTab] = useState(0)
 
-  // Plantar la tab en "seguí por acá" SOLO cuando cambia el plan o la semana
+  // Plantar la tab en el primer día SOLO cuando cambia el plan o la semana
   // visible (navegación real). NO en cada refresco del RSC que dispara una
   // server action (iniciar / registrar / terminar): antes eso movía la tab
   // sola y terminabas registrando o cerrando el día equivocado.
@@ -41,8 +41,7 @@ export function StudentWeekView({
     const key = `${activePlanId}:${week.weekNumber}`
     if (landedKey.current === key) return
     landedKey.current = key
-    const idx = week.days.findIndex((d) => d.workoutId === week.nextWorkoutId)
-    setTab(idx >= 0 ? idx : 0)
+    setTab(0)
   }, [week, activePlanId])
 
   // Si la tab quedó fuera de rango (otra semana con menos días), volver a 0.
