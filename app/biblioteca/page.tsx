@@ -6,15 +6,15 @@ import {
   getLibraryItems,
   getPendingChangeRequestsForOwner,
 } from '@/lib/supabase/queries/exercises'
-import { getCurrentProfessor } from '@/lib/supabase/queries/professor-dashboard'
+import { getCurrentLibraryActor } from '@/lib/supabase/queries/professor-dashboard'
 
 export default async function ExerciseLibraryPage() {
-  const [exercises, catalog, professor] = await Promise.all([
+  const [exercises, catalog, actor] = await Promise.all([
     getLibraryItems(),
     getLibraryCatalog(),
-    getCurrentProfessor(),
+    getCurrentLibraryActor(),
   ])
-  const pendingRequests = professor ? await getPendingChangeRequestsForOwner() : []
+  const pendingRequests = actor ? await getPendingChangeRequestsForOwner() : []
 
   return (
     <div className="bg-background flex min-h-svh">
@@ -25,7 +25,7 @@ export default async function ExerciseLibraryPage() {
         <LibraryWorkspace
           exercises={exercises}
           catalog={catalog}
-          canManage={professor != null}
+          canManage={actor != null}
           pendingRequests={pendingRequests}
         />
       </div>

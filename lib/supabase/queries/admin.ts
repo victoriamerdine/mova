@@ -93,3 +93,79 @@ export async function getAdminProfessors(): Promise<AdminProfessor[]> {
     createdAt: p.created_at,
   }))
 }
+
+export type AdminIndividualPlan = { id: string; name: string; status: string }
+
+export type AdminIndividual = {
+  id: string
+  fullName: string
+  email: string | null
+  phone: string | null
+  status: 'active' | 'inactive'
+  createdAt: string
+  plans: AdminIndividualPlan[]
+}
+
+/**
+ * Alumnos independientes (profiles.role='individual', arman su propio
+ * plan sin profesor — 20260828000008). Requiere las policies de admin de
+ * 20260828000040 (students, plans).
+ */
+export async function getIndependentStudents(): Promise<AdminIndividual[]> {
+  const supabase = await createClient()
+
+  const { data: individuals } = await supabase
+    .from('profiles')
+    .select('id, full_name')
+    .eq('role', 'individual')
+  const profileById = new Map((individuals ?? []).map((p) => [p.id, p.full_name]))
+  if (profileById.size === 0) return []
+
+  const ids = [...profileById.keys()]
+
+  const { data: rows } = await supabase
+    .from('students')
+    .select('id, status, phone, created_at')
+    .in('id', ids)
+    .order('created_at', { ascending: false })
+
+  const list = (rows ?? []) as unknown as {
+    id: string
+    status: AdminIndividual['status']
+    phone: string | null
+    created_at: string
+  }[]
+  if (list.length === 0) return []
+
+  const { data: plans } = await supabase
+    .from('plans')
+    .select('id, name, status, student_id')
+    .in('student_id', ids)
+    .is('professor_id', null)
+
+  const plansByStudent = new Map<string, AdminIndividualPlan[]>()
+  for (const p of plans ?? []) {
+    const arr = plansByStudent.get(p.student_id) ?? []
+    arr.push({ id: p.id, name: p.name, status: p.status })
+    plansByStudent.set(p.student_id, arr)
+  }
+
+  const admin = createServiceRoleClient()
+  const emails = new Map<string, string | null>()
+  await Promise.all(
+    ids.map(async (id) => {
+      const { data } = await admin.auth.admin.getUserById(id)
+      emails.set(id, data.user?.email ?? null)
+    }),
+  )
+
+  return list.map((s) => ({
+    id: s.id,
+    fullName: profileById.get(s.id) ?? 'Alumno',
+    email: emails.get(s.id) ?? null,
+    phone: s.phone,
+    status: s.status,
+    createdAt: s.created_at,
+    plans: plansByStudent.get(s.id) ?? [],
+  }))
+}

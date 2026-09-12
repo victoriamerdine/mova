@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { getCurrentAdmin } from '@/lib/supabase/queries/admin'
 
 export type CurrentProfessor = {
   id: string
@@ -56,6 +57,57 @@ export async function getCurrentProfessor(): Promise<CurrentProfessor | null> {
   if (status !== 'active') return null
 
   return { id: profile.id, fullName: profile.full_name }
+}
+
+export type CurrentLibraryActor = { id: string; fullName: string }
+
+/**
+ * Actor autorizado a gestionar la biblioteca: profesor activo O admin (el
+ * admin gestiona con las mismas reglas de dueño que un profesor — ver
+ * supabase/migrations/20260828000039_admin_library_access.sql). null si
+ * ninguno de los dos.
+ */
+export async function getCurrentLibraryActor(): Promise<CurrentLibraryActor | null> {
+  const professor = await getCurrentProfessor()
+  if (professor) return professor
+  const admin = await getCurrentAdmin()
+  if (admin) return admin
+  return null
+}
+
+export type CurrentPlanActor = {
+  id: string
+  fullName: string
+  role: 'professor' | 'individual' | 'admin'
+}
+
+/**
+ * Actor autorizado a abrir/editar un plan: profesor activo (cualquier
+ * plan que le pertenezca por RLS), individuo autocoacheado (solo el
+ * suyo, professor_id null — 20260828000008) o admin (cualquier plan —
+ * 20260828000040). Toda la autorización real por fila la hace RLS; este
+ * helper solo resuelve QUIÉN está logueado.
+ */
+export async function getCurrentPlanActor(): Promise<CurrentPlanActor | null> {
+  const professor = await getCurrentProfessor()
+  if (professor) return { ...professor, role: 'professor' }
+
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return null
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('id, role, full_name')
+    .eq('id', user.id)
+    .maybeSingle()
+
+  if (profile?.role === 'individual' || profile?.role === 'admin') {
+    return { id: profile.id, fullName: profile.full_name, role: profile.role }
+  }
+  return null
 }
 
 export type DashboardMetrics = {

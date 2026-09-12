@@ -57,3 +57,36 @@ export async function getPlansForProfessor(professorId: string): Promise<Profess
     studentName: row.students?.profiles?.full_name ?? 'Alumno',
   }))
 }
+
+/**
+ * Los planes propios de un individuo autocoacheado (professor_id null,
+ * ver 20260828000008) — normalmente 0 o 1, pero no se asume el límite acá.
+ */
+export async function getPlansForIndividual(studentId: string): Promise<ProfessorPlan[]> {
+  const supabase = await createClient()
+
+  const { data, error } = await supabase
+    .from('plans')
+    .select(
+      'id, name, plan_type, status, start_date, end_date, created_at, student_id, students(profiles(full_name))',
+    )
+    .eq('student_id', studentId)
+    .is('professor_id', null)
+    .order('created_at', { ascending: false })
+
+  if (error) {
+    throw new Error(`No se pudieron cargar tus planes: ${error.message}`)
+  }
+
+  return ((data ?? []) as unknown as ProfessorPlanRow[]).map((row) => ({
+    id: row.id,
+    name: row.name,
+    planType: row.plan_type,
+    status: row.status,
+    startDate: row.start_date,
+    endDate: row.end_date,
+    createdAt: row.created_at,
+    studentId: row.student_id,
+    studentName: row.students?.profiles?.full_name ?? 'Vos',
+  }))
+}
