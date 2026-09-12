@@ -8,6 +8,27 @@ import type { CatalogExercise } from '@/lib/supabase/queries/plan-editor'
 
 export type LibraryDragPayload = { id: string; name: string }
 
+/** Miniatura chica (no `VideoThumb`, que es para tarjetas grandes de /biblioteca) — para identificar el ejercicio de un vistazo sin agrandar la fila. */
+function MiniThumb({ videoId }: { videoId: string | null }) {
+  const [imgError, setImgError] = useState(false)
+  const showImage = videoId && !imgError
+
+  return (
+    <div className="bg-muted relative h-8 w-11 shrink-0 overflow-hidden rounded">
+      {showImage ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={`https://i.ytimg.com/vi/${videoId}/default.jpg`}
+          alt=""
+          loading="lazy"
+          onError={() => setImgError(true)}
+          className="h-full w-full object-cover"
+        />
+      ) : null}
+    </div>
+  )
+}
+
 /**
  * Biblioteca del editor de plan. En desktop (`lg`) es un panel fijo a la
  * derecha: buscar y arrastrar (o ＋) un ejercicio al día activo. En mobile
@@ -78,6 +99,7 @@ export function ExerciseLibraryPanel({
               className="group/lib bg-secondary/40 hover:bg-secondary mb-1.5 flex cursor-grab items-center gap-2 rounded-lg border border-border px-2 py-1.5 transition-colors active:cursor-grabbing"
             >
               <GripVertical aria-hidden className="text-muted-foreground/40 size-3.5 shrink-0" />
+              <MiniThumb videoId={ex.videoId} />
               <span className="min-w-0 flex-1 truncate text-xs leading-snug">{ex.name}</span>
               <button
                 type="button"
@@ -135,6 +157,7 @@ export function ExerciseLibraryPanel({
                   key={ex.id}
                   className="bg-secondary/40 mb-1.5 flex items-center gap-2 rounded-lg border border-border px-2.5 py-2"
                 >
+                  <MiniThumb videoId={ex.videoId} />
                   <span className="min-w-0 flex-1 truncate text-sm leading-snug">{ex.name}</span>
                   <button
                     type="button"
