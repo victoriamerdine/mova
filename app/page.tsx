@@ -25,6 +25,7 @@ export default async function ProfessorDashboardPage() {
     const { role, professorStatus } = await getSessionRole()
     if (role === 'admin') redirect('/admin')
     if (role === 'student') redirect('/alumno')
+    if (role === 'individual') redirect('/planes')
     if (role === 'professor') redirect(professorStatus === 'active' ? '/' : '/pendiente')
     redirect('/login')
   }

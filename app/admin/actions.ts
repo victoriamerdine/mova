@@ -6,8 +6,10 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
 import { getCurrentAdmin } from '@/lib/supabase/queries/admin'
+import type { Database } from '@/lib/supabase/database.types'
 
 type Result = { error?: string }
+type PlanResult = { error?: string; planId?: string }
 
 async function requireAdmin() {
   const admin = await getCurrentAdmin()
@@ -193,6 +195,102 @@ export async function createProfessorAccount(input: {
   const supabase = await createClient()
   await supabase.from('professors').update({ status: 'active' }).eq('id', created.user.id)
 
+  revalidatePath('/admin')
+  return {}
+}
+
+// ============================================================
+// Alumnos independientes (profiles.role='individual') — cuentas y planes.
+// Requiere las policies de 20260828000040 (students, plans y el árbol
+// del plan con is_admin()).
+// ============================================================
+
+type PlanType = Database['public']['Tables']['plans']['Row']['plan_type']
+const PLAN_TYPES: PlanType[] = ['MUSCLE', 'PATTERN', 'MIXED', 'SPORT_SPECIFIC', 'CUSTOM']
+function toPlanType(value: string): PlanType {
+  return (PLAN_TYPES as string[]).includes(value) ? (value as PlanType) : 'MUSCLE'
+}
+
+/**
+ * Crea un plan para un alumno independiente — mismo shape que `createPlan`
+ * (app/alumnos/[studentId]/actions.ts) pero professor_id siempre null: un
+ * plan de un individual queda autocoacheado sin importar quién lo arma la
+ * primera vez, así el propio alumno lo puede seguir editando después.
+ */
+export async function createIndividualPlan(
+  studentId: string,
+  name: string,
+  planType: string,
+): Promise<PlanResult> {
+  await requireAdmin()
+
+  const trimmed = name.trim()
+  if (!trimmed) return { error: 'Falta el nombre del plan.' }
+
+  const supabase = await createClient()
+  const { data: plan, error: planError } = await supabase
+    .from('plans')
+    .insert({
+      student_id: studentId,
+      professor_id: null,
+      name: trimmed,
+      plan_type: toPlanType(planType),
+      start_date: new Date().toISOString().slice(0, 10),
+      status: 'active',
+    })
+    .select('id')
+    .single()
+  if (planError || !plan) return { error: planError?.message ?? 'No se pudo crear el plan.' }
+
+  const { data: week, error: weekError } = await supabase
+    .from('plan_weeks')
+    .insert({ plan_id: plan.id, number: 1 })
+    .select('id')
+    .single()
+  if (weekError || !week) return { error: weekError?.message ?? 'No se pudo crear la semana.' }
+
+  const { error: workoutsError } = await supabase.from('workouts').insert([
+    { week_id: week.id, name: 'Día 1', order: 0 },
+    { week_id: week.id, name: 'Día 2', order: 1 },
+  ])
+  if (workoutsError) return { error: workoutsError.message }
+
+  revalidatePath('/admin')
+  return { planId: plan.id }
+}
+
+export async function resetIndividualPassword(
+  studentId: string,
+  newPassword: string,
+): Promise<Result> {
+  await requireAdmin()
+  if (typeof newPassword !== 'string' || newPassword.length < 8) {
+    return { error: 'La contraseña necesita al menos 8 caracteres.' }
+  }
+
+  const supabase = await createClient()
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('id', studentId)
+    .eq('role', 'individual')
+    .maybeSingle()
+  if (!profile) return { error: 'Alumno independiente no encontrado.' }
+
+  const admin = createServiceRoleClient()
+  const { error } = await admin.auth.admin.updateUserById(studentId, { password: newPassword })
+  if (error) return { error: error.message }
+  return {}
+}
+
+export async function setIndividualStatus(
+  studentId: string,
+  status: 'active' | 'inactive',
+): Promise<Result> {
+  await requireAdmin()
+  const supabase = await createClient()
+  const { error } = await supabase.from('students').update({ status }).eq('id', studentId)
+  if (error) return { error: error.message }
   revalidatePath('/admin')
   return {}
 }

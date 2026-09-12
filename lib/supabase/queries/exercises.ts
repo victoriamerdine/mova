@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
-import { getCurrentProfessor } from '@/lib/supabase/queries/professor-dashboard'
+import { getCurrentLibraryActor } from '@/lib/supabase/queries/professor-dashboard'
 import {
   DUPLICATE_SIMILARITY_THRESHOLD,
   extractYouTubeId,
@@ -112,7 +112,7 @@ const PAGE_SIZE = 1000
 /** Biblioteca completa (solo `active`) para la pantalla de gestión. */
 export async function getLibraryItems(): Promise<LibraryItem[]> {
   const supabase = await createClient()
-  const professor = await getCurrentProfessor()
+  const professor = await getCurrentLibraryActor()
   const rows: ExerciseRow[] = []
 
   for (let from = 0; ; from += PAGE_SIZE) {
@@ -142,7 +142,7 @@ export async function getExercisesByIds(ids: string[]): Promise<LibraryItem[]> {
   if (unique.length === 0) return []
 
   const supabase = await createClient()
-  const professor = await getCurrentProfessor()
+  const professor = await getCurrentLibraryActor()
   const { data, error } = await supabase.from('exercises').select(SELECT).in('id', unique)
   if (error || !data) return []
 
@@ -228,7 +228,7 @@ export async function findDuplicateExercises(
   if (!norm) return []
 
   const supabase = await createClient()
-  const professor = await getCurrentProfessor()
+  const professor = await getCurrentLibraryActor()
   const rows: ExerciseRow[] = []
   for (let from = 0; ; from += PAGE_SIZE) {
     const { data, error } = await supabase

@@ -57,10 +57,13 @@ export function PlanEditorClient({
   plan,
   catalog,
   loadTargets,
+  showAiPanel = true,
 }: {
   plan: PlanForEditor
   catalog: PlanBuilderCatalog
   loadTargets: LoadTarget[]
+  /** El análisis de IA pasa por /api/ai/analyze, gateado a profesor. */
+  showAiPanel?: boolean
 }) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
@@ -517,14 +520,16 @@ export function PlanEditorClient({
             dayCount={plan.days.length}
           />
 
-          <AiAnalyzeWeek
-            planId={plan.id}
-            weekLabel={activeWeekLabel}
-            sessions={plan.days.length}
-            weekly={analyzeWeekly}
-            targets={analyzeTargets}
-            byDay={analyzeByDay}
-          />
+          {showAiPanel ? (
+            <AiAnalyzeWeek
+              planId={plan.id}
+              weekLabel={activeWeekLabel}
+              sessions={plan.days.length}
+              weekly={analyzeWeekly}
+              targets={analyzeTargets}
+              byDay={analyzeByDay}
+            />
+          ) : null}
 
           {/* Estructura del día activo: renombrar / duplicar / eliminar */}
           {currentDay ? (

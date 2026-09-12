@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 
 import { createClient } from '@/lib/supabase/server'
-import { getCurrentProfessor } from '@/lib/supabase/queries/professor-dashboard'
+import { getCurrentLibraryActor } from '@/lib/supabase/queries/professor-dashboard'
 import { findDuplicateExercises } from '@/lib/supabase/queries/exercises'
 import type { ExerciseFormInput, LibraryItem } from '@/lib/library'
 
@@ -95,7 +95,7 @@ export async function createExercise(
   input: ExerciseFormInput,
   opts?: { force?: boolean },
 ): Promise<Result> {
-  const professor = await getCurrentProfessor()
+  const professor = await getCurrentLibraryActor()
   if (!professor) redirect('/login')
 
   const data = clean(input)
@@ -136,7 +136,7 @@ export async function createExercise(
 }
 
 export async function updateExercise(id: string, input: ExerciseFormInput): Promise<Result> {
-  const professor = await getCurrentProfessor()
+  const professor = await getCurrentLibraryActor()
   if (!professor) redirect('/login')
 
   const data = clean(input)
@@ -200,7 +200,7 @@ export async function updateExercise(id: string, input: ExerciseFormInput): Prom
 }
 
 export async function replaceExerciseVideo(id: string, videoUrl: string): Promise<Result> {
-  const professor = await getCurrentProfessor()
+  const professor = await getCurrentLibraryActor()
   if (!professor) redirect('/login')
 
   const supabase = await createClient()
@@ -217,7 +217,7 @@ export async function replaceExerciseVideo(id: string, videoUrl: string): Promis
 }
 
 export async function deleteExercise(id: string): Promise<Result> {
-  const professor = await getCurrentProfessor()
+  const professor = await getCurrentLibraryActor()
   if (!professor) redirect('/login')
 
   const supabase = await createClient()
@@ -248,7 +248,7 @@ export async function deleteExercise(id: string): Promise<Result> {
 // Aprobación de cambios (el dueño resuelve).
 // ============================================================
 export async function approveChangeRequest(requestId: string): Promise<Result> {
-  const professor = await getCurrentProfessor()
+  const professor = await getCurrentLibraryActor()
   if (!professor) redirect('/login')
 
   const supabase = await createClient()
@@ -259,7 +259,7 @@ export async function approveChangeRequest(requestId: string): Promise<Result> {
 }
 
 export async function rejectChangeRequest(requestId: string): Promise<Result> {
-  const professor = await getCurrentProfessor()
+  const professor = await getCurrentLibraryActor()
   if (!professor) redirect('/login')
 
   const supabase = await createClient()
@@ -292,7 +292,7 @@ export type CsvImportSummary = {
 }
 
 export async function applyCsvImport(items: CsvImportItem[]): Promise<CsvImportSummary> {
-  const professor = await getCurrentProfessor()
+  const professor = await getCurrentLibraryActor()
   if (!professor) redirect('/login')
 
   const supabase = await createClient()

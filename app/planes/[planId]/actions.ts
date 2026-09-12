@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 
 import { createClient } from '@/lib/supabase/server'
-import { getCurrentProfessor } from '@/lib/supabase/queries/professor-dashboard'
+import { getCurrentPlanActor } from '@/lib/supabase/queries/professor-dashboard'
 import type { Database } from '@/lib/supabase/database.types'
 import type { SaveDayBlockKind } from '@/lib/plan-blocks'
 import { isPhaseKind } from '@/lib/plan-phases'
@@ -18,8 +18,8 @@ function toPlanType(value: string): PlanType {
 }
 
 export async function updatePlanDetails(formData: FormData) {
-  const professor = await getCurrentProfessor()
-  if (!professor) redirect('/login')
+  const actor = await getCurrentPlanActor()
+  if (!actor) redirect('/login')
 
   const planId = String(formData.get('planId') ?? '')
   const name = String(formData.get('name') ?? '').trim()
@@ -51,8 +51,8 @@ export async function updatePlanDetails(formData: FormData) {
 // ============================================================
 
 export async function addWeek(formData: FormData) {
-  const professor = await getCurrentProfessor()
-  if (!professor) redirect('/login')
+  const actor = await getCurrentPlanActor()
+  if (!actor) redirect('/login')
 
   const planId = String(formData.get('planId') ?? '')
   const supabase = await createClient()
@@ -82,8 +82,8 @@ export async function addWeek(formData: FormData) {
 }
 
 export async function duplicateWeek(formData: FormData) {
-  const professor = await getCurrentProfessor()
-  if (!professor) redirect('/login')
+  const actor = await getCurrentPlanActor()
+  if (!actor) redirect('/login')
 
   const planId = String(formData.get('planId') ?? '')
   const sourceWeekId = String(formData.get('sourceWeekId') ?? '')
@@ -121,8 +121,8 @@ export async function duplicateWeek(formData: FormData) {
 }
 
 export async function deleteWeek(formData: FormData) {
-  const professor = await getCurrentProfessor()
-  if (!professor) redirect('/login')
+  const actor = await getCurrentPlanActor()
+  if (!actor) redirect('/login')
 
   const planId = String(formData.get('planId') ?? '')
   const weekId = String(formData.get('weekId') ?? '')
@@ -147,8 +147,8 @@ export async function deleteWeek(formData: FormData) {
 }
 
 export async function addDay(formData: FormData) {
-  const professor = await getCurrentProfessor()
-  if (!professor) redirect('/login')
+  const actor = await getCurrentPlanActor()
+  if (!actor) redirect('/login')
 
   const planId = String(formData.get('planId') ?? '')
   const weekId = String(formData.get('weekId') ?? '')
@@ -174,8 +174,8 @@ export async function addDay(formData: FormData) {
 }
 
 export async function renameDay(planId: string, workoutId: string, name: string) {
-  const professor = await getCurrentProfessor()
-  if (!professor) redirect('/login')
+  const actor = await getCurrentPlanActor()
+  if (!actor) redirect('/login')
 
   const trimmed = name.trim()
   if (!trimmed) return { error: 'El día necesita un nombre.' }
@@ -189,8 +189,8 @@ export async function renameDay(planId: string, workoutId: string, name: string)
 }
 
 export async function deleteDay(planId: string, workoutId: string) {
-  const professor = await getCurrentProfessor()
-  if (!professor) redirect('/login')
+  const actor = await getCurrentPlanActor()
+  if (!actor) redirect('/login')
 
   const supabase = await createClient()
   const { error } = await supabase.from('workouts').delete().eq('id', workoutId)
@@ -201,8 +201,8 @@ export async function deleteDay(planId: string, workoutId: string) {
 }
 
 export async function duplicateDay(planId: string, workoutId: string) {
-  const professor = await getCurrentProfessor()
-  if (!professor) redirect('/login')
+  const actor = await getCurrentPlanActor()
+  if (!actor) redirect('/login')
 
   const supabase = await createClient()
 
@@ -237,8 +237,8 @@ export async function duplicateDay(planId: string, workoutId: string) {
 // ============================================================
 
 export async function addPhase(formData: FormData) {
-  const professor = await getCurrentProfessor()
-  if (!professor) redirect('/login')
+  const actor = await getCurrentPlanActor()
+  if (!actor) redirect('/login')
 
   const planId = String(formData.get('planId') ?? '')
   const weekId = String(formData.get('weekId') ?? '')
@@ -274,8 +274,8 @@ export async function updatePhase(
   phaseId: string,
   patch: { name?: string; kind?: string },
 ) {
-  const professor = await getCurrentProfessor()
-  if (!professor) redirect('/login')
+  const actor = await getCurrentPlanActor()
+  if (!actor) redirect('/login')
 
   const update: PlanPhaseUpdate = {}
   if (patch.name != null) {
@@ -294,8 +294,8 @@ export async function updatePhase(
 }
 
 export async function deletePhase(planId: string, phaseId: string) {
-  const professor = await getCurrentProfessor()
-  if (!professor) redirect('/login')
+  const actor = await getCurrentPlanActor()
+  if (!actor) redirect('/login')
 
   const supabase = await createClient()
   // Desasignar las semanas primero — la FK plan_weeks.phase_id no tiene
@@ -309,8 +309,8 @@ export async function deletePhase(planId: string, phaseId: string) {
 }
 
 export async function setWeekPhase(planId: string, weekId: string, phaseId: string | null) {
-  const professor = await getCurrentProfessor()
-  if (!professor) redirect('/login')
+  const actor = await getCurrentPlanActor()
+  if (!actor) redirect('/login')
 
   const supabase = await createClient()
   const { error } = await supabase
@@ -361,8 +361,8 @@ export type SaveDayPayload = {
  * se guarda el plan entero o no se guarda nada.
  */
 export async function savePlanDays(planId: string, days: SaveDayPayload[]) {
-  const professor = await getCurrentProfessor()
-  if (!professor) redirect('/login')
+  const actor = await getCurrentPlanActor()
+  if (!actor) redirect('/login')
 
   const supabase = await createClient()
 
