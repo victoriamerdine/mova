@@ -52,6 +52,12 @@ export default async function LoginPage({
             Creá una
           </Link>
         </p>
+        <p className="text-muted-foreground mt-2 text-center text-xs">
+          ¿Sos profesor y no conocés MOVA?{' '}
+          <Link href="/profesores" className="text-primary font-medium hover:underline">
+            Ver la guía rápida
+          </Link>
+        </p>
       </div>
     </div>
   )
