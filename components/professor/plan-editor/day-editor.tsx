@@ -139,7 +139,14 @@ export function DayEditor({
     const patternOrMuscleId =
       planType === 'PATTERN' ? (cat?.patternId ?? null) : (cat?.muscleId ?? null)
     const groupLabel = patternOrMuscleId ? (groupIdToName.get(patternOrMuscleId) ?? '') : ''
-    return { ...emptyItem(), exerciseId: ex.id, exerciseName: ex.name, patternOrMuscleId, groupLabel }
+    return {
+      ...emptyItem(),
+      exerciseId: ex.id,
+      exerciseName: ex.name,
+      videoId: cat?.videoId ?? null,
+      patternOrMuscleId,
+      groupLabel,
+    }
   }
 
   function handleDropInto(e: DragEvent, toBlockTempId: string, beforeItemTempId: string | null) {
@@ -427,7 +434,16 @@ export function DayEditor({
 
             <div className="flex flex-col gap-2">
               {block.items.map((item) => {
-                const videoId = item.exerciseId ? videoIdByExercise.get(item.exerciseId) : undefined
+                // El catálogo (solo ejercicios `active`) manda si lo tiene —
+                // así se ve el video actualizado si se reemplazó. Si el
+                // ejercicio se archivó (sigue en uso en este plan, ver
+                // deleteExercise), cae al videoId que ya traía el día
+                // cargado — no debe desaparecer solo porque no está en el
+                // catálogo para armar planes nuevos.
+                const videoId =
+                  (item.exerciseId ? videoIdByExercise.get(item.exerciseId) : undefined) ??
+                  item.videoId ??
+                  undefined
                 const expanded = expandedItems.has(item.tempId)
                 const gridClass = videoId
                   ? 'grid grid-cols-2 gap-2'
@@ -498,6 +514,7 @@ export function DayEditor({
                             groupLabel: next.patternOrMuscleLabel,
                             exerciseId: next.exerciseId,
                             exerciseName: next.exerciseName,
+                            videoId: catalog.exercises.find((c) => c.id === next.exerciseId)?.videoId ?? null,
                             activityName: next.exerciseId ? '' : next.exerciseName,
                           })
                         }
