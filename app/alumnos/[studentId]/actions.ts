@@ -117,3 +117,32 @@ export async function saveLoadTargets(studentId: string, rows: LoadTargetInput[]
   revalidatePath(`/alumnos/${studentId}`)
   return { error: null }
 }
+
+/** Registra que el alumno pagó — fecha y monto, con nota opcional (ej. "cuota septiembre"). */
+export async function registerPayment(
+  studentId: string,
+  amount: number,
+  paidAt: string,
+  notes: string,
+): Promise<{ error: string | null }> {
+  const professor = await getCurrentProfessor()
+  if (!professor) redirect('/login')
+
+  if (!Number.isFinite(amount) || amount <= 0) {
+    return { error: 'El monto tiene que ser mayor a cero.' }
+  }
+  if (!paidAt) return { error: 'Falta la fecha del pago.' }
+
+  const supabase = await createClient()
+  const { error } = await supabase.from('student_payments').insert({
+    student_id: studentId,
+    professor_id: professor.id,
+    amount,
+    paid_at: paidAt,
+    notes: notes.trim() || null,
+  })
+  if (error) return { error: error.message }
+
+  revalidatePath(`/alumnos/${studentId}`)
+  return { error: null }
+}

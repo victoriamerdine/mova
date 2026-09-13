@@ -8,7 +8,9 @@ import { DashboardHeader } from '@/components/professor/dashboard-header'
 import { AiRecommendPanel } from '@/components/professor/ai-recommend-panel'
 import { LoadTargetsForm } from '@/components/professor/load-targets-form'
 import { StudentAccessCard } from '@/components/professor/student-access-card'
+import { StudentPaymentsCard } from '@/components/professor/student-payments-card'
 import { StudentProgressPanel } from '@/components/professor/student-progress-panel'
+import { SuspendStudentButton } from '@/components/professor/suspend-student-button'
 import { StudentFormsCard } from '@/components/forms/student-forms-card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -20,6 +22,7 @@ import { getCurrentProfessor } from '@/lib/supabase/queries/professor-dashboard'
 import { getStudentSubmissions } from '@/lib/supabase/queries/forms'
 import { getStudentProgress } from '@/lib/supabase/queries/student-progress'
 import { getStudentLoadTargets } from '@/lib/supabase/queries/plan-editor'
+import { getStudentPayments } from '@/lib/supabase/queries/students'
 import { getStudentUsername } from '@/lib/auth/student-credentials'
 import { createPlan } from '@/app/alumnos/[studentId]/actions'
 
@@ -67,18 +70,41 @@ export default async function StudentDetailPage({
 
   const plans = plansData ?? []
 
-  const [{ data: patternsData }, loadTargets, formSubmissions, username, progress] =
-    await Promise.all([
-      supabase.from('patterns').select('id, display_name').order('sort_order'),
-      getStudentLoadTargets(studentId),
-      getStudentSubmissions(studentId),
-      getStudentUsername(studentId),
-      getStudentProgress(studentId),
-    ])
+  const [
+    { data: patternsData },
+    { data: relationRow },
+    loadTargets,
+    formSubmissions,
+    username,
+    progress,
+    payments,
+  ] = await Promise.all([
+    supabase.from('patterns').select('id, display_name').order('sort_order'),
+    supabase
+      .from('student_professors')
+      .select('suspended_at')
+      .eq('student_id', studentId)
+      .eq('professor_id', professor.id)
+      .maybeSingle(),
+    getStudentLoadTargets(studentId),
+    getStudentSubmissions(studentId),
+    getStudentUsername(studentId),
+    getStudentProgress(studentId),
+    getStudentPayments(studentId),
+  ])
   const patterns = (patternsData ?? []).map((p) => ({ id: p.id, name: p.display_name }))
   const patternTargets = loadTargets
     .filter((t) => t.groupType === 'pattern')
     .map((t) => ({ groupId: t.groupId, weeklySeries: t.weeklySeries, intensity: t.intensity }))
+  const isSuspended = relationRow?.suspended_at != null
+
+  // El badge más urgente entre los planes activos, para verlo de un
+  // vistazo junto al nombre — el detalle por plan sigue abajo, en "Planes".
+  const topBadge = plans
+    .filter((p) => p.status === 'active')
+    .map((p) => getRenewalBadge(p.start_date, p.end_date))
+    .filter((b): b is NonNullable<typeof b> => b != null)
+    .sort((a, b) => (a.tone === b.tone ? 0 : a.tone === 'critical' ? -1 : 1))[0]
 
   return (
     <div className="bg-background flex min-h-svh">
@@ -93,7 +119,27 @@ export default async function StudentDetailPage({
             <Link href="/alumnos" className="text-muted-foreground text-xs hover:underline">
               ← Mis alumnos
             </Link>
-            <h1 className="mt-1 text-lg font-semibold tracking-tight">{studentName}</h1>
+            <div className="mt-1 flex flex-wrap items-center gap-2">
+              <h1 className="text-lg font-semibold tracking-tight">{studentName}</h1>
+              {isSuspended ? (
+                <Badge className="bg-destructive/10 text-destructive border-transparent">Suspendido</Badge>
+              ) : topBadge ? (
+                <Badge
+                  className={
+                    topBadge.tone === 'critical'
+                      ? 'bg-destructive/10 text-destructive border-transparent'
+                      : 'bg-warning/15 text-warning-foreground border-transparent'
+                  }
+                >
+                  {topBadge.label}
+                </Badge>
+              ) : null}
+              <SuspendStudentButton
+                studentId={studentId}
+                studentName={studentName}
+                suspended={isSuspended}
+              />
+            </div>
           </div>
 
           {error ? (
@@ -200,6 +246,18 @@ export default async function StudentDetailPage({
                 phone={student?.phone ?? null}
                 username={username}
               />
+            </CardContent>
+          </Card>
+
+          <Card className="gap-0 py-5">
+            <CardHeader className="px-5">
+              <CardTitle className="text-sm">Pagos</CardTitle>
+              <CardDescription className="text-xs">
+                Registro de cuándo y cuánto te pagó — no lo ve el alumno.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="px-5">
+              <StudentPaymentsCard studentId={studentId} payments={payments} />
             </CardContent>
           </Card>
 
