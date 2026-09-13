@@ -105,7 +105,13 @@ export default async function StudentsPage({
                           <Badge variant="secondary">Invitación pendiente</Badge>
                         ) : null}
 
-                        {badge ? (
+                        {student.isSuspended ? (
+                          <Badge className="bg-destructive/10 text-destructive border-transparent">
+                            Suspendido
+                          </Badge>
+                        ) : null}
+
+                        {!student.isSuspended && badge ? (
                           <Badge
                             className={
                               badge.tone === 'critical'

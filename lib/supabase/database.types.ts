@@ -322,6 +322,7 @@ export type Database = {
           is_primary: boolean
           status: 'active' | 'invited' | 'ended'
           permission_level: 'full' | 'view_only'
+          suspended_at: string | null
           created_at: string
         }
         Insert: Partial<Database['public']['Tables']['student_professors']['Row']>
@@ -336,6 +337,40 @@ export type Database = {
           },
           {
             foreignKeyName: 'student_professors_professor_id_fkey'
+            columns: ['professor_id']
+            isOneToOne: false
+            referencedRelation: 'professors'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      student_payments: {
+        Row: {
+          id: string
+          student_id: string
+          professor_id: string
+          amount: number
+          paid_at: string
+          notes: string | null
+          created_at: string
+        }
+        Insert: Partial<Database['public']['Tables']['student_payments']['Row']> & {
+          student_id: string
+          professor_id: string
+          amount: number
+          paid_at: string
+        }
+        Update: Partial<Database['public']['Tables']['student_payments']['Row']>
+        Relationships: [
+          {
+            foreignKeyName: 'student_payments_student_id_fkey'
+            columns: ['student_id']
+            isOneToOne: false
+            referencedRelation: 'students'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'student_payments_professor_id_fkey'
             columns: ['professor_id']
             isOneToOne: false
             referencedRelation: 'professors'

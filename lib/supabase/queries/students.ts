@@ -4,6 +4,7 @@ export type StudentWithPlan = {
   studentId: string
   fullName: string
   relationshipStatus: 'active' | 'invited' | 'ended'
+  isSuspended: boolean
   plan: {
     id: string
     name: string
@@ -21,7 +22,7 @@ export async function getMyStudentsWithPlans(professorId: string): Promise<Stude
     await Promise.all([
       supabase
         .from('student_professors')
-        .select('status, students(id, profiles(full_name))')
+        .select('status, suspended_at, students(id, profiles(full_name))')
         .eq('professor_id', professorId)
         .neq('status', 'ended'),
       supabase
@@ -36,6 +37,7 @@ export async function getMyStudentsWithPlans(professorId: string): Promise<Stude
 
   type RelationRow = {
     status: 'active' | 'invited' | 'ended'
+    suspended_at: string | null
     students: { id: string; profiles: { full_name: string } | null } | null
   }
   type PlanRow = {
@@ -63,6 +65,7 @@ export async function getMyStudentsWithPlans(professorId: string): Promise<Stude
         studentId: row.students!.id,
         fullName: row.students!.profiles?.full_name ?? 'Sin nombre',
         relationshipStatus: row.status,
+        isSuspended: row.suspended_at != null,
         plan: plan
           ? {
               id: plan.id,
@@ -77,4 +80,30 @@ export async function getMyStudentsWithPlans(professorId: string): Promise<Stude
 
   students.sort((a, b) => a.fullName.localeCompare(b.fullName, 'es'))
   return students
+}
+
+export type StudentPayment = {
+  id: string
+  amount: number
+  paidAt: string
+  notes: string | null
+}
+
+/** Pagos registrados de un alumno — más nuevo primero. RLS ya lo acota al profesor dueño del registro. */
+export async function getStudentPayments(studentId: string): Promise<StudentPayment[]> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('student_payments')
+    .select('id, amount, paid_at, notes')
+    .eq('student_id', studentId)
+    .order('paid_at', { ascending: false })
+
+  if (error) throw new Error(`No se pudieron cargar los pagos: ${error.message}`)
+
+  return (data ?? []).map((p) => ({
+    id: p.id,
+    amount: Number(p.amount),
+    paidAt: p.paid_at,
+    notes: p.notes,
+  }))
 }

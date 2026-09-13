@@ -148,6 +148,36 @@ export async function removeStudent(formData: FormData) {
 }
 
 /**
+ * Corta (o restablece) el acceso al plan de un alumno con ESTE profesor —
+ * típicamente por falta de pago. No borra la relación ni el historial: el
+ * alumno sigue entrando a la plataforma, solo deja de ver sus planes con
+ * este profesor mientras dure la suspensión (getStudentActivePlans filtra
+ * por esto, no la RLS).
+ */
+export async function setStudentSuspended(
+  studentId: string,
+  suspended: boolean,
+): Promise<{ error: string | null }> {
+  const professor = await getCurrentProfessor()
+  if (!professor) redirect('/login')
+
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('student_professors')
+    .update({ suspended_at: suspended ? new Date().toISOString() : null })
+    .eq('student_id', studentId)
+    .eq('professor_id', professor.id)
+    .select('student_id')
+
+  if (error) return { error: error.message }
+  if (!data || data.length === 0) return { error: 'No se pudo actualizar este alumno.' }
+
+  revalidatePath('/alumnos')
+  revalidatePath(`/alumnos/${studentId}`)
+  return { error: null }
+}
+
+/**
  * El profesor le pone una contraseña nueva a un alumno que gestiona (útil
  * cuando el alumno la olvidó o nunca completó la invitación). Devuelve OK
  * y la UI muestra la contraseña una vez para compartirla — no se guarda

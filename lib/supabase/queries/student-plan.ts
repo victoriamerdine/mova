@@ -30,23 +30,41 @@ export type StudentPlanSummary = {
   endDate: string | null
 }
 
-/** Todos los planes activos del alumno (puede tener más de uno). */
+/**
+ * Todos los planes activos del alumno (puede tener más de uno). Si algún
+ * profesor lo suspendió (student_professors.suspended_at, por falta de
+ * pago — 20260828000042), sus planes se excluyen acá: is_own_student (RLS
+ * de `plans`) no consulta student_professors, así que el filtro tiene que
+ * vivir en la aplicación. Un plan autocoacheado (professor_id null) nunca
+ * se filtra, sea cual sea el estado de sus relaciones con profesores.
+ */
 export async function getStudentActivePlans(studentId: string): Promise<StudentPlanSummary[]> {
   const supabase = await createClient()
-  const { data } = await supabase
-    .from('plans')
-    .select('id, name, objective, start_date, end_date, created_at')
-    .eq('student_id', studentId)
-    .eq('status', 'active')
-    .order('created_at', { ascending: true })
+  const [{ data }, { data: suspensions }] = await Promise.all([
+    supabase
+      .from('plans')
+      .select('id, name, objective, start_date, end_date, professor_id, created_at')
+      .eq('student_id', studentId)
+      .eq('status', 'active')
+      .order('created_at', { ascending: true }),
+    supabase
+      .from('student_professors')
+      .select('professor_id')
+      .eq('student_id', studentId)
+      .not('suspended_at', 'is', null),
+  ])
 
-  return (data ?? []).map((p) => ({
-    id: p.id,
-    name: p.name,
-    objective: p.objective,
-    startDate: p.start_date,
-    endDate: p.end_date,
-  }))
+  const suspendedProfessorIds = new Set((suspensions ?? []).map((s) => s.professor_id))
+
+  return (data ?? [])
+    .filter((p) => p.professor_id == null || !suspendedProfessorIds.has(p.professor_id))
+    .map((p) => ({
+      id: p.id,
+      name: p.name,
+      objective: p.objective,
+      startDate: p.start_date,
+      endDate: p.end_date,
+    }))
 }
 
 // ============================================================
