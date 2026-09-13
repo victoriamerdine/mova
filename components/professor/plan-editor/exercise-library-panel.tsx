@@ -1,20 +1,41 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { GripVertical, LibraryBig, Plus, Search, X } from 'lucide-react'
+import { GripVertical, LibraryBig, Play, Plus, Search, X } from 'lucide-react'
 
 import { EXERCISE_DRAG_TYPE, normalizeText } from '@/components/professor/plan-editor/draft'
 import type { CatalogExercise } from '@/lib/supabase/queries/plan-editor'
 
 export type LibraryDragPayload = { id: string; name: string }
 
-/** Miniatura chica (no `VideoThumb`, que es para tarjetas grandes de /biblioteca) — para identificar el ejercicio de un vistazo sin agrandar la fila. */
-function MiniThumb({ videoId }: { videoId: string | null }) {
+/**
+ * Miniatura chica (no `VideoThumb`, que es para tarjetas grandes de
+ * /biblioteca) — para identificar el ejercicio de un vistazo sin agrandar
+ * la fila. Si tiene video, tocarla abre el preview grande (`onPreview`).
+ */
+function MiniThumb({
+  videoId,
+  name,
+  onPreview,
+}: {
+  videoId: string | null
+  name: string
+  onPreview: () => void
+}) {
   const [imgError, setImgError] = useState(false)
   const showImage = videoId && !imgError
 
+  if (!videoId) {
+    return <div className="bg-muted h-8 w-11 shrink-0 overflow-hidden rounded" />
+  }
+
   return (
-    <div className="bg-muted relative h-8 w-11 shrink-0 overflow-hidden rounded">
+    <button
+      type="button"
+      onClick={onPreview}
+      aria-label={`Ver video de ${name}`}
+      className="group/thumb relative h-8 w-11 shrink-0 overflow-hidden rounded"
+    >
       {showImage ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
@@ -24,7 +45,58 @@ function MiniThumb({ videoId }: { videoId: string | null }) {
           onError={() => setImgError(true)}
           className="h-full w-full object-cover"
         />
-      ) : null}
+      ) : (
+        <div className="bg-muted h-full w-full" />
+      )}
+      <div className="absolute inset-0 flex items-center justify-center bg-black/10 transition-colors group-hover/thumb:bg-black/30">
+        <Play className="size-3 fill-white text-white drop-shadow" />
+      </div>
+    </button>
+  )
+}
+
+/** Preview grande del video al tocar una miniatura — solo reproducir, no editar. */
+function VideoPreviewModal({
+  exercise,
+  onClose,
+}: {
+  exercise: { name: string; videoId: string }
+  onClose: () => void
+}) {
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={exercise.name}
+      className="fixed inset-0 z-[60] flex items-center justify-center bg-zinc-900/60 p-4 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="bg-card w-full max-w-sm overflow-hidden rounded-2xl shadow-2xl"
+      >
+        <div className="flex items-center justify-between gap-3 px-4 py-2.5">
+          <p className="min-w-0 truncate text-sm font-medium">{exercise.name}</p>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Cerrar"
+            className="text-muted-foreground hover:text-foreground -mr-1 inline-flex size-7 shrink-0 items-center justify-center rounded-md"
+          >
+            <X className="size-4" />
+          </button>
+        </div>
+        <div className="aspect-video w-full bg-zinc-950">
+          <iframe
+            key={exercise.videoId}
+            src={`https://www.youtube.com/embed/${exercise.videoId}?autoplay=1`}
+            title={exercise.name}
+            className="h-full w-full"
+            allow="autoplay; accelerometer; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+          />
+        </div>
+      </div>
     </div>
   )
 }
@@ -45,6 +117,7 @@ export function ExerciseLibraryPanel({
 }) {
   const [query, setQuery] = useState('')
   const [sheetOpen, setSheetOpen] = useState(false)
+  const [preview, setPreview] = useState<{ name: string; videoId: string } | null>(null)
 
   const results = useMemo(() => {
     const q = normalizeText(query.trim())
@@ -99,7 +172,11 @@ export function ExerciseLibraryPanel({
               className="group/lib bg-secondary/40 hover:bg-secondary mb-1.5 flex cursor-grab items-center gap-2 rounded-lg border border-border px-2 py-1.5 transition-colors active:cursor-grabbing"
             >
               <GripVertical aria-hidden className="text-muted-foreground/40 size-3.5 shrink-0" />
-              <MiniThumb videoId={ex.videoId} />
+              <MiniThumb
+                videoId={ex.videoId}
+                name={ex.name}
+                onPreview={() => ex.videoId && setPreview({ name: ex.name, videoId: ex.videoId })}
+              />
               <span className="min-w-0 flex-1 truncate text-xs leading-snug">{ex.name}</span>
               <button
                 type="button"
@@ -157,7 +234,11 @@ export function ExerciseLibraryPanel({
                   key={ex.id}
                   className="bg-secondary/40 mb-1.5 flex items-center gap-2 rounded-lg border border-border px-2.5 py-2"
                 >
-                  <MiniThumb videoId={ex.videoId} />
+                  <MiniThumb
+                    videoId={ex.videoId}
+                    name={ex.name}
+                    onPreview={() => ex.videoId && setPreview({ name: ex.name, videoId: ex.videoId })}
+                  />
                   <span className="min-w-0 flex-1 truncate text-sm leading-snug">{ex.name}</span>
                   <button
                     type="button"
@@ -176,6 +257,8 @@ export function ExerciseLibraryPanel({
           </div>
         </div>
       ) : null}
+
+      {preview ? <VideoPreviewModal exercise={preview} onClose={() => setPreview(null)} /> : null}
     </>
   )
 }
