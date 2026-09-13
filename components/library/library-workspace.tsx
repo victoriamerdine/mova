@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus } from 'lucide-react'
+import { CheckSquare, Plus, Trash2, X } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { AiSearchPanel } from '@/components/library/ai-search-panel'
@@ -41,6 +41,9 @@ export function LibraryWorkspace({
   const [importOpen, setImportOpen] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
   const [deleting, startDeleting] = useTransition()
+  const [selectMode, setSelectMode] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [bulkDeleting, startBulkDeleting] = useTransition()
 
   const catalogNameById = useMemo(() => {
     const m = new Map<string, string>()
@@ -102,6 +105,64 @@ export function LibraryWorkspace({
     })
   }
 
+  function toggleSelectMode() {
+    setSelectMode((v) => !v)
+    setSelectedIds(new Set())
+  }
+
+  function toggleSelected(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  function selectAllVisible() {
+    setSelectedIds((prev) => {
+      const allSelected = visible.every((ex) => prev.has(ex.id))
+      if (allSelected) {
+        const next = new Set(prev)
+        for (const ex of visible) next.delete(ex.id)
+        return next
+      }
+      return new Set([...prev, ...visible.map((ex) => ex.id)])
+    })
+  }
+
+  function handleBulkDelete() {
+    const ids = [...selectedIds]
+    if (ids.length === 0) return
+    if (!confirm(`¿Eliminar ${ids.length} ejercicio${ids.length === 1 ? '' : 's'} de la biblioteca?`)) return
+
+    startBulkDeleting(async () => {
+      let deletedCount = 0
+      let archivedCount = 0
+      const errors: string[] = []
+
+      for (const id of ids) {
+        const ex = exercises.find((e) => e.id === id)
+        const res = await deleteExercise(id)
+        if (res.error) errors.push(`${ex?.name ?? id}: ${res.error}`)
+        else if (res.archived) archivedCount++
+        else deletedCount++
+      }
+
+      const parts = [
+        deletedCount ? `${deletedCount} eliminado${deletedCount === 1 ? '' : 's'}` : null,
+        archivedCount ? `${archivedCount} archivado${archivedCount === 1 ? '' : 's'} (en uso)` : null,
+        errors.length ? `${errors.length} con error` : null,
+      ].filter(Boolean)
+      setToast(parts.join(', ') || 'Sin cambios.')
+
+      setSelectedIds(new Set())
+      setSelectMode(false)
+      router.refresh()
+      window.setTimeout(() => setToast(null), 6000)
+    })
+  }
+
   return (
     <>
       <header className="bg-surface/85 z-20 border-b border-border px-4 py-4 backdrop-blur sm:px-6 lg:sticky lg:top-0">
@@ -133,6 +194,17 @@ export function LibraryWorkspace({
             {canManage ? (
               <Button variant="outline" size="sm" className="bg-card" onClick={() => setImportOpen(true)}>
                 Importar CSV
+              </Button>
+            ) : null}
+            {canManage ? (
+              <Button
+                variant={selectMode ? 'default' : 'outline'}
+                size="sm"
+                className={selectMode ? '' : 'bg-card'}
+                onClick={toggleSelectMode}
+              >
+                <CheckSquare data-icon="inline-start" />
+                {selectMode ? 'Cancelar selección' : 'Seleccionar'}
               </Button>
             ) : null}
             {canManage ? (
@@ -177,6 +249,33 @@ export function LibraryWorkspace({
         </div>
       ) : null}
 
+      {selectMode ? (
+        <div className="bg-card border-border sticky top-[7.5rem] z-10 mx-4 mt-3 flex flex-wrap items-center gap-3 rounded-lg border px-3 py-2 sm:mx-6 lg:top-[8.5rem]">
+          <span className="text-sm font-medium">
+            {selectedIds.size} seleccionado{selectedIds.size === 1 ? '' : 's'}
+          </span>
+          <Button variant="ghost" size="sm" onClick={selectAllVisible}>
+            {visible.every((ex) => selectedIds.has(ex.id)) && visible.length > 0
+              ? 'Deseleccionar visibles'
+              : 'Seleccionar visibles'}
+          </Button>
+          <div className="ml-auto flex items-center gap-2">
+            <Button
+              variant="destructive"
+              size="sm"
+              disabled={selectedIds.size === 0 || bulkDeleting}
+              onClick={handleBulkDelete}
+            >
+              <Trash2 data-icon="inline-start" />
+              {bulkDeleting ? 'Eliminando…' : `Eliminar${selectedIds.size ? ` (${selectedIds.size})` : ''}`}
+            </Button>
+            <Button variant="ghost" size="sm" onClick={toggleSelectMode} aria-label="Cerrar selección">
+              <X className="size-4" />
+            </Button>
+          </div>
+        </div>
+      ) : null}
+
       <main className="flex-1 overflow-y-auto p-4 sm:p-6">
         {filtered.length === 0 ? (
           <div className="text-muted-foreground rounded-xl border border-dashed border-border px-5 py-16 text-center text-sm">
@@ -189,7 +288,11 @@ export function LibraryWorkspace({
                 <ExerciseCard
                   key={exercise.id}
                   exercise={exercise}
-                  onSelect={() => setSelected(exercise)}
+                  selectable={selectMode}
+                  selected={selectedIds.has(exercise.id)}
+                  onSelect={() =>
+                    selectMode ? toggleSelected(exercise.id) : setSelected(exercise)
+                  }
                 />
               ))}
             </div>
