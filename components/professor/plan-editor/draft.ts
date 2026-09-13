@@ -19,6 +19,14 @@ export type DraftItem = {
   tempId: string
   exerciseId: string | null
   exerciseName: string
+  /**
+   * Id de YouTube del video, tal como estaba cuando se cargó el día — no el
+   * del catálogo en vivo (que solo trae ejercicios `active`). Si el
+   * ejercicio se archiva después (sigue en uso en algún plan, ver
+   * `deleteExercise`), el video previamente cargado no debe desaparecer acá.
+   * No se persiste — se recalcula siempre desde `exercises` al guardar.
+   */
+  videoId: string | null
   /** Id del patrón/músculo del catálogo — solo si se eligió una opción; sirve para filtrar la búsqueda de ejercicios. No se persiste. */
   patternOrMuscleId: string | null
   /** Rótulo del grupo (patrón/músculo/zona) — texto libre, puede estar vacío. Esto SÍ se guarda (training_items.group_label). */
@@ -75,6 +83,7 @@ export function dayToDraft(day: PlanDay): DraftBlock[] {
       tempId: nextTempId(),
       exerciseId: item.exerciseId,
       exerciseName: item.exerciseName ?? item.activityName ?? '',
+      videoId: item.videoId ?? null,
       patternOrMuscleId: item.patternId ?? item.muscleId ?? null,
       groupLabel: item.groupLabel ?? item.patternName ?? item.muscleName ?? '',
       activityName: item.exerciseId ? '' : (item.activityName ?? ''),
@@ -100,6 +109,7 @@ export function emptyItem(prefill?: Partial<DraftItem>): DraftItem {
     tempId: nextTempId(),
     exerciseId: null,
     exerciseName: '',
+    videoId: prefill?.videoId ?? null,
     patternOrMuscleId: prefill?.patternOrMuscleId ?? null,
     groupLabel: prefill?.groupLabel ?? '',
     activityName: '',
