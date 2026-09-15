@@ -31,6 +31,9 @@ export type LibraryItem = {
   /** Deportes con los que está taggeado el ejercicio. */
   sportIds: string[]
   sportNames: string[]
+  /** Capacidades físicas con las que está taggeado el ejercicio (Fase 4). */
+  capacityIds: string[]
+  capacityNames: string[]
   /** true si el match del video quedó marcado para revisar. */
   approxMatch: boolean
 }
@@ -44,6 +47,7 @@ export type ExerciseFormInput = {
   instructions: string
   videoUrl: string
   sportIds: string[]
+  capacityIds: string[]
   /** Solo al crear: true = asociar a mi nombre; false = público. */
   owned: boolean
 }

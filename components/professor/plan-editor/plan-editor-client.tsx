@@ -324,6 +324,21 @@ export function PlanEditorClient({
             </select>
           </label>
           <label className="flex flex-col gap-1.5">
+            <span className="text-muted-foreground text-xs font-medium">Deporte (opcional)</span>
+            <select
+              name="sportId"
+              defaultValue={plan.sportId ?? ''}
+              className="border-input h-8 rounded-lg border bg-transparent px-2.5 text-sm outline-none dark:bg-input/30"
+            >
+              <option value="">—</option>
+              {catalog.sports.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex flex-col gap-1.5">
             <span className="text-muted-foreground text-xs font-medium">Inicio</span>
             <Input type="date" name="startDate" defaultValue={plan.startDate ?? ''} className="h-8" />
           </label>
@@ -519,6 +534,28 @@ export function PlanEditorClient({
             targets={targetsByKey}
             dayCount={plan.days.length}
           />
+
+          {plan.sportProfile ? (
+            <div className="border-border bg-card rounded-xl border p-4">
+              <p className="text-xs font-medium">
+                Perfil deportivo de referencia — {plan.sportProfile.sportName}
+              </p>
+              <p className="text-muted-foreground mt-1 text-xs">
+                Demandas/capacidades típicas de este deporte (CLAUDE.md §8), informativo — no
+                condiciona el plan.
+              </p>
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {plan.sportProfile.capacities.map((c) => (
+                  <span
+                    key={c}
+                    className="bg-muted text-muted-foreground rounded-full px-2.5 py-1 text-xs"
+                  >
+                    {c}
+                  </span>
+                ))}
+              </div>
+            </div>
+          ) : null}
 
           {showAiPanel ? (
             <AiAnalyzeWeek

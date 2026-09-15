@@ -29,6 +29,7 @@ export async function createPlan(formData: FormData) {
   const studentId = String(formData.get('studentId') ?? '')
   const name = String(formData.get('name') ?? '').trim()
   const planType = toPlanType(String(formData.get('planType') ?? 'MUSCLE'))
+  const sportId = String(formData.get('sportId') ?? '') || null
 
   if (!studentId || !name) {
     redirect(`/alumnos/${studentId}?error=Falta el nombre del plan`)
@@ -43,6 +44,7 @@ export async function createPlan(formData: FormData) {
       professor_id: professor.id,
       name,
       plan_type: planType,
+      sport_id: sportId,
       start_date: new Date().toISOString().slice(0, 10),
       status: 'active',
     })
@@ -145,4 +147,57 @@ export async function registerPayment(
 
   revalidatePath(`/alumnos/${studentId}`)
   return { error: null }
+}
+
+const COMPETITION_TYPES = [
+  'partido',
+  'carrera',
+  'torneo',
+  'campeonato',
+  'competencia',
+  'test',
+  'evento',
+] as const
+
+/** Registra una competencia del alumno (CLAUDE.md §27) — partido, carrera, torneo, etc. */
+export async function createCompetition(
+  studentId: string,
+  input: {
+    sportId: string
+    date: string
+    type: (typeof COMPETITION_TYPES)[number]
+    location: string
+    notes: string
+  },
+): Promise<{ error: string | null }> {
+  const professor = await getCurrentProfessor()
+  if (!professor) redirect('/login')
+
+  if (!input.sportId) return { error: 'Falta el deporte.' }
+  if (!input.date) return { error: 'Falta la fecha.' }
+  if (!COMPETITION_TYPES.includes(input.type)) return { error: 'Tipo inválido.' }
+
+  const supabase = await createClient()
+  const { error } = await supabase.from('competitions').insert({
+    student_id: studentId,
+    sport_id: input.sportId,
+    date: input.date,
+    type: input.type,
+    location: input.location.trim() || null,
+    notes: input.notes.trim() || null,
+  })
+  if (error) return { error: error.message }
+
+  revalidatePath(`/alumnos/${studentId}`)
+  return { error: null }
+}
+
+export async function deleteCompetition(studentId: string, competitionId: string) {
+  const professor = await getCurrentProfessor()
+  if (!professor) redirect('/login')
+
+  const supabase = await createClient()
+  await supabase.from('competitions').delete().eq('id', competitionId)
+
+  revalidatePath(`/alumnos/${studentId}`)
 }

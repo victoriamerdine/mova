@@ -96,6 +96,7 @@ export function CsvImportDialog({
       instructions: row.instructions,
       videoUrl: row.videoUrl,
       sportIds: matchCatalogIds(row.sports, catalog.sports),
+      capacityIds: [],
       owned: row.owned ?? defaultOwned,
     }
   }

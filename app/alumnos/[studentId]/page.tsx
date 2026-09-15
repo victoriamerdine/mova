@@ -9,6 +9,7 @@ import { AiRecommendPanel } from '@/components/professor/ai-recommend-panel'
 import { LoadTargetsForm } from '@/components/professor/load-targets-form'
 import { StudentAccessCard } from '@/components/professor/student-access-card'
 import { StudentPaymentsCard } from '@/components/professor/student-payments-card'
+import { CompetitionsCard } from '@/components/professor/competitions-card'
 import { StudentProgressPanel } from '@/components/professor/student-progress-panel'
 import { SuspendStudentButton } from '@/components/professor/suspend-student-button'
 import { StudentFormsCard } from '@/components/forms/student-forms-card'
@@ -23,6 +24,7 @@ import { getStudentSubmissions } from '@/lib/supabase/queries/forms'
 import { getStudentProgress } from '@/lib/supabase/queries/student-progress'
 import { getStudentLoadTargets } from '@/lib/supabase/queries/plan-editor'
 import { getStudentPayments } from '@/lib/supabase/queries/students'
+import { getStudentCompetitions } from '@/lib/supabase/queries/competitions'
 import { getStudentUsername } from '@/lib/auth/student-credentials'
 import { createPlan } from '@/app/alumnos/[studentId]/actions'
 
@@ -72,14 +74,17 @@ export default async function StudentDetailPage({
 
   const [
     { data: patternsData },
+    { data: sportsData },
     { data: relationRow },
     loadTargets,
     formSubmissions,
     username,
     progress,
     payments,
+    competitions,
   ] = await Promise.all([
     supabase.from('patterns').select('id, display_name').order('sort_order'),
+    supabase.from('sports').select('id, name').eq('status', 'active').order('name'),
     supabase
       .from('student_professors')
       .select('suspended_at')
@@ -91,8 +96,10 @@ export default async function StudentDetailPage({
     getStudentUsername(studentId),
     getStudentProgress(studentId),
     getStudentPayments(studentId),
+    getStudentCompetitions(studentId),
   ])
   const patterns = (patternsData ?? []).map((p) => ({ id: p.id, name: p.display_name }))
+  const sports = sportsData ?? []
   const patternTargets = loadTargets
     .filter((t) => t.groupType === 'pattern')
     .map((t) => ({ groupId: t.groupId, weeklySeries: t.weeklySeries, intensity: t.intensity }))
@@ -200,6 +207,21 @@ export default async function StudentDetailPage({
                     ))}
                   </select>
                 </label>
+                <label className="flex flex-col gap-1.5">
+                  <span className="text-muted-foreground text-xs font-medium">Deporte</span>
+                  <select
+                    name="sportId"
+                    className="border-input h-8 rounded-lg border bg-transparent px-2.5 text-sm outline-none dark:bg-input/30"
+                    defaultValue=""
+                  >
+                    <option value="">—</option>
+                    {sports.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
                 <Button type="submit" className="h-8">
                   <Plus data-icon="inline-start" />
                   Crear plan
@@ -258,6 +280,18 @@ export default async function StudentDetailPage({
             </CardHeader>
             <CardContent className="px-5">
               <StudentPaymentsCard studentId={studentId} payments={payments} />
+            </CardContent>
+          </Card>
+
+          <Card className="gap-0 py-5">
+            <CardHeader className="px-5">
+              <CardTitle className="text-sm">Competencias</CardTitle>
+              <CardDescription className="text-xs">
+                Partidos, carreras, torneos — calendario deportivo del alumno (CLAUDE.md §27).
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="px-5">
+              <CompetitionsCard studentId={studentId} sports={sports} competitions={competitions} />
             </CardContent>
           </Card>
 
