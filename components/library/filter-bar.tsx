@@ -1,9 +1,10 @@
 'use client'
 
-import { ChevronDown, Search } from 'lucide-react'
+import { ChevronDown, Search, TriangleAlert } from 'lucide-react'
 
 import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group'
 import { CATEGORIES, MUSCLES } from '@/lib/data/library'
+import { cn } from '@/lib/utils'
 
 const CATEGORY_OPTIONS = ['Todas', ...CATEGORIES]
 const MUSCLE_OPTIONS = ['Todos', ...MUSCLES]
@@ -52,6 +53,8 @@ export function FilterBar({
   sport,
   onSportChange,
   sportOptions,
+  reviewOnly,
+  onReviewOnlyChange,
 }: {
   query: string
   onQueryChange: (value: string) => void
@@ -62,6 +65,8 @@ export function FilterBar({
   sport: string
   onSportChange: (value: string) => void
   sportOptions: string[]
+  reviewOnly: boolean
+  onReviewOnlyChange: (value: boolean) => void
 }) {
   return (
     <div className="flex flex-col gap-2.5 sm:flex-row sm:items-end">
@@ -103,6 +108,26 @@ export function FilterBar({
           options={sportOptions}
         />
       ) : null}
+
+      <div className="flex flex-col gap-1">
+        <span className="text-muted-foreground text-[10px] font-medium tracking-wider uppercase">
+          Video
+        </span>
+        <button
+          type="button"
+          aria-pressed={reviewOnly}
+          onClick={() => onReviewOnlyChange(!reviewOnly)}
+          className={cn(
+            'flex h-9 shrink-0 items-center gap-1.5 rounded-lg border px-3 text-sm font-medium whitespace-nowrap transition-colors',
+            reviewOnly
+              ? 'border-warning/40 bg-warning/15 text-warning-foreground'
+              : 'border-input text-muted-foreground hover:border-ring/50 hover:text-foreground dark:bg-input/30',
+          )}
+        >
+          <TriangleAlert className="size-3.5" />
+          A revisar
+        </button>
+      </div>
     </div>
   )
 }
