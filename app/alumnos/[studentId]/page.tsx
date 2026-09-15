@@ -6,6 +6,8 @@ import { AppSidebar } from '@/components/professor/app-sidebar'
 import { MobileNav } from '@/components/professor/mobile-nav'
 import { DashboardHeader } from '@/components/professor/dashboard-header'
 import { AiRecommendPanel } from '@/components/professor/ai-recommend-panel'
+import { AiDraftPanel } from '@/components/professor/ai-draft-panel'
+import { PendingDraftsPanel } from '@/components/professor/pending-drafts-panel'
 import { LoadTargetsForm } from '@/components/professor/load-targets-form'
 import { StudentAccessCard } from '@/components/professor/student-access-card'
 import { StudentPaymentsCard } from '@/components/professor/student-payments-card'
@@ -27,6 +29,7 @@ import { getStudentPayments } from '@/lib/supabase/queries/students'
 import { getStudentCompetitions } from '@/lib/supabase/queries/competitions'
 import { getStudentUsername } from '@/lib/auth/student-credentials'
 import { createPlan } from '@/app/alumnos/[studentId]/actions'
+import { getPendingDrafts } from '@/app/planes/draft-actions'
 
 const PLAN_TYPE_OPTIONS: { value: string; label: string }[] = [
   { value: 'MUSCLE', label: 'Músculo' },
@@ -82,6 +85,7 @@ export default async function StudentDetailPage({
     progress,
     payments,
     competitions,
+    pendingDrafts,
   ] = await Promise.all([
     supabase.from('patterns').select('id, display_name').order('sort_order'),
     supabase.from('sports').select('id, name').eq('status', 'active').order('name'),
@@ -97,6 +101,7 @@ export default async function StudentDetailPage({
     getStudentProgress(studentId),
     getStudentPayments(studentId),
     getStudentCompetitions(studentId),
+    getPendingDrafts(studentId),
   ])
   const patterns = (patternsData ?? []).map((p) => ({ id: p.id, name: p.display_name }))
   const sports = sportsData ?? []
@@ -186,14 +191,29 @@ export default async function StudentDetailPage({
             </CardContent>
           </Card>
 
+          {pendingDrafts.length > 0 ? (
+            <Card className="gap-0 py-5">
+              <CardHeader className="px-5">
+                <CardTitle className="text-sm">Borradores pendientes</CardTitle>
+                <CardDescription className="text-xs">
+                  Planes que la IA armó para {studentName} — revisalos antes de aplicarlos.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="px-5">
+                <PendingDraftsPanel studentId={studentId} drafts={pendingDrafts} />
+              </CardContent>
+            </Card>
+          ) : null}
+
           <Card className="gap-0 py-5">
             <CardHeader className="px-5">
               <CardTitle className="text-sm">Crear plan nuevo</CardTitle>
               <CardDescription className="text-xs">
-                Arranca con 2 días en blanco — los completás en el editor.
+                Arranca con 2 días en blanco — los completás en el editor, o generá un borrador con IA.
               </CardDescription>
             </CardHeader>
-            <CardContent className="px-5">
+            <CardContent className="flex flex-col gap-3 px-5">
+              <AiDraftPanel studentId={studentId} forSelf={false} />
               <form action={createPlan} className="flex flex-wrap items-end gap-3">
                 <input type="hidden" name="studentId" value={studentId} />
                 <label className="flex min-w-48 flex-1 flex-col gap-1.5">

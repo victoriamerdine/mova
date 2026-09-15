@@ -2154,12 +2154,37 @@ sobre datos cerrados) las redacta y da contexto. Es INFORMATIVO: no
 evalúa el plan ni prescribe. El cliente manda el volumen que el editor ya
 calcula, así analiza lo que se ve en pantalla.
 
+**4. Generar borradores** (§33.4) — `POST /api/ai/draft`, `<AiDraftPanel>`
++ `<PendingDraftsPanel>` en el detalle del alumno (profesor) y en
+`/planes` (individuo autocoacheado). El profesor o el individuo describen
+en lenguaje natural el plan que quieren (semanas, sesiones, objetivo); la
+IA (Sonnet, con `list_taxonomy`/`search_exercises`) arma un
+`PlanDraftPayload` completo (semanas → días → bloques → ítems) llamando
+UNA vez a la tool `create_plan_draft`. `runPlanDraftAssistant`
+(`lib/ai/run.ts`) nunca confía en que el modelo cumplió la regla del
+prompt: cualquier `exerciseId` que no haya salido de verdad de un
+`search_exercises` se anula a favor de `activityName` antes de guardar.
+El resultado queda en `plan_drafts` con `status='pending'` — nunca se
+aplica solo.
+
+Revisión (`app/planes/draft-actions.ts`): `getPendingDrafts` resuelve
+además los nombres de los ejercicios citados (`getExercisesByIds`) para
+no mostrar uuids crudos en la UI de revisión. `applyPlanDraft` convierte
+el payload aprobado en un plan real — `plans`/`plan_weeks`/`workouts` +
+un `save_week_days` por semana, el mismo RPC que usa el editor manual —
+así el resultado queda indistinguible de un plan armado a mano y
+editable normalmente después; los labels "A1"/"A2" de los bloques
+COMBINADO/CIRCUITO se generan igual que `relabel()` en el editor
+(`lib/ai/draft-mapping.ts`, con tests). `professor_id` queda null y
+`reviewed_by` queda null cuando aprueba/rechaza un individuo (no tiene
+fila en `professors`, que es a quien referencia esa columna).
+`rejectPlanDraft` solo descarta. Migración `20260828000045`: RLS de
+`plan_drafts` para el individuo autocoacheado (antes solo existía la
+policy del profesor) + la FK de `ai_interactions.professor_id` relajada
+a `profiles(id)` para que un individuo también pueda loguear su consulta.
+
 ### Pendiente
 
-- **4. Generar borradores** (§33.4) — arma un `plan_drafts` completo
-  (`source='ai'`, `prompt`, `model`) con ejercicios reales, pendiente de
-  aprobación del profesor. La tabla existe desde la Fase 1; falta el
-  route + la tool `create_plan_draft` + la UI de revisión. Va con Sonnet.
 - Streaming de las respuestas en la UI (hoy es una sola espera).
 - `form_submission_summaries`: resumir una respuesta de formulario (misma
   idea, otro origen).
