@@ -34,6 +34,7 @@ export function LibraryWorkspace({
   const [category, setCategory] = useState('Todas')
   const [muscle, setMuscle] = useState('Todos')
   const [sport, setSport] = useState('Todos')
+  const [reviewOnly, setReviewOnly] = useState(false)
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
   const [selected, setSelected] = useState<LibraryItem | null>(null)
   const [form, setForm] = useState<{ mode: 'create' | 'edit'; initial?: LibraryItem } | null>(null)
@@ -61,14 +62,19 @@ export function LibraryWorkspace({
       if (category !== 'Todas' && ex.category !== category) return false
       if (muscle !== 'Todos' && ex.muscle !== muscle) return false
       if (sport !== 'Todos' && !ex.sportNames.includes(sport)) return false
+      if (reviewOnly && !ex.approxMatch) return false
       if (q && !ex.name.toLowerCase().includes(q)) return false
       return true
     })
-  }, [category, muscle, sport, query, exercises])
+  }, [category, muscle, sport, reviewOnly, query, exercises])
 
   const visible = filtered.slice(0, visibleCount)
   const hasActiveFilters =
-    category !== 'Todas' || muscle !== 'Todos' || sport !== 'Todos' || query.trim() !== ''
+    category !== 'Todas' ||
+    muscle !== 'Todos' ||
+    sport !== 'Todos' ||
+    reviewOnly ||
+    query.trim() !== ''
 
   function resetVisible() {
     setVisibleCount(PAGE_SIZE)
@@ -79,6 +85,7 @@ export function LibraryWorkspace({
     setCategory('Todas')
     setMuscle('Todos')
     setSport('Todos')
+    setReviewOnly(false)
     resetVisible()
   }
 
@@ -238,6 +245,11 @@ export function LibraryWorkspace({
             resetVisible()
           }}
           sportOptions={sportOptions}
+          reviewOnly={reviewOnly}
+          onReviewOnlyChange={(v) => {
+            setReviewOnly(v)
+            resetVisible()
+          }}
         />
       </header>
 
