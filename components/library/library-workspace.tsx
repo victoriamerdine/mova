@@ -12,7 +12,7 @@ import { ExerciseDetailDialog } from '@/components/library/exercise-detail-dialo
 import { ExerciseFormDialog } from '@/components/library/exercise-form-dialog'
 import { ChangeRequestsDialog } from '@/components/library/change-requests-dialog'
 import { CsvImportDialog } from '@/components/library/csv-import-dialog'
-import { deleteExercise, type CsvImportSummary } from '@/app/biblioteca/actions'
+import { deleteExercise, markVideoReviewed, type CsvImportSummary } from '@/app/biblioteca/actions'
 import type { ChangeRequest, LibraryItem } from '@/lib/library'
 import type { LibraryCatalog } from '@/lib/supabase/queries/exercises'
 
@@ -42,6 +42,7 @@ export function LibraryWorkspace({
   const [importOpen, setImportOpen] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
   const [deleting, startDeleting] = useTransition()
+  const [markingReviewed, startMarkingReviewed] = useTransition()
   const [selectMode, setSelectMode] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [bulkDeleting, startBulkDeleting] = useTransition()
@@ -107,6 +108,20 @@ export function LibraryWorkspace({
         setToast(res.archived ? 'Ejercicio archivado (está en uso en algún plan).' : 'Ejercicio eliminado.')
       }
       setSelected(null)
+      router.refresh()
+      window.setTimeout(() => setToast(null), 3500)
+    })
+  }
+
+  function handleMarkReviewed(ex: LibraryItem) {
+    startMarkingReviewed(async () => {
+      const res = await markVideoReviewed(ex.id)
+      if (res.error) {
+        setToast(`No se pudo marcar como revisado: ${res.error}`)
+      } else {
+        setToast('Video marcado como revisado.')
+        setSelected((prev) => (prev && prev.id === ex.id ? { ...prev, approxMatch: false } : prev))
+      }
       router.refresh()
       window.setTimeout(() => setToast(null), 3500)
     })
@@ -331,6 +346,8 @@ export function LibraryWorkspace({
         onEdit={(ex) => setForm({ mode: 'edit', initial: ex })}
         onDelete={handleDelete}
         deleting={deleting}
+        onMarkReviewed={handleMarkReviewed}
+        markingReviewed={markingReviewed}
       />
 
       {form ? (
