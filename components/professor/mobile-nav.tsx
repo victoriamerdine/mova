@@ -24,7 +24,7 @@ const NAV = [
   { label: 'Biblioteca', icon: LibraryBig, href: '/biblioteca' },
   { label: 'Planes', icon: ClipboardList, href: '/planes' },
   { label: 'Formularios', icon: ClipboardCheck, href: '/formularios' },
-  { label: 'Analítica', icon: BarChart3, href: '#' },
+  { label: 'Analítica', icon: BarChart3, href: '/analitica' },
   { label: 'Configuración', icon: Settings, href: '/cuenta' },
 ] as const
 

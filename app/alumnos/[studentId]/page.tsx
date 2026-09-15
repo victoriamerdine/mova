@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { ArrowRight, ChevronDown, Plus } from 'lucide-react'
+import { ArrowRight, BarChart3, ChevronDown, Plus } from 'lucide-react'
 
 import { AppSidebar } from '@/components/professor/app-sidebar'
 import { MobileNav } from '@/components/professor/mobile-nav'
@@ -146,6 +146,13 @@ export default async function StudentDetailPage({
                 studentName={studentName}
                 suspended={isSuspended}
               />
+              <Link
+                href={`/alumnos/${studentId}/analitica`}
+                className="text-muted-foreground hover:text-foreground border-border ml-auto flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs"
+              >
+                <BarChart3 className="size-3.5" />
+                Analítica
+              </Link>
             </div>
           </div>
 
