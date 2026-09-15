@@ -127,6 +127,8 @@ export function AiRecommendPanel({
         onClose={() => setSelected(null)}
         onEdit={() => {}}
         onDelete={() => {}}
+        onMarkReviewed={() => {}}
+        markingReviewed={false}
       />
     </>
   )

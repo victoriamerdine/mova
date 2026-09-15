@@ -97,6 +97,163 @@ export type Database = {
           },
         ]
       }
+      training_capacities: {
+        Row: {
+          id: string
+          name: string
+          slug: string
+          description: string | null
+          created_at: string
+        }
+        Insert: Partial<Database['public']['Tables']['training_capacities']['Row']>
+        Update: Partial<Database['public']['Tables']['training_capacities']['Row']>
+        Relationships: []
+      }
+      exercise_capacities: {
+        Row: {
+          exercise_id: string
+          capacity_id: string
+        }
+        Insert: Partial<Database['public']['Tables']['exercise_capacities']['Row']>
+        Update: Partial<Database['public']['Tables']['exercise_capacities']['Row']>
+        Relationships: [
+          {
+            foreignKeyName: 'exercise_capacities_exercise_id_fkey'
+            columns: ['exercise_id']
+            isOneToOne: false
+            referencedRelation: 'exercises'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'exercise_capacities_capacity_id_fkey'
+            columns: ['capacity_id']
+            isOneToOne: false
+            referencedRelation: 'training_capacities'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      sport_profiles: {
+        Row: {
+          id: string
+          sport_id: string
+          name: string
+          description: string | null
+          created_at: string
+        }
+        Insert: Partial<Database['public']['Tables']['sport_profiles']['Row']> & {
+          sport_id: string
+          name: string
+        }
+        Update: Partial<Database['public']['Tables']['sport_profiles']['Row']>
+        Relationships: [
+          {
+            foreignKeyName: 'sport_profiles_sport_id_fkey'
+            columns: ['sport_id']
+            isOneToOne: false
+            referencedRelation: 'sports'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      sport_profile_capacities: {
+        Row: {
+          sport_profile_id: string
+          capacity_id: string
+          importance: number | null
+        }
+        Insert: Partial<Database['public']['Tables']['sport_profile_capacities']['Row']>
+        Update: Partial<Database['public']['Tables']['sport_profile_capacities']['Row']>
+        Relationships: [
+          {
+            foreignKeyName: 'sport_profile_capacities_sport_profile_id_fkey'
+            columns: ['sport_profile_id']
+            isOneToOne: false
+            referencedRelation: 'sport_profiles'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'sport_profile_capacities_capacity_id_fkey'
+            columns: ['capacity_id']
+            isOneToOne: false
+            referencedRelation: 'training_capacities'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      activities: {
+        Row: {
+          id: string
+          canonical_name: string
+          display_name: string
+          sport_id: string | null
+          description: string | null
+          status: 'active' | 'pending_review' | 'archived'
+          proposed_by: string | null
+          reviewed_by: string | null
+          reviewed_at: string | null
+          created_at: string
+        }
+        Insert: Partial<Database['public']['Tables']['activities']['Row']> & {
+          canonical_name: string
+          display_name: string
+        }
+        Update: Partial<Database['public']['Tables']['activities']['Row']>
+        Relationships: [
+          {
+            foreignKeyName: 'activities_sport_id_fkey'
+            columns: ['sport_id']
+            isOneToOne: false
+            referencedRelation: 'sports'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      competitions: {
+        Row: {
+          id: string
+          student_id: string
+          plan_id: string | null
+          sport_id: string
+          date: string
+          time: string | null
+          type: 'partido' | 'carrera' | 'torneo' | 'campeonato' | 'competencia' | 'test' | 'evento'
+          importance: string | null
+          location: string | null
+          notes: string | null
+          created_at: string
+        }
+        Insert: Partial<Database['public']['Tables']['competitions']['Row']> & {
+          student_id: string
+          sport_id: string
+          date: string
+          type: 'partido' | 'carrera' | 'torneo' | 'campeonato' | 'competencia' | 'test' | 'evento'
+        }
+        Update: Partial<Database['public']['Tables']['competitions']['Row']>
+        Relationships: [
+          {
+            foreignKeyName: 'competitions_student_id_fkey'
+            columns: ['student_id']
+            isOneToOne: false
+            referencedRelation: 'students'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'competitions_sport_id_fkey'
+            columns: ['sport_id']
+            isOneToOne: false
+            referencedRelation: 'sports'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'competitions_plan_id_fkey'
+            columns: ['plan_id']
+            isOneToOne: false
+            referencedRelation: 'plans'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       patterns: {
         Row: {
           id: string
@@ -433,6 +590,20 @@ export type Database = {
             referencedRelation: 'professors'
             referencedColumns: ['id']
           },
+          {
+            foreignKeyName: 'plans_sport_id_fkey'
+            columns: ['sport_id']
+            isOneToOne: false
+            referencedRelation: 'sports'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'plans_sport_profile_id_fkey'
+            columns: ['sport_profile_id']
+            isOneToOne: false
+            referencedRelation: 'sport_profiles'
+            referencedColumns: ['id']
+          },
         ]
       }
       workouts: {
@@ -590,6 +761,13 @@ export type Database = {
             columns: ['exercise_id']
             isOneToOne: false
             referencedRelation: 'exercises'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'training_items_activity_id_fkey'
+            columns: ['activity_id']
+            isOneToOne: false
+            referencedRelation: 'activities'
             referencedColumns: ['id']
           },
         ]

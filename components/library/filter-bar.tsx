@@ -53,6 +53,9 @@ export function FilterBar({
   sport,
   onSportChange,
   sportOptions,
+  capacity,
+  onCapacityChange,
+  capacityOptions,
   reviewOnly,
   onReviewOnlyChange,
 }: {
@@ -65,6 +68,9 @@ export function FilterBar({
   sport: string
   onSportChange: (value: string) => void
   sportOptions: string[]
+  capacity: string
+  onCapacityChange: (value: string) => void
+  capacityOptions: string[]
   reviewOnly: boolean
   onReviewOnlyChange: (value: boolean) => void
 }) {
@@ -106,6 +112,14 @@ export function FilterBar({
           value={sport}
           onChange={onSportChange}
           options={sportOptions}
+        />
+      ) : null}
+      {capacityOptions.length > 1 ? (
+        <FilterSelect
+          label="Capacidad"
+          value={capacity}
+          onChange={onCapacityChange}
+          options={capacityOptions}
         />
       ) : null}
 

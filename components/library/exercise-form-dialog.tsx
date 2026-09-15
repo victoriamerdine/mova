@@ -43,6 +43,7 @@ export function ExerciseFormDialog({
   const [instructions, setInstructions] = useState(initial?.instructions ?? '')
   const [videoUrl, setVideoUrl] = useState(initial?.videoUrl ?? '')
   const [sportIds, setSportIds] = useState<string[]>(initial?.sportIds ?? [])
+  const [capacityIds, setCapacityIds] = useState<string[]>(initial?.capacityIds ?? [])
 
   const [owned, setOwned] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -63,12 +64,17 @@ export function ExerciseFormDialog({
       instructions,
       videoUrl,
       sportIds,
+      capacityIds,
       owned,
     }
   }
 
   function toggleSport(id: string) {
     setSportIds((prev) => (prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]))
+  }
+
+  function toggleCapacity(id: string) {
+    setCapacityIds((prev) => (prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id]))
   }
 
   function submit() {
@@ -219,6 +225,30 @@ export function ExerciseFormDialog({
                       }
                     >
                       {s.name}
+                    </button>
+                  )
+                })}
+              </div>
+            </Field>
+          ) : null}
+
+          {catalog.capacities.length > 0 ? (
+            <Field label="Capacidades físicas">
+              <div className="flex flex-wrap gap-1.5">
+                {catalog.capacities.map((c) => {
+                  const on = capacityIds.includes(c.id)
+                  return (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => toggleCapacity(c.id)}
+                      className={
+                        on
+                          ? 'bg-primary text-primary-foreground rounded-full px-2.5 py-1 text-xs font-medium'
+                          : 'border-input text-muted-foreground hover:text-foreground rounded-full border px-2.5 py-1 text-xs'
+                      }
+                    >
+                      {c.name}
                     </button>
                   )
                 })}

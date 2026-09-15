@@ -75,6 +75,13 @@ export type PlanPhaseOption = {
   order: number
 }
 
+/** Perfil deportivo de referencia (Fase 4) — solo lectura, informativo. */
+export type SportProfileSummary = {
+  sportName: string
+  profileName: string
+  capacities: string[]
+}
+
 export type PlanForEditor = {
   id: string
   name: string
@@ -83,12 +90,50 @@ export type PlanForEditor = {
   endDate: string | null
   studentId: string
   studentName: string
+  /** Deporte asignado al plan (Fase 4) — opcional. */
+  sportId: string | null
+  /** Perfil deportivo de referencia para ese deporte, si hay uno cargado. */
+  sportProfile: SportProfileSummary | null
   /** Fases del plan (nivel opcional Plan → Fase → Semana). Vacío si el plan no usa fases. */
   phases: PlanPhaseOption[]
   weeks: PlanWeekOption[]
   /** Semana activa en el editor — `weekId` es su id (o '' si el plan no tiene semanas). */
   weekId: string
   days: PlanDay[]
+}
+
+/** Perfil deportivo "general" del deporte (Fase 4) + sus capacidades, para mostrar como referencia. */
+async function getSportProfileSummary(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  sportId: string | null,
+): Promise<SportProfileSummary | null> {
+  if (!sportId) return null
+
+  const { data: sport } = await supabase.from('sports').select('name').eq('id', sportId).maybeSingle()
+  if (!sport) return null
+
+  const { data: profile } = await supabase
+    .from('sport_profiles')
+    .select(
+      'name, sport_profile_capacities(capacity_id, training_capacities(name))',
+    )
+    .eq('sport_id', sportId)
+    .limit(1)
+    .maybeSingle()
+  if (!profile) return null
+
+  const row = profile as unknown as {
+    name: string
+    sport_profile_capacities: { training_capacities: { name: string } | null }[]
+  }
+
+  return {
+    sportName: sport.name,
+    profileName: row.name,
+    capacities: row.sport_profile_capacities
+      .map((c) => c.training_capacities?.name)
+      .filter((n): n is string => !!n),
+  }
 }
 
 export type LoadTarget = {
@@ -125,7 +170,9 @@ export async function getPlanForEditor(planId: string, weekId?: string): Promise
 
   const { data: plan, error: planError } = await supabase
     .from('plans')
-    .select('id, name, plan_type, start_date, end_date, student_id, students(profiles(full_name))')
+    .select(
+      'id, name, plan_type, start_date, end_date, student_id, sport_id, students(profiles(full_name))',
+    )
     .eq('id', planId)
     .maybeSingle()
 
@@ -134,6 +181,8 @@ export async function getPlanForEditor(planId: string, weekId?: string): Promise
   const studentName =
     (plan as unknown as { students: { profiles: { full_name: string } | null } | null }).students
       ?.profiles?.full_name ?? 'Alumno'
+
+  const sportProfile = await getSportProfileSummary(supabase, plan.sport_id)
 
   const [{ data: phaseRows }, { data: weekRows }] = await Promise.all([
     supabase
@@ -170,6 +219,8 @@ export async function getPlanForEditor(planId: string, weekId?: string): Promise
       endDate: plan.end_date,
       studentId: plan.student_id,
       studentName,
+      sportId: plan.sport_id,
+      sportProfile,
       phases,
       weeks: [],
       weekId: '',
@@ -290,6 +341,8 @@ export async function getPlanForEditor(planId: string, weekId?: string): Promise
     endDate: plan.end_date,
     studentId: plan.student_id,
     studentName,
+    sportId: plan.sport_id,
+    sportProfile,
     phases,
     weeks,
     weekId: activeWeek.id,
@@ -312,6 +365,7 @@ export type PlanBuilderCatalog = {
   patterns: CatalogOption[]
   muscles: CatalogOption[]
   exercises: CatalogExercise[]
+  sports: CatalogOption[]
 }
 
 type CatalogExerciseRow = {
@@ -326,9 +380,10 @@ type CatalogExerciseRow = {
 export async function getPlanBuilderCatalog(): Promise<PlanBuilderCatalog> {
   const supabase = await createClient()
 
-  const [{ data: patterns }, { data: muscles }] = await Promise.all([
+  const [{ data: patterns }, { data: muscles }, { data: sports }] = await Promise.all([
     supabase.from('patterns').select('id, display_name').order('sort_order'),
     supabase.from('muscles').select('id, display_name').order('sort_order'),
+    supabase.from('sports').select('id, name').eq('status', 'active').order('name'),
   ])
 
   // PostgREST capa cada respuesta a 1.000 filas (db-max-rows) aunque se pida
@@ -353,6 +408,7 @@ export async function getPlanBuilderCatalog(): Promise<PlanBuilderCatalog> {
   return {
     patterns: (patterns ?? []).map((p) => ({ id: p.id, name: p.display_name })),
     muscles: (muscles ?? []).map((m) => ({ id: m.id, name: m.display_name })),
+    sports: (sports ?? []).map((s) => ({ id: s.id, name: s.name })),
     exercises: exerciseRows.map((e) => {
       const primaryVideo =
         e.exercise_media?.find((m) => m.type === 'video' && m.is_primary) ??

@@ -34,6 +34,7 @@ export function LibraryWorkspace({
   const [category, setCategory] = useState('Todas')
   const [muscle, setMuscle] = useState('Todos')
   const [sport, setSport] = useState('Todos')
+  const [capacity, setCapacity] = useState('Todas')
   const [reviewOnly, setReviewOnly] = useState(false)
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
   const [selected, setSelected] = useState<LibraryItem | null>(null)
@@ -56,6 +57,10 @@ export function LibraryWorkspace({
   }, [catalog])
 
   const sportOptions = useMemo(() => ['Todos', ...catalog.sports.map((s) => s.name)], [catalog])
+  const capacityOptions = useMemo(
+    () => ['Todas', ...catalog.capacities.map((c) => c.name)],
+    [catalog],
+  )
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -63,17 +68,19 @@ export function LibraryWorkspace({
       if (category !== 'Todas' && ex.category !== category) return false
       if (muscle !== 'Todos' && ex.muscle !== muscle) return false
       if (sport !== 'Todos' && !ex.sportNames.includes(sport)) return false
+      if (capacity !== 'Todas' && !ex.capacityNames.includes(capacity)) return false
       if (reviewOnly && !ex.approxMatch) return false
       if (q && !ex.name.toLowerCase().includes(q)) return false
       return true
     })
-  }, [category, muscle, sport, reviewOnly, query, exercises])
+  }, [category, muscle, sport, capacity, reviewOnly, query, exercises])
 
   const visible = filtered.slice(0, visibleCount)
   const hasActiveFilters =
     category !== 'Todas' ||
     muscle !== 'Todos' ||
     sport !== 'Todos' ||
+    capacity !== 'Todas' ||
     reviewOnly ||
     query.trim() !== ''
 
@@ -86,6 +93,7 @@ export function LibraryWorkspace({
     setCategory('Todas')
     setMuscle('Todos')
     setSport('Todos')
+    setCapacity('Todas')
     setReviewOnly(false)
     resetVisible()
   }
@@ -260,6 +268,12 @@ export function LibraryWorkspace({
             resetVisible()
           }}
           sportOptions={sportOptions}
+          capacity={capacity}
+          onCapacityChange={(v) => {
+            setCapacity(v)
+            resetVisible()
+          }}
+          capacityOptions={capacityOptions}
           reviewOnly={reviewOnly}
           onReviewOnlyChange={(v) => {
             setReviewOnly(v)

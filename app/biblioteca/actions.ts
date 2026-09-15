@@ -63,6 +63,21 @@ async function syncSports(
   }
 }
 
+/** Reemplaza el set completo de capacidades físicas taggeadas del ejercicio. */
+async function syncCapacities(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  exerciseId: string,
+  capacityIds: string[],
+) {
+  await supabase.from('exercise_capacities').delete().eq('exercise_id', exerciseId)
+  const ids = [...new Set(capacityIds.filter(Boolean))]
+  if (ids.length > 0) {
+    await supabase
+      .from('exercise_capacities')
+      .insert(ids.map((capacity_id) => ({ exercise_id: exerciseId, capacity_id })))
+  }
+}
+
 type OwnerCheck = { ownerId: string | null; ownerName: string | null; canManageDirect: boolean }
 
 /** Dueño del ejercicio + si el profesor actual puede editarlo directo (propio o público). */
@@ -130,6 +145,7 @@ export async function createExercise(
 
   if (data.videoUrl) await syncPrimaryVideo(supabase, row.id, data.videoUrl)
   await syncSports(supabase, row.id, input.sportIds ?? [])
+  await syncCapacities(supabase, row.id, input.capacityIds ?? [])
 
   revalidatePath('/biblioteca')
   return { id: row.id }
@@ -156,6 +172,7 @@ export async function updateExercise(id: string, input: ExerciseFormInput): Prom
       instructions: input.instructions.trim(),
       videoUrl: data.videoUrl ?? '',
       sportIds: [...new Set((input.sportIds ?? []).filter(Boolean))],
+      capacityIds: [...new Set((input.capacityIds ?? []).filter(Boolean))],
     }
     const { error } = await supabase
       .from('exercise_change_requests')
@@ -194,6 +211,7 @@ export async function updateExercise(id: string, input: ExerciseFormInput): Prom
 
   await syncPrimaryVideo(supabase, id, data.videoUrl)
   await syncSports(supabase, id, input.sportIds ?? [])
+  await syncCapacities(supabase, id, input.capacityIds ?? [])
 
   revalidatePath('/biblioteca')
   return { id }

@@ -26,11 +26,12 @@ export async function updatePlanDetails(formData: FormData) {
   const planType = toPlanType(String(formData.get('planType') ?? ''))
   const startDate = String(formData.get('startDate') ?? '') || null
   const endDate = String(formData.get('endDate') ?? '') || null
+  const sportId = String(formData.get('sportId') ?? '') || null
 
   const supabase = await createClient()
   const { error } = await supabase
     .from('plans')
-    .update({ name, plan_type: planType, start_date: startDate, end_date: endDate })
+    .update({ name, plan_type: planType, start_date: startDate, end_date: endDate, sport_id: sportId })
     .eq('id', planId)
 
   if (error) {
