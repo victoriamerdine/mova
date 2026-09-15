@@ -1864,6 +1864,55 @@ Construir:
 - eventos;
 - descanso.
 
+### ESTADO — en producción
+
+**Modelo de datos**: se reutiliza `competitions` (Fase 1) en vez de crear
+una tabla `events` separada — ya tenía la forma exacta que hacía falta
+(alumno, fecha, tipo, lugar, notas). Migración `20260828000046`:
+`sport_id` pasa a opcional (un día de descanso no tiene deporte) y el
+check de `type` suma `descanso` y `recuperacion` a los siete valores que
+ya existían (`partido`/`carrera`/`torneo`/`campeonato`/`competencia`/
+`test`/`evento`).
+
+**Calendario del profesor** (`/calendario`, nuevo ítem de menú en
+`<AppSidebar>`/`<MobileNav>`): agrega las competencias/eventos de TODOS
+sus alumnos activos (`getCalendarItems()`, RLS-scoped por
+`is_professor_of` — sin filtrar por profesor a mano). Calendario mensual
+con navegación ← mes →, día marcado si tiene ítems, tocar un día despliega
+el detalle (alumno · tipo · deporte/lugar/nota) con link a la ficha del
+alumno.
+
+**Calendario del alumno** (`/alumno/calendario`, link "Ver mi calendario"
+desde `/alumno`): mismo componente, solo lectura, con sus propias
+competencias/eventos (`getStudentCompetitions`, RLS "el alumno ve las
+suyas"). Pensado para el rol `student` (gestionado por un profesor); el
+individuo autocoacheado no tiene esta vista todavía porque tampoco tiene
+acceso a `/alumno` (`getCurrentStudent()` exige `role='student'`) — gap
+preexistente, no introducido por esta fase.
+
+**Carga de ítems**: se amplió la tarjeta ya existente en la ficha del
+alumno (antes "Competencias", ahora "Calendario") — el profesor elige tipo
+(incluye Descanso/Recuperación) y opcionalmente un deporte; sin deporte
+seleccionado el ítem no cuenta con `sport_id`. Sigue siendo el profesor
+quien carga — el alumno no escribe su propio calendario (mismo criterio
+de "el profesor mantiene el control" que ya regía para competencias).
+
+**Componente compartido**: `<MonthCalendar>` (`components/calendar/`) +
+`lib/calendar-grid.ts` (grilla del mes, navegación, testeado) — genérico,
+no asume de qué son los ítems; lo usan tanto `/calendario` como
+`/alumno/calendario`.
+
+### Pendiente
+
+- El individuo autocoacheado no puede cargar ni ver su propio calendario
+  (depende de resolver primero que no tiene acceso a `/alumno` en
+  absoluto — fuera del alcance de esta fase).
+- El calendario no muestra entrenamientos/sesiones realizadas — eso ya
+  vive en `/alumno/historial` (Fase 7) y en la analítica (Fase 8); unificar
+  ambas vistas queda para más adelante si hace falta.
+- Filtrar el calendario del profesor por alumno o por tipo (hoy: todo
+  junto, un mes a la vez).
+
 ---
 
 ## FASE 10 — IA

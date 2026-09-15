@@ -25,6 +25,7 @@ const PROTECTED_PATHS = [
   '/alumno',
   '/formularios',
   '/analitica',
+  '/calendario',
   '/cuenta',
   '/admin',
   '/pendiente',

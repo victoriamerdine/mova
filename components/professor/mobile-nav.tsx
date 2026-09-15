@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
   BarChart3,
+  CalendarDays,
   ClipboardCheck,
   ClipboardList,
   LayoutDashboard,
@@ -25,6 +26,7 @@ const NAV = [
   { label: 'Planes', icon: ClipboardList, href: '/planes' },
   { label: 'Formularios', icon: ClipboardCheck, href: '/formularios' },
   { label: 'Analítica', icon: BarChart3, href: '/analitica' },
+  { label: 'Calendario', icon: CalendarDays, href: '/calendario' },
   { label: 'Configuración', icon: Settings, href: '/cuenta' },
 ] as const
 

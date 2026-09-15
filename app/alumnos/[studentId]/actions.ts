@@ -157,9 +157,15 @@ const COMPETITION_TYPES = [
   'competencia',
   'test',
   'evento',
+  'descanso',
+  'recuperacion',
 ] as const
 
-/** Registra una competencia del alumno (CLAUDE.md §27) — partido, carrera, torneo, etc. */
+/**
+ * Registra un ítem del calendario del alumno (CLAUDE.md §9/§27): una
+ * competencia (partido, carrera, torneo…) con deporte, o un día de
+ * descanso/recuperación sin deporte asociado.
+ */
 export async function createCompetition(
   studentId: string,
   input: {
@@ -173,14 +179,13 @@ export async function createCompetition(
   const professor = await getCurrentProfessor()
   if (!professor) redirect('/login')
 
-  if (!input.sportId) return { error: 'Falta el deporte.' }
   if (!input.date) return { error: 'Falta la fecha.' }
   if (!COMPETITION_TYPES.includes(input.type)) return { error: 'Tipo inválido.' }
 
   const supabase = await createClient()
   const { error } = await supabase.from('competitions').insert({
     student_id: studentId,
-    sport_id: input.sportId,
+    sport_id: input.sportId || null,
     date: input.date,
     type: input.type,
     location: input.location.trim() || null,

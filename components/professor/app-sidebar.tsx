@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import {
   BarChart3,
+  CalendarDays,
   ClipboardList,
   ClipboardCheck,
   LayoutDashboard,
@@ -41,6 +42,7 @@ export function AppSidebar({
     { label: 'Planes', icon: ClipboardList, count: planCount, href: '/planes' },
     { label: 'Formularios', icon: ClipboardCheck, count: formCount, href: '/formularios' },
     { label: 'Analítica', icon: BarChart3, href: '/analitica' },
+    { label: 'Calendario', icon: CalendarDays, href: '/calendario' },
     { label: 'Configuración', icon: Settings, href: '/cuenta' },
   ]
 

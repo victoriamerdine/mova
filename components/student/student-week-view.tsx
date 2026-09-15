@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { BarChart3, Check, History } from 'lucide-react'
+import { BarChart3, CalendarDays, Check, History } from 'lucide-react'
 
 import { StudentDayContent } from '@/components/student/student-day-content'
 import type { StudentPlanSummary, StudentWeek } from '@/lib/supabase/queries/student-plan'
@@ -183,6 +183,13 @@ export function StudentWeekView({
         >
           <BarChart3 className="size-4" />
           Ver mi progreso
+        </Link>
+        <Link
+          href="/alumno/calendario"
+          className="text-muted-foreground hover:text-foreground flex items-center gap-2 text-sm"
+        >
+          <CalendarDays className="size-4" />
+          Ver mi calendario
         </Link>
       </div>
     </>
