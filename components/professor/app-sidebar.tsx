@@ -40,7 +40,7 @@ export function AppSidebar({
     { label: 'Biblioteca', icon: LibraryBig, count: libraryCount, href: '/biblioteca' },
     { label: 'Planes', icon: ClipboardList, count: planCount, href: '/planes' },
     { label: 'Formularios', icon: ClipboardCheck, count: formCount, href: '/formularios' },
-    { label: 'Analítica', icon: BarChart3, href: '#' },
+    { label: 'Analítica', icon: BarChart3, href: '/analitica' },
     { label: 'Configuración', icon: Settings, href: '/cuenta' },
   ]
 
