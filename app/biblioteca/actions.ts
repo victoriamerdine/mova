@@ -216,6 +216,23 @@ export async function replaceExerciseVideo(id: string, videoUrl: string): Promis
   return { id }
 }
 
+/** Saca la marca "Video a revisar" una vez que el profesor lo chequeó/arregló. */
+export async function markVideoReviewed(id: string): Promise<Result> {
+  const professor = await getCurrentLibraryActor()
+  if (!professor) redirect('/login')
+
+  const supabase = await createClient()
+  const owner = await checkOwner(supabase, id, professor.id)
+  if (!owner.canManageDirect) {
+    return { error: `Este ejercicio es de ${owner.ownerName ?? 'otro profesor'} — no lo podés marcar.` }
+  }
+
+  const { error } = await supabase.from('exercises').update({ match_status: null }).eq('id', id)
+  if (error) return { error: error.message }
+  revalidatePath('/biblioteca')
+  return { id }
+}
+
 export async function deleteExercise(id: string): Promise<Result> {
   const professor = await getCurrentLibraryActor()
   if (!professor) redirect('/login')

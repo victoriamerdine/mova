@@ -1,6 +1,6 @@
 'use client'
 
-import { ExternalLink, Pencil, TriangleAlert, Trash2, X } from 'lucide-react'
+import { Check, ExternalLink, Pencil, TriangleAlert, Trash2, X } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -14,6 +14,8 @@ export function ExerciseDetailDialog({
   onEdit,
   onDelete,
   deleting,
+  onMarkReviewed,
+  markingReviewed,
 }: {
   exercise: LibraryItem | null
   canManage: boolean
@@ -21,8 +23,12 @@ export function ExerciseDetailDialog({
   onEdit: (ex: LibraryItem) => void
   onDelete: (ex: LibraryItem) => void
   deleting: boolean
+  onMarkReviewed: (ex: LibraryItem) => void
+  markingReviewed: boolean
 }) {
   if (!exercise) return null
+
+  const canManageDirect = canManage && (!exercise.ownerId || exercise.isMine)
 
   return (
     <div
@@ -79,9 +85,21 @@ export function ExerciseDetailDialog({
                   </Badge>
                 )}
                 {exercise.approxMatch ? (
-                  <Badge className="bg-warning/15 text-warning-foreground gap-1 border-transparent">
+                  <Badge className="bg-warning/15 text-warning-foreground gap-1 border-transparent py-0 pr-0.5">
                     <TriangleAlert className="size-3" />
                     Video a revisar
+                    {canManageDirect ? (
+                      <button
+                        type="button"
+                        disabled={markingReviewed}
+                        onClick={() => onMarkReviewed(exercise)}
+                        aria-label="Marcar video como revisado"
+                        title="Ya lo revisé / arreglé"
+                        className="hover:bg-warning/30 ml-0.5 flex size-4 items-center justify-center rounded-full transition-colors disabled:opacity-50"
+                      >
+                        <Check className="size-3" />
+                      </button>
+                    ) : null}
                   </Badge>
                 ) : null}
                 {exercise.sportNames.map((s) => (
@@ -141,7 +159,7 @@ export function ExerciseDetailDialog({
 
           {canManage ? (
             <div className="flex items-center justify-end gap-2 border-t border-border px-5 py-3">
-              {!exercise.ownerId || exercise.isMine ? (
+              {canManageDirect ? (
                 <Button
                   variant="ghost"
                   size="sm"
