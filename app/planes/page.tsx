@@ -9,9 +9,12 @@ import { PlansList } from '@/components/professor/plans-list'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import { AiDraftPanel } from '@/components/professor/ai-draft-panel'
+import { PendingDraftsPanel } from '@/components/professor/pending-drafts-panel'
 import { getCurrentPlanActor } from '@/lib/supabase/queries/professor-dashboard'
 import { getPlansForIndividual, getPlansForProfessor } from '@/lib/supabase/queries/plans'
 import { createOwnPlan } from '@/app/planes/actions'
+import { getPendingDrafts } from '@/app/planes/draft-actions'
 
 const PLAN_TYPE_OPTIONS = [
   { value: 'MUSCLE', label: 'Músculo' },
@@ -32,7 +35,10 @@ export default async function PlansPage({
 
   if (actor.role === 'individual') {
     const { error } = await searchParams
-    const plans = await getPlansForIndividual(actor.id)
+    const [plans, pendingDrafts] = await Promise.all([
+      getPlansForIndividual(actor.id),
+      getPendingDrafts(actor.id),
+    ])
 
     return (
       <div className="bg-background flex min-h-svh flex-col">
@@ -48,14 +54,29 @@ export default async function PlansPage({
             <p className="bg-destructive/10 text-destructive rounded-lg px-3 py-2 text-sm">{error}</p>
           ) : null}
 
+          {pendingDrafts.length > 0 ? (
+            <Card className="gap-0 py-5">
+              <CardHeader className="px-5">
+                <CardTitle className="text-sm">Borradores pendientes</CardTitle>
+                <CardDescription className="text-xs">
+                  Planes que la IA armó para vos — revisalos antes de aplicarlos.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="px-5">
+                <PendingDraftsPanel studentId={actor.id} drafts={pendingDrafts} />
+              </CardContent>
+            </Card>
+          ) : null}
+
           <Card className="gap-0 py-5">
             <CardHeader className="px-5">
               <CardTitle className="text-sm">Crear plan nuevo</CardTitle>
               <CardDescription className="text-xs">
-                Arranca con 2 días en blanco — los completás en el editor.
+                Arranca con 2 días en blanco — los completás en el editor, o generá un borrador con IA.
               </CardDescription>
             </CardHeader>
-            <CardContent className="px-5">
+            <CardContent className="flex flex-col gap-3 px-5">
+              <AiDraftPanel studentId={actor.id} forSelf={true} />
               <form action={createOwnPlan} className="flex flex-wrap items-end gap-3">
                 <label className="flex min-w-48 flex-1 flex-col gap-1.5">
                   <span className="text-muted-foreground text-xs font-medium">Nombre del plan</span>

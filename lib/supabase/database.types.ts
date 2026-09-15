@@ -606,6 +606,35 @@ export type Database = {
           },
         ]
       }
+      plan_drafts: {
+        Row: {
+          id: string
+          student_id: string
+          payload: Json
+          source: 'ai' | 'import_excel' | 'import_focus_entrena'
+          prompt: string | null
+          model: string | null
+          status: 'pending' | 'approved' | 'rejected'
+          reviewed_by: string | null
+          reviewed_at: string | null
+          created_at: string
+        }
+        Insert: Partial<Database['public']['Tables']['plan_drafts']['Row']> & {
+          student_id: string
+          payload: Json
+          source: 'ai' | 'import_excel' | 'import_focus_entrena'
+        }
+        Update: Partial<Database['public']['Tables']['plan_drafts']['Row']>
+        Relationships: [
+          {
+            foreignKeyName: 'plan_drafts_student_id_fkey'
+            columns: ['student_id']
+            isOneToOne: false
+            referencedRelation: 'students'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       workouts: {
         Row: {
           id: string
