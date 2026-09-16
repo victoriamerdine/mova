@@ -1,5 +1,6 @@
+import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { Plus } from 'lucide-react'
+import { Dumbbell, Plus } from 'lucide-react'
 
 import { AppSidebar } from '@/components/professor/app-sidebar'
 import { MobileNav } from '@/components/professor/mobile-nav'
@@ -48,6 +49,13 @@ export default async function PlansPage({
           <div>
             <h1 className="text-lg font-semibold tracking-tight">Mis planes</h1>
             <p className="text-muted-foreground text-sm">Entrenás solo — acá armás tu propio plan.</p>
+            <Link
+              href="/alumno"
+              className="text-muted-foreground hover:text-foreground mt-1 inline-flex items-center gap-1.5 text-sm"
+            >
+              <Dumbbell className="size-4" />
+              Ir a mi entrenamiento de hoy
+            </Link>
           </div>
 
           {error ? (

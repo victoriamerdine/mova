@@ -1740,6 +1740,16 @@ Construir:
 
 ### ESTADO — en producción
 
+**Acceso**: `getCurrentStudent()` (`lib/supabase/queries/student-plan.ts`)
+acepta tanto `role='student'` (alumno gestionado por un profesor) como
+`role='individual'` (autocoacheado) — ambos comparten el mismo
+`students.id`, así que RLS (`is_own_student`) ya los trataba igual; solo
+hacía falta destrabar el gate de la aplicación. El individuo arma su plan
+en `/planes` y lo ejecuta acá — link "Ir a mi entrenamiento de hoy" desde
+`/planes`, y "Mis planes" de vuelta desde `/alumno`. El mensaje de "sin
+plan activo" cambia según el rol (para el individuo no menciona "tu
+profe").
+
 **Modelo de ejecución** (migraciones `20260828000034`, `…038`):
 
 - El plan es un **ciclo de semanas que se repite** dentro del rango
@@ -1863,6 +1873,51 @@ Construir:
 - competencias;
 - eventos;
 - descanso.
+
+### ESTADO — en producción
+
+**Modelo de datos**: se reutiliza `competitions` (Fase 1) en vez de crear
+una tabla `events` separada — ya tenía la forma exacta que hacía falta
+(alumno, fecha, tipo, lugar, notas). Migración `20260828000046`:
+`sport_id` pasa a opcional (un día de descanso no tiene deporte) y el
+check de `type` suma `descanso` y `recuperacion` a los siete valores que
+ya existían (`partido`/`carrera`/`torneo`/`campeonato`/`competencia`/
+`test`/`evento`).
+
+**Calendario del profesor** (`/calendario`, nuevo ítem de menú en
+`<AppSidebar>`/`<MobileNav>`): agrega las competencias/eventos de TODOS
+sus alumnos activos (`getCalendarItems()`, RLS-scoped por
+`is_professor_of` — sin filtrar por profesor a mano). Calendario mensual
+con navegación ← mes →, día marcado si tiene ítems, tocar un día despliega
+el detalle (alumno · tipo · deporte/lugar/nota) con link a la ficha del
+alumno.
+
+**Calendario del alumno** (`/alumno/calendario`, link "Ver mi calendario"
+desde `/alumno`): mismo componente, solo lectura, con sus propias
+competencias/eventos (`getStudentCompetitions`, RLS "el alumno ve las
+suyas"). Funciona tanto para el rol `student` (gestionado por un
+profesor) como para el individuo autocoacheado, que desde
+`getCurrentStudent()` acepta ambos roles — ver "App del alumno" (Fase 7).
+
+**Carga de ítems**: se amplió la tarjeta ya existente en la ficha del
+alumno (antes "Competencias", ahora "Calendario") — el profesor elige tipo
+(incluye Descanso/Recuperación) y opcionalmente un deporte; sin deporte
+seleccionado el ítem no cuenta con `sport_id`. Sigue siendo el profesor
+quien carga — el alumno no escribe su propio calendario (mismo criterio
+de "el profesor mantiene el control" que ya regía para competencias).
+
+**Componente compartido**: `<MonthCalendar>` (`components/calendar/`) +
+`lib/calendar-grid.ts` (grilla del mes, navegación, testeado) — genérico,
+no asume de qué son los ítems; lo usan tanto `/calendario` como
+`/alumno/calendario`.
+
+### Pendiente
+
+- El calendario no muestra entrenamientos/sesiones realizadas — eso ya
+  vive en `/alumno/historial` (Fase 7) y en la analítica (Fase 8); unificar
+  ambas vistas queda para más adelante si hace falta.
+- Filtrar el calendario del profesor por alumno o por tipo (hoy: todo
+  junto, un mes a la vez).
 
 ---
 

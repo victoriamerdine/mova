@@ -17,6 +17,8 @@ const TYPE_OPTIONS: { value: Competition['type']; label: string }[] = [
   { value: 'competencia', label: 'Competencia' },
   { value: 'test', label: 'Test' },
   { value: 'evento', label: 'Evento' },
+  { value: 'descanso', label: 'Descanso' },
+  { value: 'recuperacion', label: 'Recuperación' },
 ]
 
 function todayISO() {
@@ -38,7 +40,7 @@ export function CompetitionsCard({
 }) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
-  const [sportId, setSportId] = useState(sports[0]?.id ?? '')
+  const [sportId, setSportId] = useState('')
   const [date, setDate] = useState(todayISO())
   const [type, setType] = useState<Competition['type']>('partido')
   const [location, setLocation] = useState('')
@@ -67,22 +69,19 @@ export function CompetitionsCard({
     })
   }
 
-  if (sports.length === 0) {
-    return <p className="text-muted-foreground text-xs">No hay deportes cargados en el catálogo.</p>
-  }
-
   return (
     <div className="flex flex-col gap-3">
       {error ? <p className="bg-destructive/10 text-destructive rounded-lg px-3 py-2 text-sm">{error}</p> : null}
 
       <div className="flex flex-wrap items-end gap-3">
         <label className="flex flex-col gap-1.5">
-          <span className="text-muted-foreground text-xs font-medium">Deporte</span>
+          <span className="text-muted-foreground text-xs font-medium">Deporte (opcional)</span>
           <select
             value={sportId}
             onChange={(e) => setSportId(e.target.value)}
             className="border-input h-8 rounded-lg border bg-transparent px-2.5 text-sm outline-none dark:bg-input/30"
           >
+            <option value="">—</option>
             {sports.map((s) => (
               <option key={s.id} value={s.id}>
                 {s.name}
@@ -116,21 +115,21 @@ export function CompetitionsCard({
           <span className="text-muted-foreground text-xs font-medium">Nota (opcional)</span>
           <Input type="text" value={notes} onChange={(e) => setNotes(e.target.value)} />
         </label>
-        <Button size="sm" className="h-8" disabled={pending || !sportId || !date} onClick={submit}>
+        <Button size="sm" className="h-8" disabled={pending || !date} onClick={submit}>
           <Plus data-icon="inline-start" />
           {pending ? 'Guardando…' : 'Agregar'}
         </Button>
       </div>
 
       {competitions.length === 0 ? (
-        <p className="text-muted-foreground text-xs">Todavía no cargaste ninguna competencia.</p>
+        <p className="text-muted-foreground text-xs">Todavía no cargaste nada en el calendario.</p>
       ) : (
         <ul className="divide-border divide-y">
           {competitions.map((c) => (
             <li key={c.id} className="flex items-center gap-3 py-2 text-sm">
               <span className="text-muted-foreground w-24 shrink-0 text-xs">{formatDate(c.date)}</span>
               <span className="font-medium capitalize">{c.type}</span>
-              <span className="text-muted-foreground text-xs">{c.sportName}</span>
+              {c.sportName ? <span className="text-muted-foreground text-xs">{c.sportName}</span> : null}
               {c.location ? (
                 <span className="text-muted-foreground truncate text-xs">{c.location}</span>
               ) : null}

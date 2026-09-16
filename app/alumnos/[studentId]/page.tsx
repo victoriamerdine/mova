@@ -312,9 +312,14 @@ export default async function StudentDetailPage({
 
           <Card className="gap-0 py-5">
             <CardHeader className="px-5">
-              <CardTitle className="text-sm">Competencias</CardTitle>
+              <CardTitle className="text-sm">Calendario</CardTitle>
               <CardDescription className="text-xs">
-                Partidos, carreras, torneos — calendario deportivo del alumno (CLAUDE.md §27).
+                Partidos, carreras, torneos, tests, descanso — calendario deportivo del alumno
+                (CLAUDE.md §9/§27). También aparece en{' '}
+                <Link href="/calendario" className="underline underline-offset-2">
+                  el calendario general
+                </Link>
+                .
               </CardDescription>
             </CardHeader>
             <CardContent className="px-5">

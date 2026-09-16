@@ -214,10 +214,19 @@ export type Database = {
           id: string
           student_id: string
           plan_id: string | null
-          sport_id: string
+          sport_id: string | null
           date: string
           time: string | null
-          type: 'partido' | 'carrera' | 'torneo' | 'campeonato' | 'competencia' | 'test' | 'evento'
+          type:
+            | 'partido'
+            | 'carrera'
+            | 'torneo'
+            | 'campeonato'
+            | 'competencia'
+            | 'test'
+            | 'evento'
+            | 'descanso'
+            | 'recuperacion'
           importance: string | null
           location: string | null
           notes: string | null
@@ -225,9 +234,17 @@ export type Database = {
         }
         Insert: Partial<Database['public']['Tables']['competitions']['Row']> & {
           student_id: string
-          sport_id: string
           date: string
-          type: 'partido' | 'carrera' | 'torneo' | 'campeonato' | 'competencia' | 'test' | 'evento'
+          type:
+            | 'partido'
+            | 'carrera'
+            | 'torneo'
+            | 'campeonato'
+            | 'competencia'
+            | 'test'
+            | 'evento'
+            | 'descanso'
+            | 'recuperacion'
         }
         Update: Partial<Database['public']['Tables']['competitions']['Row']>
         Relationships: [
