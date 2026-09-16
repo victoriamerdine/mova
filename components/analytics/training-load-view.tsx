@@ -1,3 +1,5 @@
+import { Fragment } from 'react'
+
 import { cn } from '@/lib/utils'
 import type { TrainingLoadReport } from '@/lib/supabase/queries/analytics'
 import type { ComparisonRow } from '@/lib/analytics/training-load'
@@ -49,7 +51,7 @@ function ComparisonList({ title, rows }: { title: string; rows: ComparisonRow[] 
         <span className="text-muted-foreground text-right text-[10px] uppercase">Real.</span>
         <span className="text-muted-foreground text-right text-[10px] uppercase">Dif.</span>
         {shown.map((r) => (
-          <div key={r.groupId} className="col-span-4 grid grid-cols-[1fr_auto_auto_auto] items-center gap-x-3">
+          <Fragment key={r.groupId}>
             <span className="truncate">{r.groupName}</span>
             <span className="tnum text-right font-mono">{r.programado}</span>
             <span className="tnum text-right font-mono">{r.realizado}</span>
@@ -67,7 +69,7 @@ function ComparisonList({ title, rows }: { title: string; rows: ComparisonRow[] 
             >
               {r.diffPct == null ? '—' : `${r.diffPct > 0 ? '+' : ''}${r.diffPct}%`}
             </span>
-          </div>
+          </Fragment>
         ))}
       </div>
     </div>
