@@ -234,6 +234,66 @@ export async function getPlansToRenew(professorId: string): Promise<RenewalItem[
   }))
 }
 
+export type ProgressNotification = {
+  studentId: string
+  studentName: string
+  latestAt: string
+}
+
+/**
+ * Alumnos con "novedades": tienen una sesión completada más reciente que
+ * `last_progress_viewed_at` (o nunca se abrió su ficha y ya completaron
+ * algo). Alimenta la campanita — comparar es en memoria, no hay tabla de
+ * notificaciones aparte (ver migración 20260828000047).
+ */
+export async function getProfessorNotifications(professorId: string): Promise<ProgressNotification[]> {
+  const supabase = await createClient()
+
+  const { data: relations } = await supabase
+    .from('student_professors')
+    .select('student_id, last_progress_viewed_at, students(profiles(full_name))')
+    .eq('professor_id', professorId)
+    .eq('status', 'active')
+
+  type RelationRow = {
+    student_id: string
+    last_progress_viewed_at: string | null
+    students: { profiles: { full_name: string } | null } | null
+  }
+  const rows = (relations ?? []) as unknown as RelationRow[]
+  if (rows.length === 0) return []
+
+  const { data: sessions } = await supabase
+    .from('workout_sessions')
+    .select('student_id, completed_at')
+    .in(
+      'student_id',
+      rows.map((r) => r.student_id),
+    )
+    .not('completed_at', 'is', null)
+    .order('completed_at', { ascending: false })
+    .limit(500)
+
+  const latestByStudent = new Map<string, string>()
+  for (const s of (sessions ?? []) as { student_id: string; completed_at: string }[]) {
+    if (!latestByStudent.has(s.student_id)) latestByStudent.set(s.student_id, s.completed_at)
+  }
+
+  return rows
+    .map((r) => {
+      const latestAt = latestByStudent.get(r.student_id)
+      if (!latestAt) return null
+      if (r.last_progress_viewed_at && latestAt <= r.last_progress_viewed_at) return null
+      return {
+        studentId: r.student_id,
+        studentName: r.students?.profiles?.full_name ?? 'Alumno',
+        latestAt,
+      }
+    })
+    .filter((n): n is ProgressNotification => n != null)
+    .sort((a, b) => (a.latestAt < b.latestAt ? 1 : -1))
+}
+
 export type MyStudent = {
   id: string
   fullName: string

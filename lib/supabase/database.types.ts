@@ -497,6 +497,7 @@ export type Database = {
           status: 'active' | 'invited' | 'ended'
           permission_level: 'full' | 'view_only'
           suspended_at: string | null
+          last_progress_viewed_at: string | null
           created_at: string
         }
         Insert: Partial<Database['public']['Tables']['student_professors']['Row']>

@@ -28,7 +28,7 @@ import { getStudentLoadTargets } from '@/lib/supabase/queries/plan-editor'
 import { getStudentPayments } from '@/lib/supabase/queries/students'
 import { getStudentCompetitions } from '@/lib/supabase/queries/competitions'
 import { getStudentUsername } from '@/lib/auth/student-credentials'
-import { createPlan } from '@/app/alumnos/[studentId]/actions'
+import { createPlan, markStudentProgressViewed } from '@/app/alumnos/[studentId]/actions'
 import { getPendingDrafts } from '@/app/planes/draft-actions'
 
 const PLAN_TYPE_OPTIONS: { value: string; label: string }[] = [
@@ -46,14 +46,18 @@ export default async function StudentDetailPage({
   searchParams,
 }: {
   params: Promise<{ studentId: string }>
-  searchParams: Promise<{ error?: string }>
+  searchParams: Promise<{ error?: string; avance?: string }>
 }) {
   const professor = await getCurrentProfessor()
   if (!professor) redirect('/login')
 
   const { studentId } = await params
-  const { error } = await searchParams
+  const { error, avance } = await searchParams
   const supabase = await createClient()
+
+  // Fire-and-forget: abrir la ficha apaga el aviso de "novedades" en la
+  // campanita de este alumno, sin bloquear el render de la página.
+  void markStudentProgressViewed(studentId)
 
   const { data: studentRow } = await supabase
     .from('students')
@@ -166,18 +170,6 @@ export default async function StudentDetailPage({
           ) : null}
 
           <StudentFormsCard submissions={formSubmissions} />
-
-          <Card className="gap-0 overflow-hidden py-0">
-            <CardHeader className="border-b px-5 py-4">
-              <CardTitle className="text-sm">Avance y comentarios</CardTitle>
-              <CardDescription className="text-xs">
-                Sesiones que el alumno completó — carga, repeticiones, RPE y cómo se sintió.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="px-0 py-0">
-              <StudentProgressPanel sessions={progress} />
-            </CardContent>
-          </Card>
 
           <Card className="gap-0 py-5">
             <CardHeader className="px-5">
@@ -374,6 +366,23 @@ export default async function StudentDetailPage({
                 </ul>
               )}
             </CardContent>
+          </Card>
+
+          <Card id="avance" className="gap-0 overflow-hidden py-0 scroll-mt-6">
+            <details className="group" open={avance === '1'}>
+              <summary className="flex cursor-pointer list-none items-center gap-3 px-5 py-4 [&::-webkit-details-marker]:hidden">
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium">Avance y comentarios</p>
+                  <p className="text-muted-foreground text-xs">
+                    Sesiones que el alumno completó — carga, repeticiones, RPE y cómo se sintió.
+                  </p>
+                </div>
+                <ChevronDown className="text-muted-foreground size-4 shrink-0 transition-transform group-open:rotate-180" />
+              </summary>
+              <div className="border-t">
+                <StudentProgressPanel sessions={progress} />
+              </div>
+            </details>
           </Card>
         </main>
       </div>
