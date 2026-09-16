@@ -206,3 +206,20 @@ export async function deleteCompetition(studentId: string, competitionId: string
 
   revalidatePath(`/alumnos/${studentId}`)
 }
+
+/**
+ * Marca que el profesor ya vio las novedades de este alumno — apaga el
+ * aviso en la campanita hasta la próxima sesión completada. Se llama al
+ * abrir la ficha del alumno (fire-and-forget, no bloquea el render).
+ */
+export async function markStudentProgressViewed(studentId: string) {
+  const professor = await getCurrentProfessor()
+  if (!professor) return
+
+  const supabase = await createClient()
+  await supabase
+    .from('student_professors')
+    .update({ last_progress_viewed_at: new Date().toISOString() })
+    .eq('student_id', studentId)
+    .eq('professor_id', professor.id)
+}

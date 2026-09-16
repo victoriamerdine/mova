@@ -1,9 +1,10 @@
-import { Bell, LogOut, Search } from 'lucide-react'
+import { LogOut, Search } from 'lucide-react'
 
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group'
 import { Separator } from '@/components/ui/separator'
+import { NotificationsBell } from '@/components/professor/notifications-bell'
 import { signOut } from '@/app/login/actions'
 
 const rawToday = new Date().toLocaleDateString('es-AR', {
@@ -48,13 +49,7 @@ export function DashboardHeader({ professorName }: { professorName: string }) {
             />
           </InputGroup>
 
-          <Button variant="ghost" size="icon" aria-label="Notificaciones" className="relative">
-            <Bell />
-            <span
-              aria-hidden="true"
-              className="bg-warning absolute top-1.5 right-1.5 size-1.5 rounded-full"
-            />
-          </Button>
+          <NotificationsBell />
 
           <Separator orientation="vertical" className="hidden h-8 sm:block" />
 

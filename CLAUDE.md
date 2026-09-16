@@ -1610,8 +1610,19 @@ en todas las páginas):
   **`<MobileNav>`** (barra fija + drawer con hamburguesa, `lg:hidden`)
   abajo de `lg`. `DashboardHeader` y el header de `/biblioteca` son
   `lg:sticky` (estáticos en mobile) para no apilar dos barras.
-- Ítems: Dashboard, Alumnos, Biblioteca, Planes, Formularios, Analítica
-  (`#`), Configuración (`/cuenta`).
+- Ítems: Dashboard, Alumnos, Biblioteca, Planes, Formularios, Analítica,
+  Calendario, Configuración (`/cuenta`).
+- **Campanita de notificaciones** (`<NotificationsBell>`, en
+  `DashboardHeader`): avisa qué alumnos tienen "novedades" — una sesión
+  completada más nueva que la última vez que el profesor abrió su ficha
+  (`student_professors.last_progress_viewed_at`, migración
+  `20260828000047`). Componente cliente, trae la lista de
+  `GET /api/notifications` (`getProfessorNotifications`, RLS-scoped) al
+  montar; sin tabla de notificaciones aparte, se compara en memoria contra
+  la sesión completada más reciente de cada alumno. Tocar un ítem lleva a
+  `/alumnos/[id]?avance=1#avance` — abre esa ficha con "Avance y
+  comentarios" ya expandido; abrir la ficha (`markStudentProgressViewed`,
+  fire-and-forget) apaga el aviso de ese alumno hasta la próxima sesión.
 
 **Dashboard** (`/`, `getDashboardMetrics` + `getRecentActivity` +
 `getPlansToRenew` + `getMyStudents`):
@@ -1632,9 +1643,12 @@ en todas las páginas):
   ver `lib/auth/student-username.ts`). Listar, sacar (borra la relación
   `student_professors`).
 - Ficha del alumno: formularios respondidos (`<StudentFormsCard>`),
-  **Avance y comentarios** (Fase 7), recomendaciones IA, objetivos de
-  carga por patrón (`<LoadTargetsForm>`), **Acceso del alumno**
-  (`<StudentAccessCard>`), lista de planes con badge de renovación.
+  recomendaciones IA, objetivos de carga por patrón
+  (`<LoadTargetsForm>`), **Acceso del alumno** (`<StudentAccessCard>`),
+  Pagos, Calendario, lista de planes con badge de renovación y, al
+  final de todo, **Avance y comentarios** (Fase 7) — contraído por
+  defecto (`<details>`, mismo patrón que "Objetivos de carga"); el link
+  de la campanita lo abre expandido vía `?avance=1#avance`.
 
 **Enviar acceso** (`<StudentAccessCard>` para el alumno,
 `<AccessActions>` en el panel del admin para el profesor — misma lógica):
@@ -1657,7 +1671,8 @@ otro profesor ni de alumnos que no son suyos.
 ### Pendiente
 
 - Buscador global del header (hoy es decorativo).
-- Analítica (Fase 8) y Calendario (Fase 9) — ítems del menú en `#`.
+- La campanita solo cubre progreso/sesiones; no hay mensajería
+  profesor↔alumno todavía (§57 no la contempla — sería Fase 11 Comunidad).
 
 ---
 
