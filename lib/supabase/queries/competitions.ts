@@ -11,6 +11,8 @@ export type CompetitionType =
   | 'evento'
   | 'descanso'
   | 'recuperacion'
+  | 'entreno_preferido'
+  | 'otra_disciplina'
 
 export type Competition = {
   id: string
@@ -72,6 +74,7 @@ export type CompetitionRecurrence = {
   type: CompetitionType
   /** 0 = domingo .. 6 = sábado. */
   weekday: number
+  time: string | null
   location: string | null
   notes: string | null
   startDate: string
@@ -83,7 +86,7 @@ export async function getStudentRecurrences(studentId: string): Promise<Competit
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('competition_recurrences')
-    .select('id, sport_id, type, weekday, location, notes, start_date, end_date, sports(name)')
+    .select('id, sport_id, type, weekday, time, location, notes, start_date, end_date, sports(name)')
     .eq('student_id', studentId)
     .order('weekday', { ascending: true })
 
@@ -94,6 +97,7 @@ export async function getStudentRecurrences(studentId: string): Promise<Competit
     sport_id: string | null
     type: CompetitionType
     weekday: number
+    time: string | null
     location: string | null
     notes: string | null
     start_date: string
@@ -107,6 +111,7 @@ export async function getStudentRecurrences(studentId: string): Promise<Competit
     sportName: r.sports?.name ?? null,
     type: r.type,
     weekday: r.weekday,
+    time: r.time,
     location: r.location,
     notes: r.notes,
     startDate: r.start_date,
@@ -141,7 +146,7 @@ async function getRecurrenceOccurrences(
   let query = supabase
     .from('competition_recurrences')
     .select(
-      'id, student_id, sport_id, type, weekday, location, notes, start_date, end_date, sports(name), students(profiles(full_name))',
+      'id, student_id, sport_id, type, weekday, time, location, notes, start_date, end_date, sports(name), students(profiles(full_name))',
     )
   if (filterStudentId) query = query.eq('student_id', filterStudentId)
   const { data: recurrences } = await query
@@ -152,6 +157,7 @@ async function getRecurrenceOccurrences(
     sport_id: string | null
     type: CompetitionType
     weekday: number
+    time: string | null
     location: string | null
     notes: string | null
     start_date: string
@@ -192,7 +198,7 @@ async function getRecurrenceOccurrences(
         sportId: r.sport_id,
         sportName: r.sports?.name ?? null,
         date,
-        time: null,
+        time: r.time,
         type: r.type,
         importance: null,
         location: r.location,

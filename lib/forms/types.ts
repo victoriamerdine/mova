@@ -22,6 +22,7 @@ export type QuestionType =
   | 'pace'
   | 'file'
   | 'video'
+  | 'weekly_schedule'
 
 export type FormStatus = 'draft' | 'published' | 'archived'
 export type SubmissionStatus = 'pending' | 'started' | 'completed' | 'expired'
@@ -42,7 +43,13 @@ export type QuestionConfig = {
   /** file */
   accept?: string
   maxSizeMB?: number
+  /** weekly_schedule: a qué se aplican los días elegidos en el calendario
+   *  ('entreno_preferido' | 'otra_disciplina', ver lib/forms/question-types.ts) */
+  calendarPurpose?: string
 }
+
+/** weekly_schedule: un día de la semana marcado, con hora opcional. */
+export type WeeklyScheduleDay = { weekday: number; time: string | null }
 
 export type QuestionOption = { id: string; order: number; value: string; label: string }
 

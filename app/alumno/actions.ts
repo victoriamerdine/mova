@@ -134,3 +134,56 @@ export async function finishDay(
   revalidatePath('/alumno/historial')
   return { sessionId }
 }
+
+const SCHEDULE_PURPOSES = ['entreno_preferido', 'otra_disciplina'] as const
+type SchedulePurpose = (typeof SCHEDULE_PURPOSES)[number]
+
+/**
+ * El alumno edita sus propios días de entreno preferido / otra disciplina
+ * (CLAUDE.md Fase 9) — excepción deliberada a "el profesor carga el
+ * calendario": acá el alumno es la autoridad sobre su disponibilidad. Se
+ * reemplaza el conjunto entero para ese propósito (mismo criterio que
+ * `logExercise`: volver a guardar borra y reescribe). Marca
+ * `students.schedule_updated_at` para la campanita del profesor.
+ */
+export async function updateMySchedule(
+  purpose: SchedulePurpose,
+  days: { weekday: number; time: string | null }[],
+): Promise<{ error: string | null }> {
+  const student = await requireStudent()
+  if (!(SCHEDULE_PURPOSES as readonly string[]).includes(purpose)) {
+    return { error: 'Propósito inválido.' }
+  }
+
+  const supabase = await createClient()
+  const { error: delError } = await supabase
+    .from('competition_recurrences')
+    .delete()
+    .eq('student_id', student.id)
+    .eq('type', purpose)
+  if (delError) return { error: delError.message }
+
+  const today = new Date().toISOString().slice(0, 10)
+  const rows = days
+    .filter((d) => d.weekday >= 0 && d.weekday <= 6)
+    .map((d) => ({
+      student_id: student.id,
+      type: purpose,
+      weekday: d.weekday,
+      time: d.time,
+      start_date: today,
+    }))
+
+  if (rows.length > 0) {
+    const { error } = await supabase.from('competition_recurrences').insert(rows)
+    if (error) return { error: error.message }
+  }
+
+  await supabase
+    .from('students')
+    .update({ schedule_updated_at: new Date().toISOString() })
+    .eq('id', student.id)
+
+  revalidatePath('/alumno/calendario')
+  return { error: null }
+}

@@ -12,7 +12,7 @@ const ALL_TYPES: QuestionType[] = [
   'short_text', 'long_text', 'number', 'date', 'birth_date',
   'single_select', 'multi_select', 'scale', 'yes_no',
   'weight', 'height', 'duration', 'distance', 'pace',
-  'file', 'video',
+  'file', 'video', 'weekly_schedule',
 ]
 
 function sec(over: Partial<SnapshotSection> = {}): SnapshotSection {
@@ -48,7 +48,7 @@ describe('registry de tipos de pregunta', () => {
   it('cada configField apunta a una key real de QuestionConfig', () => {
     const validKeys = new Set([
       'min', 'max', 'step', 'unit', 'maxLength', 'minLabel', 'maxLabel',
-      'allowOther', 'accept', 'maxSizeMB',
+      'allowOther', 'accept', 'maxSizeMB', 'calendarPurpose',
     ])
     for (const t of QUESTION_TYPES) {
       for (const f of t.configFields) expect(validKeys.has(f.key)).toBe(true)

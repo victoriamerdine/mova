@@ -199,6 +199,12 @@ describe('missingRequired', () => {
     expect(missingRequired(s, { nombre: 'Ana' })).toEqual(['Email'])
   })
 
+  it('weekly_schedule: un array vacío no cuenta como respondida, uno con días sí', () => {
+    const s = structure([section('s1', [q('dias', { required: true, label: 'Días', type: 'weekly_schedule' })])])
+    expect(missingRequired(s, { dias: [] })).toEqual(['Días'])
+    expect(missingRequired(s, { dias: [{ weekday: 1, time: '18:00' }] })).toEqual([])
+  })
+
   it('una obligatoria OCULTA por regla no se exige (formulario condicional)', () => {
     const s = structure(
       [section('s1', [q('tiene', { type: 'yes_no', label: 'Tenés' }), q('detalle', { required: true, label: 'Detalle' })])],

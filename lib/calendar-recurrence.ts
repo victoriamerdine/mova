@@ -37,3 +37,8 @@ const WEEKDAY_LABELS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'V
 export function weekdayLabel(weekday: number): string {
   return WEEKDAY_LABELS[weekday] ?? '—'
 }
+
+export const WEEKDAY_LABELS_SHORT = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
+
+/** Orden lunes-a-domingo para grillas semanales (los índices siguen siendo 0=domingo..6=sábado). */
+export const WEEKDAY_DISPLAY_ORDER = [1, 2, 3, 4, 5, 6, 0]

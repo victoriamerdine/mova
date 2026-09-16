@@ -271,6 +271,7 @@ const QUESTION_TYPE_GROUPS = [
   ['fecha', 'Fecha'],
   ['medidas', 'Medidas'],
   ['archivo', 'Archivo'],
+  ['horario', 'Horario'],
 ] as const
 
 function SectionEditor({

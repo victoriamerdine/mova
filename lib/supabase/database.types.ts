@@ -227,6 +227,8 @@ export type Database = {
             | 'evento'
             | 'descanso'
             | 'recuperacion'
+            | 'entreno_preferido'
+            | 'otra_disciplina'
           importance: string | null
           location: string | null
           notes: string | null
@@ -245,6 +247,8 @@ export type Database = {
             | 'evento'
             | 'descanso'
             | 'recuperacion'
+            | 'entreno_preferido'
+            | 'otra_disciplina'
         }
         Update: Partial<Database['public']['Tables']['competitions']['Row']>
         Relationships: [
@@ -286,7 +290,10 @@ export type Database = {
             | 'evento'
             | 'descanso'
             | 'recuperacion'
+            | 'entreno_preferido'
+            | 'otra_disciplina'
           weekday: number
+          time: string | null
           location: string | null
           notes: string | null
           start_date: string
@@ -305,6 +312,8 @@ export type Database = {
             | 'evento'
             | 'descanso'
             | 'recuperacion'
+            | 'entreno_preferido'
+            | 'otra_disciplina'
           weekday: number
           start_date: string
         }
@@ -553,6 +562,7 @@ export type Database = {
           created_at: string
           username: string | null
           phone: string | null
+          schedule_updated_at: string | null
         }
         Insert: Partial<Database['public']['Tables']['students']['Row']>
         Update: Partial<Database['public']['Tables']['students']['Row']>
@@ -575,6 +585,7 @@ export type Database = {
           permission_level: 'full' | 'view_only'
           suspended_at: string | null
           last_progress_viewed_at: string | null
+          last_schedule_viewed_at: string | null
           created_at: string
         }
         Insert: Partial<Database['public']['Tables']['student_professors']['Row']>
@@ -1071,6 +1082,7 @@ export type Database = {
             | 'pace'
             | 'file'
             | 'video'
+            | 'weekly_schedule'
           label: string
           help_text: string | null
           required: boolean

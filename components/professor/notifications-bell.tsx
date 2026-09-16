@@ -5,7 +5,12 @@ import Link from 'next/link'
 import { Bell } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
-import type { ProgressNotification } from '@/lib/supabase/queries/professor-dashboard'
+import type {
+  ProgressNotification,
+  ScheduleNotification,
+} from '@/lib/supabase/queries/professor-dashboard'
+
+type BellNotification = ProgressNotification | ScheduleNotification
 
 function timeAgo(iso: string): string {
   const diffMs = Date.now() - new Date(iso).getTime()
@@ -25,7 +30,7 @@ function timeAgo(iso: string): string {
  */
 export function NotificationsBell() {
   const [open, setOpen] = useState(false)
-  const [notifications, setNotifications] = useState<ProgressNotification[]>([])
+  const [notifications, setNotifications] = useState<BellNotification[]>([])
   const [loaded, setLoaded] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
@@ -33,7 +38,7 @@ export function NotificationsBell() {
     let cancelled = false
     fetch('/api/notifications')
       .then((res) => (res.ok ? res.json() : { notifications: [] }))
-      .then((json: { notifications?: ProgressNotification[] }) => {
+      .then((json: { notifications?: BellNotification[] }) => {
         if (!cancelled) {
           setNotifications(json.notifications ?? [])
           setLoaded(true)
@@ -86,15 +91,21 @@ export function NotificationsBell() {
           ) : (
             <ul className="divide-border max-h-80 divide-y overflow-y-auto">
               {notifications.map((n) => (
-                <li key={n.studentId}>
+                <li key={`${n.kind}:${n.studentId}`}>
                   <Link
-                    href={`/alumnos/${n.studentId}?avance=1#avance`}
+                    href={
+                      n.kind === 'schedule'
+                        ? `/alumnos/${n.studentId}/calendario`
+                        : `/alumnos/${n.studentId}?avance=1#avance`
+                    }
                     onClick={() => setOpen(false)}
                     className="hover:bg-muted/60 flex flex-col gap-0.5 px-3 py-2.5 text-sm"
                   >
                     <span>
                       <span className="font-medium">{n.studentName}</span>{' '}
-                      <span className="text-muted-foreground">tiene novedades</span>
+                      <span className="text-muted-foreground">
+                        {n.kind === 'schedule' ? 'cambió sus días de entreno' : 'tiene novedades'}
+                      </span>
                     </span>
                     <span className="text-muted-foreground text-xs">{timeAgo(n.latestAt)}</span>
                   </Link>

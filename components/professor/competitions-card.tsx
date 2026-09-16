@@ -15,7 +15,12 @@ import {
 } from '@/app/alumnos/[studentId]/actions'
 import type { Competition, CompetitionRecurrence } from '@/lib/supabase/queries/competitions'
 
-const TYPE_OPTIONS: { value: Competition['type']; label: string }[] = [
+// El profesor solo carga manualmente estos tipos acá — entreno_preferido y
+// otra_disciplina los escribe el alumno (calendario/formulario), no este
+// formulario de alta manual.
+type ManualCompetitionType = Exclude<Competition['type'], 'entreno_preferido' | 'otra_disciplina'>
+
+const TYPE_OPTIONS: { value: ManualCompetitionType; label: string }[] = [
   { value: 'partido', label: 'Partido' },
   { value: 'carrera', label: 'Carrera' },
   { value: 'torneo', label: 'Torneo' },
@@ -55,7 +60,7 @@ export function CompetitionsCard({
   const [date, setDate] = useState(todayISO())
   const [weekday, setWeekday] = useState(0)
   const [endDate, setEndDate] = useState('')
-  const [type, setType] = useState<Competition['type']>('partido')
+  const [type, setType] = useState<ManualCompetitionType>('partido')
   const [location, setLocation] = useState('')
   const [notes, setNotes] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -135,7 +140,7 @@ export function CompetitionsCard({
           <span className="text-muted-foreground text-xs font-medium">Tipo</span>
           <select
             value={type}
-            onChange={(e) => setType(e.target.value as Competition['type'])}
+            onChange={(e) => setType(e.target.value as ManualCompetitionType)}
             className="border-input h-8 rounded-lg border bg-transparent px-2.5 text-sm outline-none dark:bg-input/30"
           >
             {TYPE_OPTIONS.map((t) => (

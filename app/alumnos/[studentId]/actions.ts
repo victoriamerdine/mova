@@ -299,3 +299,20 @@ export async function markStudentProgressViewed(studentId: string) {
     .eq('student_id', studentId)
     .eq('professor_id', professor.id)
 }
+
+/**
+ * Igual que markStudentProgressViewed pero para la señal de "cambió sus
+ * días" — señal separada (ver migración 20260828000050), para no apagar
+ * el aviso de progreso al mirar el calendario o viceversa.
+ */
+export async function markScheduleViewed(studentId: string) {
+  const professor = await getCurrentProfessor()
+  if (!professor) return
+
+  const supabase = await createClient()
+  await supabase
+    .from('student_professors')
+    .update({ last_schedule_viewed_at: new Date().toISOString() })
+    .eq('student_id', studentId)
+    .eq('professor_id', professor.id)
+}

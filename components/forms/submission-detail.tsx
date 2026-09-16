@@ -9,13 +9,29 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { applyAnswersToStudent, linkSubmissionToStudent } from '@/app/formularios/actions'
-import type { SnapshotQuestion } from '@/lib/forms/types'
+import {
+  applyAnswersToStudent,
+  applyScheduleToCalendar,
+  linkSubmissionToStudent,
+} from '@/app/formularios/actions'
+import type { SnapshotQuestion, WeeklyScheduleDay } from '@/lib/forms/types'
 import type { SubmissionDetail as Detail } from '@/lib/supabase/queries/forms'
+import { WEEKDAY_DISPLAY_ORDER, WEEKDAY_LABELS_SHORT } from '@/lib/calendar-recurrence'
 
-function formatAnswer(q: SnapshotQuestion, value: unknown): string {
+function formatWeeklySchedule(value: unknown): string {
+  const days = Array.isArray(value) ? (value as WeeklyScheduleDay[]) : []
+  if (days.length === 0) return '—'
+  return days
+    .slice()
+    .sort((a, b) => WEEKDAY_DISPLAY_ORDER.indexOf(a.weekday) - WEEKDAY_DISPLAY_ORDER.indexOf(b.weekday))
+    .map((d) => `${WEEKDAY_LABELS_SHORT[d.weekday]}${d.time ? ` ${d.time}` : ''}`)
+    .join(', ')
+}
+
+export function formatAnswer(q: SnapshotQuestion, value: unknown): string {
   if (value == null || value === '') return '—'
   if (typeof value === 'boolean') return value ? 'Sí' : 'No'
+  if (q.type === 'weekly_schedule') return formatWeeklySchedule(value)
   if (Array.isArray(value)) {
     return value
       .map((v) => q.options.find((o) => o.value === v)?.label ?? String(v))
@@ -232,6 +248,22 @@ export function SubmissionDetail({
         </Card>
       )}
 
+      {detail.studentId
+        ? allQuestions
+            .filter((q) => q.type === 'weekly_schedule' && detail.answers[q.id] != null)
+            .map((q) => (
+              <ScheduleApplyCard
+                key={q.id}
+                formId={detail.formId}
+                submissionId={detail.id}
+                studentId={detail.studentId!}
+                question={q}
+                answer={detail.answers[q.id]}
+                onApplied={show}
+              />
+            ))
+        : null}
+
       <Card className="gap-0 py-5">
         <CardHeader className="px-5">
           <CardTitle className="text-sm">Respuestas completas</CardTitle>
@@ -289,6 +321,101 @@ function AnswerValue({
     )
   }
   return <>{formatAnswer(q, value)}</>
+}
+
+const PURPOSE_LABEL: Record<string, string> = {
+  entreno_preferido: 'días que prefiere entrenar',
+  otra_disciplina: 'días de otra disciplina',
+}
+
+function ScheduleApplyCard({
+  formId,
+  submissionId,
+  studentId,
+  question,
+  answer,
+  onApplied,
+}: {
+  formId: string
+  submissionId: string
+  studentId: string
+  question: SnapshotQuestion
+  answer: unknown
+  onApplied: (msg: string) => void
+}) {
+  const [pending, startTransition] = useTransition()
+  const [err, setErr] = useState<string | null>(null)
+  const [days, setDays] = useState<WeeklyScheduleDay[]>(
+    Array.isArray(answer) ? (answer as WeeklyScheduleDay[]) : [],
+  )
+
+  const purpose = question.config.calendarPurpose ?? 'entreno_preferido'
+
+  function dayFor(weekday: number) {
+    return days.find((d) => d.weekday === weekday) ?? null
+  }
+  function toggle(weekday: number, checked: boolean) {
+    setDays(checked ? [...days, { weekday, time: null }] : days.filter((d) => d.weekday !== weekday))
+  }
+  function setTime(weekday: number, time: string) {
+    setDays(days.map((d) => (d.weekday === weekday ? { ...d, time: time || null } : d)))
+  }
+
+  return (
+    <Card className="gap-0 py-5">
+      <CardHeader className="px-5">
+        <CardTitle className="text-sm">Aplicar al calendario</CardTitle>
+        <CardDescription className="text-xs">
+          {question.label} — se guarda como {PURPOSE_LABEL[purpose] ?? purpose}. Revisá y confirmá.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-3 px-5">
+        {err ? <p className="text-destructive text-xs">{err}</p> : null}
+        <div className="flex flex-col gap-1.5">
+          {WEEKDAY_DISPLAY_ORDER.map((weekday) => {
+            const cur = dayFor(weekday)
+            return (
+              <div key={weekday} className="border-input flex items-center gap-3 rounded-xl border px-3 py-1.5">
+                <label className="flex flex-1 items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={cur != null}
+                    onChange={(e) => toggle(weekday, e.target.checked)}
+                  />
+                  {WEEKDAY_LABELS_SHORT[weekday]}
+                </label>
+                {cur ? (
+                  <input
+                    type="time"
+                    value={cur.time ?? ''}
+                    onChange={(e) => setTime(weekday, e.target.value)}
+                    className="border-input h-7 rounded-md border bg-transparent px-1.5 text-sm outline-none dark:bg-input/30"
+                  />
+                ) : null}
+              </div>
+            )
+          })}
+        </div>
+        <Button
+          size="sm"
+          className="w-fit"
+          disabled={pending}
+          onClick={() =>
+            startTransition(async () => {
+              const res = await applyScheduleToCalendar(formId, submissionId, studentId, purpose, days)
+              if (res.error) setErr(res.error)
+              else {
+                setErr(null)
+                onApplied('Calendario actualizado.')
+              }
+            })
+          }
+        >
+          Aplicar al calendario
+        </Button>
+      </CardContent>
+    </Card>
+  )
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {

@@ -491,3 +491,54 @@ export async function applyAnswersToStudent(
   revalidatePath(`/formularios/${formId}/respuestas/${submissionId}`)
   return {}
 }
+
+const SCHEDULE_PURPOSES = ['entreno_preferido', 'otra_disciplina'] as const
+
+/**
+ * Aplica una respuesta `weekly_schedule` al calendario del alumno — mismo
+ * criterio de "reemplazar todo el conjunto" que ya usa el alumno al editar
+ * sus propios días (ver `app/alumno/actions.ts#updateMySchedule`): borra
+ * las series existentes de este alumno+propósito y crea las nuevas.
+ */
+export async function applyScheduleToCalendar(
+  formId: string,
+  submissionId: string,
+  studentId: string,
+  purpose: string,
+  days: { weekday: number; time: string | null }[],
+): Promise<Result> {
+  await requireProfessor()
+  if (!(SCHEDULE_PURPOSES as readonly string[]).includes(purpose)) {
+    return { error: 'Propósito inválido.' }
+  }
+  const type = purpose as (typeof SCHEDULE_PURPOSES)[number]
+
+  const supabase = await createClient()
+  const { error: delError } = await supabase
+    .from('competition_recurrences')
+    .delete()
+    .eq('student_id', studentId)
+    .eq('type', type)
+  if (delError) return { error: delError.message }
+
+  const today = new Date().toISOString().slice(0, 10)
+  const rows = days
+    .filter((d) => d.weekday >= 0 && d.weekday <= 6)
+    .map((d) => ({
+      student_id: studentId,
+      type,
+      weekday: d.weekday,
+      time: d.time,
+      start_date: today,
+    }))
+
+  if (rows.length > 0) {
+    const { error } = await supabase.from('competition_recurrences').insert(rows)
+    if (error) return { error: error.message }
+  }
+
+  revalidatePath(`/formularios/${formId}/respuestas/${submissionId}`)
+  revalidatePath('/alumno/calendario')
+  revalidatePath(`/alumnos/${studentId}/calendario`)
+  return {}
+}

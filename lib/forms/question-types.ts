@@ -8,7 +8,7 @@ import type { QuestionConfig, QuestionType } from '@/lib/forms/types'
 export type QuestionTypeMeta = {
   type: QuestionType
   label: string
-  group: 'texto' | 'elección' | 'número' | 'fecha' | 'medidas' | 'archivo'
+  group: 'texto' | 'elección' | 'número' | 'fecha' | 'medidas' | 'archivo' | 'horario'
   /** usa la tabla form_question_options */
   hasOptions: boolean
   defaultConfig: QuestionConfig
@@ -189,6 +189,26 @@ export const QUESTION_TYPES: QuestionTypeMeta[] = [
     configFields: [],
     // Diferido al servicio de video (CLAUDE.md §11).
     available: false,
+  },
+  {
+    type: 'weekly_schedule',
+    label: 'Días de la semana + hora',
+    group: 'horario',
+    hasOptions: false,
+    defaultConfig: { calendarPurpose: 'entreno_preferido' },
+    // El profesor elige a qué se aplican en el calendario los días que
+    // marque el alumno — el mismo tipo sirve para "qué días entrena otras
+    // disciplinas" y para "qué días prefiere entrenar acá", usado dos
+    // veces con distinta etiqueta y este config.
+    configFields: [
+      {
+        key: 'calendarPurpose',
+        kind: 'select',
+        label: 'Qué representa en el calendario',
+        options: ['entreno_preferido', 'otra_disciplina'],
+      },
+    ],
+    available: true,
   },
 ]
 

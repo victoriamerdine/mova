@@ -235,6 +235,7 @@ export async function getPlansToRenew(professorId: string): Promise<RenewalItem[
 }
 
 export type ProgressNotification = {
+  kind: 'progress'
   studentId: string
   studentName: string
   latestAt: string
@@ -285,12 +286,61 @@ export async function getProfessorNotifications(professorId: string): Promise<Pr
       if (!latestAt) return null
       if (r.last_progress_viewed_at && latestAt <= r.last_progress_viewed_at) return null
       return {
+        kind: 'progress' as const,
         studentId: r.student_id,
         studentName: r.students?.profiles?.full_name ?? 'Alumno',
         latestAt,
       }
     })
     .filter((n): n is ProgressNotification => n != null)
+    .sort((a, b) => (a.latestAt < b.latestAt ? 1 : -1))
+}
+
+export type ScheduleNotification = {
+  kind: 'schedule'
+  studentId: string
+  studentName: string
+  latestAt: string
+}
+
+/**
+ * Alumnos que cambiaron sus días de entreno preferido / otra disciplina
+ * (`students.schedule_updated_at`) desde la última vez que el profesor
+ * miró su calendario (`last_schedule_viewed_at`) — señal separada de
+ * `getProfessorNotifications` a propósito (ver migración 20260828000050):
+ * comparar ambas contra la misma columna mezclaría dos avisos distintos.
+ */
+export async function getScheduleNotifications(professorId: string): Promise<ScheduleNotification[]> {
+  const supabase = await createClient()
+
+  const { data: relations } = await supabase
+    .from('student_professors')
+    .select(
+      'student_id, last_schedule_viewed_at, students(schedule_updated_at, profiles(full_name))',
+    )
+    .eq('professor_id', professorId)
+    .eq('status', 'active')
+
+  type RelationRow = {
+    student_id: string
+    last_schedule_viewed_at: string | null
+    students: { schedule_updated_at: string | null; profiles: { full_name: string } | null } | null
+  }
+  const rows = (relations ?? []) as unknown as RelationRow[]
+
+  return rows
+    .map((r) => {
+      const latestAt = r.students?.schedule_updated_at
+      if (!latestAt) return null
+      if (r.last_schedule_viewed_at && latestAt <= r.last_schedule_viewed_at) return null
+      return {
+        kind: 'schedule' as const,
+        studentId: r.student_id,
+        studentName: r.students?.profiles?.full_name ?? 'Alumno',
+        latestAt,
+      }
+    })
+    .filter((n): n is ScheduleNotification => n != null)
     .sort((a, b) => (a.latestAt < b.latestAt ? 1 : -1))
 }
 
