@@ -1,7 +1,8 @@
 'use client'
 
-import { Fragment, useMemo, useState } from 'react'
+import { Fragment, useMemo, useState, useTransition } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { ChevronLeft, ChevronRight, X } from 'lucide-react'
 
 import { addMonths, buildMonthGrid, dateKey, monthTitle } from '@/lib/calendar-grid'
@@ -17,6 +18,8 @@ export type CalendarItem = {
   href?: string
   /** Color del punto/badge — por defecto usa el color primario. */
   tone?: 'primary' | 'muted'
+  /** Presente si es una ocurrencia de una serie recurrente — habilita "Cancelar esta fecha". */
+  recurrenceId?: string
 }
 
 function todayKey() {
@@ -33,13 +36,30 @@ function todayKey() {
 export function MonthCalendar({
   items,
   emptyLabel = 'Nada cargado todavía.',
+  onCancelOccurrence,
 }: {
   items: CalendarItem[]
   emptyLabel?: string
+  /** Si se pasa, los ítems con `recurrenceId` muestran un botón "Cancelar esta fecha". */
+  onCancelOccurrence?: (recurrenceId: string, date: string) => Promise<{ error: string | null } | void>
 }) {
+  const router = useRouter()
   const today = new Date()
   const [cursor, setCursor] = useState({ year: today.getFullYear(), month: today.getMonth() })
   const [selected, setSelected] = useState<string | null>(null)
+  const [pendingId, setPendingId] = useState<string | null>(null)
+  const [, startTransition] = useTransition()
+
+  function handleCancel(item: CalendarItem) {
+    if (!onCancelOccurrence || !item.recurrenceId) return
+    setPendingId(item.id)
+    startTransition(async () => {
+      await onCancelOccurrence(item.recurrenceId!, item.date)
+      setPendingId(null)
+      setSelected(null)
+      router.refresh()
+    })
+  }
 
   const byDate = useMemo(() => {
     const map = new Map<string, CalendarItem[]>()
@@ -172,17 +192,29 @@ export function MonthCalendar({
                           ) : null}
                         </>
                       )
-                      return item.href ? (
-                        <Link
-                          key={item.id}
-                          href={item.href}
-                          className="hover:bg-muted/50 -mx-1 flex flex-col gap-0.5 rounded-lg px-1 py-1"
-                        >
-                          {content}
-                        </Link>
-                      ) : (
-                        <div key={item.id} className="flex flex-col gap-0.5 px-1 py-1">
-                          {content}
+                      const canCancel = onCancelOccurrence && item.recurrenceId
+                      return (
+                        <div key={item.id} className="flex items-start gap-2">
+                          {item.href ? (
+                            <Link
+                              href={item.href}
+                              className="hover:bg-muted/50 -mx-1 flex flex-1 flex-col gap-0.5 rounded-lg px-1 py-1"
+                            >
+                              {content}
+                            </Link>
+                          ) : (
+                            <div className="flex flex-1 flex-col gap-0.5 px-1 py-1">{content}</div>
+                          )}
+                          {canCancel ? (
+                            <button
+                              type="button"
+                              onClick={() => handleCancel(item)}
+                              disabled={pendingId === item.id}
+                              className="text-muted-foreground hover:text-destructive shrink-0 self-center text-[11px] underline underline-offset-2 disabled:opacity-50"
+                            >
+                              {pendingId === item.id ? 'Cancelando…' : 'Cancelar'}
+                            </button>
+                          ) : null}
                         </div>
                       )
                     })}

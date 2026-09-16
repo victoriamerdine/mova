@@ -5,7 +5,7 @@ import { ArrowLeft } from 'lucide-react'
 import { MonthCalendar, type CalendarItem } from '@/components/calendar/month-calendar'
 import { StudentShell } from '@/components/student/student-shell'
 import { getCurrentStudent } from '@/lib/supabase/queries/student-plan'
-import { getStudentCompetitions } from '@/lib/supabase/queries/competitions'
+import { getStudentCalendarItems } from '@/lib/supabase/queries/competitions'
 import { signOut } from '@/app/login/actions'
 
 const TYPE_LABEL: Record<string, string> = {
@@ -26,7 +26,7 @@ export default async function StudentCalendarPage() {
   const student = await getCurrentStudent()
   if (!student) redirect('/login')
 
-  const rows = await getStudentCompetitions(student.id)
+  const rows = await getStudentCalendarItems(student.id)
 
   const items: CalendarItem[] = rows.map((r) => ({
     id: r.id,

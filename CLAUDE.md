@@ -1926,6 +1926,35 @@ de "el profesor mantiene el control" que ya regía para competencias).
 no asume de qué son los ítems; lo usan tanto `/calendario` como
 `/alumno/calendario`.
 
+**Eventos recurrentes** (migración `20260828000048`): "partido todos los
+domingos" — `competition_recurrences` guarda la REGLA (alumno, tipo,
+`weekday` 0=domingo..6=sábado igual que `Date#getUTCDay()`, deporte
+opcional, lugar/nota, vigencia `start_date`/`end_date` opcional). Las
+ocurrencias concretas NO se guardan una por una: se calculan al leer el
+calendario (`lib/calendar-recurrence.ts#expandWeeklyRecurrence`, con
+tests) dentro de una ventana fija de -30/+365 días desde hoy
+(`recurrenceWindow()` en `lib/supabase/queries/competitions.ts`) — evita
+un job periódico y una tabla que crece sin límite. Cancelar **una fecha
+puntual** ("el día que no juega") inserta una fila en
+`competition_recurrence_exceptions` (única por `recurrence_id`+`date`) en
+vez de borrar la serie; borrar la serie entera si borra la regla
+(cascade). El id de una ocurrencia expandida es sintético
+(`"<recurrence_id>:<fecha>"`, no una fila real).
+
+- Alta: checkbox "Se repite cada semana" en `<CompetitionsCard>` — cambia
+  el campo Fecha por Día de la semana + Desde/Hasta; lista las series por
+  separado de los ítems puntuales, con su propio borrar (serie entera).
+- Cancelar una ocurrencia: botón "Cancelar" en el detalle del día de
+  `<MonthCalendar>`, solo si el ítem trae `recurrenceId` y el caller pasó
+  `onCancelOccurrence` — hoy solo `/calendario` (profesor) lo pasa;
+  `/alumno/calendario` sigue de solo lectura.
+- `getStudentCalendarItems(studentId)` (puntuales + ocurrencias expandidas)
+  reemplaza a `getStudentCompetitions` en `/alumno/calendario`;
+  `getCalendarItems()` (agregado del profesor) también las suma.
+  `getStudentCompetitions` sigue existiendo tal cual para la lista plana
+  de `<CompetitionsCard>` (ahí NO se expanden — se listan las series
+  aparte, no ocurrencia por ocurrencia, para no saturar la tarjeta).
+
 ### Pendiente
 
 - El calendario no muestra entrenamientos/sesiones realizadas — eso ya

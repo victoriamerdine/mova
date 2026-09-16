@@ -26,7 +26,7 @@ import { getStudentSubmissions } from '@/lib/supabase/queries/forms'
 import { getStudentProgress } from '@/lib/supabase/queries/student-progress'
 import { getStudentLoadTargets } from '@/lib/supabase/queries/plan-editor'
 import { getStudentPayments } from '@/lib/supabase/queries/students'
-import { getStudentCompetitions } from '@/lib/supabase/queries/competitions'
+import { getStudentCompetitions, getStudentRecurrences } from '@/lib/supabase/queries/competitions'
 import { getStudentUsername } from '@/lib/auth/student-credentials'
 import { createPlan, markStudentProgressViewed } from '@/app/alumnos/[studentId]/actions'
 import { getPendingDrafts } from '@/app/planes/draft-actions'
@@ -89,6 +89,7 @@ export default async function StudentDetailPage({
     progress,
     payments,
     competitions,
+    recurrences,
     pendingDrafts,
   ] = await Promise.all([
     supabase.from('patterns').select('id, display_name').order('sort_order'),
@@ -105,6 +106,7 @@ export default async function StudentDetailPage({
     getStudentProgress(studentId),
     getStudentPayments(studentId),
     getStudentCompetitions(studentId),
+    getStudentRecurrences(studentId),
     getPendingDrafts(studentId),
   ])
   const patterns = (patternsData ?? []).map((p) => ({ id: p.id, name: p.display_name }))
@@ -315,7 +317,12 @@ export default async function StudentDetailPage({
               </CardDescription>
             </CardHeader>
             <CardContent className="px-5">
-              <CompetitionsCard studentId={studentId} sports={sports} competitions={competitions} />
+              <CompetitionsCard
+                studentId={studentId}
+                sports={sports}
+                competitions={competitions}
+                recurrences={recurrences}
+              />
             </CardContent>
           </Card>
 
