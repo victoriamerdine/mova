@@ -11,6 +11,18 @@ export function dateKey(year: number, month: number, day: number): string {
 }
 
 /**
+ * "YYYY-MM-DD" del día LOCAL en que cae un timestamp (`workout_sessions
+ * .completed_at`, con hora real, a diferencia de `competitions.date`).
+ * A propósito usa el huso horario de donde se ejecuta — llamar solo desde
+ * un Client Component (el del alumno viendo su propio calendario), nunca
+ * desde el server, o agrupa por el huso del server en vez del suyo.
+ */
+export function localDateKey(iso: string): string {
+  const d = new Date(iso)
+  return dateKey(d.getFullYear(), d.getMonth(), d.getDate())
+}
+
+/**
  * Semanas (lunes primero) de un mes, con celdas null en los huecos antes
  * del día 1 y después del último día — siempre múltiplo de 7.
  */

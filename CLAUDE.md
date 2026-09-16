@@ -1826,15 +1826,12 @@ profe").
   cuenta como "hizo todo lo que tocaba". Tras terminar, el bloque de
   valoración/nota se reemplaza por el aviso "Sesión registrada" con el
   total de tiempo.
-- Historial: `/alumno/historial` (`getStudentHistory`, hasta 180
-  sesiones) — **calendario mensual** (`<HistoryCalendar>`): un grid por
-  mes con sesiones, lunes primero, más nuevo arriba; se resaltan los días
-  entrenados (badge con la cantidad si entrenó >1 vez ese día, anillo en
-  hoy). Tocar un día despliega —bajo esa semana, ancho completo, con
-  flechita al día— el resumen: cada sesión con **duración** (si llega a un
-  minuto), N registros, la valoración y la nota, + link a
-  `/alumno/dia/[workoutId]`. La duración = `completed_at − started_at`
-  (`StudentHistoryEntry.durationSec`).
+- Historial: `getStudentHistory` (hasta 180 sesiones, sin filtrar por
+  plan) alimenta el **calendario consolidado** en `/alumno/calendario`
+  (ver Fase 9) — cada sesión con **duración** (si llega a un minuto), N
+  registros, la valoración y la nota, + link a `/alumno/dia/[workoutId]`.
+  La duración = `completed_at − started_at`
+  (`StudentHistoryEntry.durationSec`). `/alumno/historial` redirige ahí.
 - Acciones (`app/alumno/actions.ts`): `startDaySession`, `logExercise`,
   `finishDay(workoutId, feelingNote, difficulty)`.
 
@@ -1955,11 +1952,25 @@ vez de borrar la serie; borrar la serie entera si borra la regla
   de `<CompetitionsCard>` (ahí NO se expanden — se listan las series
   aparte, no ocurrencia por ocurrencia, para no saturar la tarjeta).
 
+**Calendario consolidado del alumno** (unifica el antiguo
+`/alumno/historial` dentro de `/alumno/calendario`): la página junta, en
+paralelo, `getStudentCalendarItems` (lo que cargó el profesor) y
+`getStudentHistory` (lo que el alumno realmente entrenó, de TODOS sus
+planes — `getStudentHistory` ya no filtraba por plan, no hizo falta
+tocarla). `<CalendarItem>` suma `tone?: 'primary' | 'muted'` (verde =
+programado, gris = realizado) y `completedAtRaw?: string` para los ítems
+de historial: `completedAtRaw` es un timestamp real
+(`workout_sessions.completed_at`), así que el día de calendario en el que
+cae se calcula con `localDateKey()` (`lib/calendar-grid.ts`) — usa el huso
+horario del NAVEGADOR del alumno, nunca el del servidor, porque
+`<MonthCalendar>` es un componente cliente y agrupar por día del lado del
+servidor daría el día equivocado según dónde corra Vercel. `/alumno/historial`
+quedó como un simple `redirect('/alumno/calendario')` (no se borró la URL,
+por si había links guardados) y `components/student/history-calendar.tsx`
+se eliminó (reemplazado por `<MonthCalendar>`).
+
 ### Pendiente
 
-- El calendario no muestra entrenamientos/sesiones realizadas — eso ya
-  vive en `/alumno/historial` (Fase 7) y en la analítica (Fase 8); unificar
-  ambas vistas queda para más adelante si hace falta.
 - Filtrar el calendario del profesor por alumno o por tipo (hoy: todo
   junto, un mes a la vez).
 
