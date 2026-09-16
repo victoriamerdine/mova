@@ -208,6 +208,82 @@ export async function deleteCompetition(studentId: string, competitionId: string
 }
 
 /**
+ * Crea una serie recurrente semanal ("partido todos los domingos") — las
+ * ocurrencias concretas se calculan al leer el calendario, no se guardan
+ * una por una (ver lib/calendar-recurrence.ts).
+ */
+export async function createRecurringCompetition(
+  studentId: string,
+  input: {
+    sportId: string
+    type: (typeof COMPETITION_TYPES)[number]
+    weekday: number
+    location: string
+    notes: string
+    startDate: string
+    endDate: string
+  },
+): Promise<{ error: string | null }> {
+  const professor = await getCurrentProfessor()
+  if (!professor) redirect('/login')
+
+  if (!input.startDate) return { error: 'Falta la fecha de inicio.' }
+  if (!COMPETITION_TYPES.includes(input.type)) return { error: 'Tipo inválido.' }
+  if (input.weekday < 0 || input.weekday > 6) return { error: 'Día de la semana inválido.' }
+  if (input.endDate && input.endDate < input.startDate) {
+    return { error: 'La fecha de fin no puede ser anterior al inicio.' }
+  }
+
+  const supabase = await createClient()
+  const { error } = await supabase.from('competition_recurrences').insert({
+    student_id: studentId,
+    sport_id: input.sportId || null,
+    type: input.type,
+    weekday: input.weekday,
+    location: input.location.trim() || null,
+    notes: input.notes.trim() || null,
+    start_date: input.startDate,
+    end_date: input.endDate || null,
+  })
+  if (error) return { error: error.message }
+
+  revalidatePath(`/alumnos/${studentId}`)
+  revalidatePath('/calendario')
+  return { error: null }
+}
+
+/** Borra la serie recurrente entera (todas sus ocurrencias futuras y pasadas). */
+export async function deleteRecurrence(studentId: string, recurrenceId: string) {
+  const professor = await getCurrentProfessor()
+  if (!professor) redirect('/login')
+
+  const supabase = await createClient()
+  await supabase.from('competition_recurrences').delete().eq('id', recurrenceId)
+
+  revalidatePath(`/alumnos/${studentId}`)
+  revalidatePath('/calendario')
+}
+
+/**
+ * Cancela UNA fecha puntual de una serie recurrente ("el día que no
+ * juega") sin borrar la serie — inserta una excepción. RLS
+ * (is_professor_of vía el join a competition_recurrences) ya garantiza
+ * que solo se puede cancelar una fecha de un alumno propio.
+ */
+export async function cancelRecurrenceOccurrence(recurrenceId: string, date: string) {
+  const professor = await getCurrentProfessor()
+  if (!professor) redirect('/login')
+
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('competition_recurrence_exceptions')
+    .upsert({ recurrence_id: recurrenceId, date }, { onConflict: 'recurrence_id,date' })
+
+  revalidatePath('/calendario')
+  return { error: error?.message ?? null }
+}
+
+/**
  * Marca que el profesor ya vio las novedades de este alumno — apaga el
  * aviso en la campanita hasta la próxima sesión completada. Se llama al
  * abrir la ficha del alumno (fire-and-forget, no bloquea el render).

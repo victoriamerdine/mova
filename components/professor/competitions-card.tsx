@@ -2,12 +2,18 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, Trash2 } from 'lucide-react'
+import { Plus, Repeat, Trash2 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { createCompetition, deleteCompetition } from '@/app/alumnos/[studentId]/actions'
-import type { Competition } from '@/lib/supabase/queries/competitions'
+import { weekdayLabel } from '@/lib/calendar-recurrence'
+import {
+  createCompetition,
+  createRecurringCompetition,
+  deleteCompetition,
+  deleteRecurrence,
+} from '@/app/alumnos/[studentId]/actions'
+import type { Competition, CompetitionRecurrence } from '@/lib/supabase/queries/competitions'
 
 const TYPE_OPTIONS: { value: Competition['type']; label: string }[] = [
   { value: 'partido', label: 'Partido' },
@@ -21,6 +27,8 @@ const TYPE_OPTIONS: { value: Competition['type']; label: string }[] = [
   { value: 'recuperacion', label: 'Recuperación' },
 ]
 
+const WEEKDAY_OPTIONS = [0, 1, 2, 3, 4, 5, 6].map((w) => ({ value: w, label: weekdayLabel(w) }))
+
 function todayISO() {
   return new Date().toISOString().slice(0, 10)
 }
@@ -33,15 +41,20 @@ export function CompetitionsCard({
   studentId,
   sports,
   competitions,
+  recurrences,
 }: {
   studentId: string
   sports: { id: string; name: string }[]
   competitions: Competition[]
+  recurrences: CompetitionRecurrence[]
 }) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
+  const [recurring, setRecurring] = useState(false)
   const [sportId, setSportId] = useState('')
   const [date, setDate] = useState(todayISO())
+  const [weekday, setWeekday] = useState(0)
+  const [endDate, setEndDate] = useState('')
   const [type, setType] = useState<Competition['type']>('partido')
   const [location, setLocation] = useState('')
   const [notes, setNotes] = useState('')
@@ -50,7 +63,17 @@ export function CompetitionsCard({
   function submit() {
     setError(null)
     startTransition(async () => {
-      const res = await createCompetition(studentId, { sportId, date, type, location, notes })
+      const res = recurring
+        ? await createRecurringCompetition(studentId, {
+            sportId,
+            type,
+            weekday,
+            location,
+            notes,
+            startDate: date,
+            endDate,
+          })
+        : await createCompetition(studentId, { sportId, date, type, location, notes })
       if (res.error) {
         setError(res.error)
         return
@@ -58,6 +81,7 @@ export function CompetitionsCard({
       setLocation('')
       setNotes('')
       setDate(todayISO())
+      setEndDate('')
       router.refresh()
     })
   }
@@ -69,9 +93,27 @@ export function CompetitionsCard({
     })
   }
 
+  function removeRecurrence(id: string) {
+    startTransition(async () => {
+      await deleteRecurrence(studentId, id)
+      router.refresh()
+    })
+  }
+
   return (
     <div className="flex flex-col gap-3">
       {error ? <p className="bg-destructive/10 text-destructive rounded-lg px-3 py-2 text-sm">{error}</p> : null}
+
+      <label className="flex items-center gap-2 text-xs font-medium">
+        <input
+          type="checkbox"
+          checked={recurring}
+          onChange={(e) => setRecurring(e.target.checked)}
+          className="accent-primary size-3.5"
+        />
+        <Repeat className="text-muted-foreground size-3.5" />
+        Se repite cada semana
+      </label>
 
       <div className="flex flex-wrap items-end gap-3">
         <label className="flex flex-col gap-1.5">
@@ -103,10 +145,39 @@ export function CompetitionsCard({
             ))}
           </select>
         </label>
-        <label className="flex flex-col gap-1.5">
-          <span className="text-muted-foreground text-xs font-medium">Fecha</span>
-          <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-40" />
-        </label>
+
+        {recurring ? (
+          <>
+            <label className="flex flex-col gap-1.5">
+              <span className="text-muted-foreground text-xs font-medium">Día de la semana</span>
+              <select
+                value={weekday}
+                onChange={(e) => setWeekday(Number(e.target.value))}
+                className="border-input h-8 rounded-lg border bg-transparent px-2.5 text-sm outline-none dark:bg-input/30"
+              >
+                {WEEKDAY_OPTIONS.map((w) => (
+                  <option key={w.value} value={w.value}>
+                    {w.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1.5">
+              <span className="text-muted-foreground text-xs font-medium">Desde</span>
+              <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-40" />
+            </label>
+            <label className="flex flex-col gap-1.5">
+              <span className="text-muted-foreground text-xs font-medium">Hasta (opcional)</span>
+              <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="w-40" />
+            </label>
+          </>
+        ) : (
+          <label className="flex flex-col gap-1.5">
+            <span className="text-muted-foreground text-xs font-medium">Fecha</span>
+            <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-40" />
+          </label>
+        )}
+
         <label className="flex min-w-32 flex-1 flex-col gap-1.5">
           <span className="text-muted-foreground text-xs font-medium">Lugar (opcional)</span>
           <Input type="text" value={location} onChange={(e) => setLocation(e.target.value)} />
@@ -120,6 +191,34 @@ export function CompetitionsCard({
           {pending ? 'Guardando…' : 'Agregar'}
         </Button>
       </div>
+
+      {recurrences.length > 0 ? (
+        <div className="flex flex-col gap-1.5">
+          <p className="text-muted-foreground text-[10px] font-semibold tracking-wide uppercase">Series recurrentes</p>
+          <ul className="divide-border divide-y">
+            {recurrences.map((r) => (
+              <li key={r.id} className="flex items-center gap-3 py-2 text-sm">
+                <Repeat className="text-muted-foreground size-3.5 shrink-0" />
+                <span className="font-medium capitalize">{r.type}</span>
+                <span className="text-muted-foreground text-xs">
+                  todos los {weekdayLabel(r.weekday).toLowerCase()}
+                  {r.endDate ? ` · hasta ${formatDate(r.endDate)}` : ''}
+                </span>
+                {r.sportName ? <span className="text-muted-foreground text-xs">{r.sportName}</span> : null}
+                <button
+                  type="button"
+                  onClick={() => removeRecurrence(r.id)}
+                  disabled={pending}
+                  aria-label="Borrar serie recurrente"
+                  className="text-muted-foreground hover:text-destructive ml-auto flex size-7 items-center justify-center rounded-md transition-colors disabled:opacity-50"
+                >
+                  <Trash2 className="size-3.5" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
 
       {competitions.length === 0 ? (
         <p className="text-muted-foreground text-xs">Todavía no cargaste nada en el calendario.</p>

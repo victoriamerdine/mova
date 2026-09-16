@@ -271,6 +271,83 @@ export type Database = {
           },
         ]
       }
+      competition_recurrences: {
+        Row: {
+          id: string
+          student_id: string
+          sport_id: string | null
+          type:
+            | 'partido'
+            | 'carrera'
+            | 'torneo'
+            | 'campeonato'
+            | 'competencia'
+            | 'test'
+            | 'evento'
+            | 'descanso'
+            | 'recuperacion'
+          weekday: number
+          location: string | null
+          notes: string | null
+          start_date: string
+          end_date: string | null
+          created_at: string
+        }
+        Insert: Partial<Database['public']['Tables']['competition_recurrences']['Row']> & {
+          student_id: string
+          type:
+            | 'partido'
+            | 'carrera'
+            | 'torneo'
+            | 'campeonato'
+            | 'competencia'
+            | 'test'
+            | 'evento'
+            | 'descanso'
+            | 'recuperacion'
+          weekday: number
+          start_date: string
+        }
+        Update: Partial<Database['public']['Tables']['competition_recurrences']['Row']>
+        Relationships: [
+          {
+            foreignKeyName: 'competition_recurrences_student_id_fkey'
+            columns: ['student_id']
+            isOneToOne: false
+            referencedRelation: 'students'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'competition_recurrences_sport_id_fkey'
+            columns: ['sport_id']
+            isOneToOne: false
+            referencedRelation: 'sports'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      competition_recurrence_exceptions: {
+        Row: {
+          id: string
+          recurrence_id: string
+          date: string
+          created_at: string
+        }
+        Insert: Partial<Database['public']['Tables']['competition_recurrence_exceptions']['Row']> & {
+          recurrence_id: string
+          date: string
+        }
+        Update: Partial<Database['public']['Tables']['competition_recurrence_exceptions']['Row']>
+        Relationships: [
+          {
+            foreignKeyName: 'competition_recurrence_exceptions_recurrence_id_fkey'
+            columns: ['recurrence_id']
+            isOneToOne: false
+            referencedRelation: 'competition_recurrences'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       patterns: {
         Row: {
           id: string
