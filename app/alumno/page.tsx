@@ -1,4 +1,6 @@
+import Link from 'next/link'
 import { redirect } from 'next/navigation'
+import { ClipboardList } from 'lucide-react'
 
 import { StudentShell } from '@/components/student/student-shell'
 import { StudentWeekView } from '@/components/student/student-week-view'
@@ -30,15 +32,29 @@ export default async function AlumnoPage({
   const { plan: planParam, week: weekParam } = await searchParams
   const plans = await getStudentActivePlans(student.id)
 
+  const backToPlans =
+    student.role === 'individual' ? (
+      <Link
+        href="/planes"
+        className="text-muted-foreground hover:text-foreground -mb-1 flex items-center gap-1.5 text-sm"
+      >
+        <ClipboardList className="size-4" />
+        Mis planes
+      </Link>
+    ) : null
+
   if (plans.length === 0) {
     return (
       <StudentShell signOut={signOut}>
+        {backToPlans}
         <p className="text-primary text-xs font-bold tracking-widest uppercase">Tu entrenamiento</p>
         <h1 className="text-2xl font-semibold tracking-tight">
           Hola {student.fullName.split(' ')[0]}
         </h1>
         <div className="text-muted-foreground rounded-2xl border border-dashed p-8 text-center text-sm">
-          Todavía no tenés un plan activo. Cuando tu profe te asigne uno, va a aparecer acá.
+          {student.role === 'individual'
+            ? 'Todavía no armaste un plan activo. Creá uno en "Mis planes" y va a aparecer acá.'
+            : 'Todavía no tenés un plan activo. Cuando tu profe te asigne uno, va a aparecer acá.'}
         </div>
       </StudentShell>
     )
@@ -53,6 +69,7 @@ export default async function AlumnoPage({
 
   return (
     <StudentShell signOut={signOut}>
+      {backToPlans}
       <StudentWeekView
         studentName={student.fullName}
         plans={plans}

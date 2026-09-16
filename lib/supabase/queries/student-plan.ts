@@ -1,9 +1,14 @@
 import { createClient } from '@/lib/supabase/server'
 import type { SessionDifficulty } from '@/lib/student-difficulty'
 
-export type CurrentStudent = { id: string; fullName: string }
+export type CurrentStudent = { id: string; fullName: string; role: 'student' | 'individual' }
 
-/** null si no hay sesión o el usuario logueado no es alumno. */
+/**
+ * null si no hay sesión o el usuario logueado no ejecuta un plan acá.
+ * `student` = alumno gestionado por un profesor. `individual` = autocoacheado
+ * (construye su plan en /planes y lo ejecuta acá, con el mismo `students.id`
+ * — ver 20260828000008_self_coached_individuals.sql).
+ */
 export async function getCurrentStudent(): Promise<CurrentStudent | null> {
   const supabase = await createClient()
   const {
@@ -17,8 +22,8 @@ export async function getCurrentStudent(): Promise<CurrentStudent | null> {
     .eq('id', user.id)
     .maybeSingle()
 
-  if (!profile || profile.role !== 'student') return null
-  return { id: profile.id, fullName: profile.full_name }
+  if (!profile || (profile.role !== 'student' && profile.role !== 'individual')) return null
+  return { id: profile.id, fullName: profile.full_name, role: profile.role }
 }
 
 

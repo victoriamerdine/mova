@@ -1740,6 +1740,16 @@ Construir:
 
 ### ESTADO — en producción
 
+**Acceso**: `getCurrentStudent()` (`lib/supabase/queries/student-plan.ts`)
+acepta tanto `role='student'` (alumno gestionado por un profesor) como
+`role='individual'` (autocoacheado) — ambos comparten el mismo
+`students.id`, así que RLS (`is_own_student`) ya los trataba igual; solo
+hacía falta destrabar el gate de la aplicación. El individuo arma su plan
+en `/planes` y lo ejecuta acá — link "Ir a mi entrenamiento de hoy" desde
+`/planes`, y "Mis planes" de vuelta desde `/alumno`. El mensaje de "sin
+plan activo" cambia según el rol (para el individuo no menciona "tu
+profe").
+
 **Modelo de ejecución** (migraciones `20260828000034`, `…038`):
 
 - El plan es un **ciclo de semanas que se repite** dentro del rango
@@ -1885,10 +1895,9 @@ alumno.
 **Calendario del alumno** (`/alumno/calendario`, link "Ver mi calendario"
 desde `/alumno`): mismo componente, solo lectura, con sus propias
 competencias/eventos (`getStudentCompetitions`, RLS "el alumno ve las
-suyas"). Pensado para el rol `student` (gestionado por un profesor); el
-individuo autocoacheado no tiene esta vista todavía porque tampoco tiene
-acceso a `/alumno` (`getCurrentStudent()` exige `role='student'`) — gap
-preexistente, no introducido por esta fase.
+suyas"). Funciona tanto para el rol `student` (gestionado por un
+profesor) como para el individuo autocoacheado, que desde
+`getCurrentStudent()` acepta ambos roles — ver "App del alumno" (Fase 7).
 
 **Carga de ítems**: se amplió la tarjeta ya existente en la ficha del
 alumno (antes "Competencias", ahora "Calendario") — el profesor elige tipo
@@ -1904,9 +1913,6 @@ no asume de qué son los ítems; lo usan tanto `/calendario` como
 
 ### Pendiente
 
-- El individuo autocoacheado no puede cargar ni ver su propio calendario
-  (depende de resolver primero que no tiene acceso a `/alumno` en
-  absoluto — fuera del alcance de esta fase).
 - El calendario no muestra entrenamientos/sesiones realizadas — eso ya
   vive en `/alumno/historial` (Fase 7) y en la analítica (Fase 8); unificar
   ambas vistas queda para más adelante si hace falta.
