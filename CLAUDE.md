@@ -1761,9 +1761,21 @@ acepta tanto `role='student'` (alumno gestionado por un profesor) como
 `students.id`, así que RLS (`is_own_student`) ya los trataba igual; solo
 hacía falta destrabar el gate de la aplicación. El individuo arma su plan
 en `/planes` y lo ejecuta acá — link "Ir a mi entrenamiento de hoy" desde
-`/planes`, y "Mis planes" de vuelta desde `/alumno`. El mensaje de "sin
-plan activo" cambia según el rol (para el individuo no menciona "tu
-profe").
+`/planes` hacia `/alumno/plan`, y "Mis planes" de vuelta desde
+`/alumno`/`/alumno/plan`. El mensaje de "sin plan activo" cambia según el
+rol (para el individuo no menciona "tu profe").
+
+**Home** (`/alumno`): punto de entrada único — saluda al alumno y muestra
+3 tarjetas grandes para elegir a dónde ir: **Mi plan** (`/alumno/plan`,
+con el nombre del plan activo o "N planes activos" como subtítulo —
+`getStudentActivePlans`, ya liviana, sin traer contenido del plan),
+**Mis estadísticas** (`/alumno/progreso`) y **Mi calendario**
+(`/alumno/calendario`, que ya incluye todos los registros — ver Fase 9).
+Antes `/alumno` renderizaba directamente la semana en curso; esa vista se
+movió a `/alumno/plan` (mismo componente `<StudentWeekView>`, sin
+cambios) para que el Home quede como landing real. `/alumno/dia/[id]`
+(solo se llega ahí desde el calendario) y `/planes` → "Ir a mi
+entrenamiento de hoy" ahora apuntan a `/alumno/plan` en vez de al Home.
 
 **Modelo de ejecución** (migraciones `20260828000034`, `…038`):
 
