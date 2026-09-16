@@ -23,6 +23,10 @@ import {
 import { LoadPanel } from '@/components/professor/plan-editor/load-panel'
 import { AiAnalyzeWeek } from '@/components/professor/plan-editor/ai-analyze-week'
 import { PhaseControls } from '@/components/professor/plan-editor/phase-controls'
+import {
+  DuplicateToStudentDialog,
+  type OtherStudent,
+} from '@/components/professor/plan-editor/duplicate-to-student-dialog'
 import { blockHasRounds } from '@/lib/plan-blocks'
 import { getRenewalBadge } from '@/lib/plan-renewal'
 import { calculateVolumeByGroup, type VolumeInput } from '@/lib/volume-calc'
@@ -58,12 +62,15 @@ export function PlanEditorClient({
   catalog,
   loadTargets,
   showAiPanel = true,
+  otherStudents = [],
 }: {
   plan: PlanForEditor
   catalog: PlanBuilderCatalog
   loadTargets: LoadTarget[]
   /** El análisis de IA pasa por /api/ai/analyze, gateado a profesor. */
   showAiPanel?: boolean
+  /** Otros alumnos del profesor, para "Duplicar a otro alumno". Vacío = no se muestra el botón. */
+  otherStudents?: OtherStudent[]
 }) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
@@ -362,6 +369,11 @@ export function PlanEditorClient({
             Guardar datos
           </Button>
         </form>
+        {otherStudents.length > 0 ? (
+          <div className="mt-3 border-t pt-3">
+            <DuplicateToStudentDialog planId={plan.id} planName={plan.name} students={otherStudents} />
+          </div>
+        ) : null}
       </div>
 
       {/* Semana */}
