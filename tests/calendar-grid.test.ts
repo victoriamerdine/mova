@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { addMonths, buildMonthGrid, dateKey, monthTitle } from '@/lib/calendar-grid'
+import { addMonths, buildMonthGrid, dateKey, localDateKey, monthTitle } from '@/lib/calendar-grid'
 
 describe('calendar-grid', () => {
   it('dateKey: rellena con ceros mes y día', () => {
@@ -49,5 +49,16 @@ describe('calendar-grid', () => {
 
   it('monthTitle: capitaliza el nombre del mes en español', () => {
     expect(monthTitle(2026, 0)).toMatch(/^Enero de 2026$/)
+  })
+
+  it('localDateKey: usa el mismo día/mes/año que los getters LOCALES del Date (no UTC) — a propósito, para agrupar sesiones por el día del alumno, no el del server', () => {
+    const iso = '2026-09-16T15:30:00.000Z'
+    const d = new Date(iso)
+    const expected = dateKey(d.getFullYear(), d.getMonth(), d.getDate())
+    expect(localDateKey(iso)).toBe(expected)
+  })
+
+  it('localDateKey: formatea con ceros a la izquierda', () => {
+    expect(localDateKey('2026-01-05T12:00:00.000Z')).toMatch(/^\d{4}-\d{2}-\d{2}$/)
   })
 })
