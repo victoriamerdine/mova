@@ -2168,6 +2168,24 @@ contraseña; la cuenta queda **pendiente**. Mientras tanto ve `/pendiente`
   ({ password })` desde su sesión — **no lo desloguea**).
 - `proxy.ts`: `/cuenta` protegido.
 
+**Estadísticas** (`/admin?tab=estadisticas`, pestaña por default —
+`<AdminAnalyticsPanel>` + `getAdminAnalytics`): métricas agregadas para
+entender el uso del producto y armar el discurso comercial —
+profesores/alumnos/planes (totales + nuevos en 7/30 días, para mostrar
+tracción), planes por tipo y por deporte (`plans.sport_id`, no
+`students.primary_sport_id` — el deporte de lo que de verdad se
+entrena), ejercicios activos en biblioteca, formularios creados +
+respuestas completadas, y **horas de mayor tráfico**: sesiones
+completadas por hora del día, en el **huso de Argentina** (mercado del
+producto — un agregado entre muchos usuarios no tiene un "huso de cada
+uno" con sentido, a diferencia de `localDateKey` para un alumno
+individual). Todo en memoria sobre selects livianos (`workout_sessions`
+hasta 10.000 filas) — no hay volumen todavía que justifique agregar en
+SQL. Migración `20260828000052`: el admin no tenía lectura de
+`workout_sessions`/`forms`/`form_submissions` (antes solo el
+alumno/profesor dueño) — se agregan 3 policies de SELECT **de solo
+lectura** (el admin no opera esos datos, solo los mira agregados).
+
 ### Pendiente
 
 - Registro de auditoría de acciones del admin.

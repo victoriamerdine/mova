@@ -3,13 +3,20 @@ import { redirect } from 'next/navigation'
 
 import { AdminProfessorsPanel } from '@/components/admin/admin-professors-panel'
 import { AdminIndividualsPanel } from '@/components/admin/admin-individuals-panel'
-import { getAdminProfessors, getCurrentAdmin, getIndependentStudents } from '@/lib/supabase/queries/admin'
+import { AdminAnalyticsPanel } from '@/components/admin/admin-analytics-panel'
+import {
+  getAdminAnalytics,
+  getAdminProfessors,
+  getCurrentAdmin,
+  getIndependentStudents,
+} from '@/lib/supabase/queries/admin'
 import { createClient } from '@/lib/supabase/server'
 import { signOut } from '@/app/login/actions'
 
 export const dynamic = 'force-dynamic'
 
 const TABS = [
+  { key: 'estadisticas', label: 'Estadísticas' },
   { key: 'profesores', label: 'Profesores' },
   { key: 'individuales', label: 'Alumnos independientes' },
 ] as const
@@ -29,9 +36,13 @@ export default async function AdminPage({
   }
 
   const { tab: tabParam } = await searchParams
-  const tab = TABS.some((t) => t.key === tabParam) ? tabParam! : 'profesores'
+  const tab = TABS.some((t) => t.key === tabParam) ? tabParam! : 'estadisticas'
 
-  const [professors, individuals] = await Promise.all([getAdminProfessors(), getIndependentStudents()])
+  const [professors, individuals, analytics] = await Promise.all([
+    getAdminProfessors(),
+    getIndependentStudents(),
+    getAdminAnalytics(),
+  ])
   const pending = professors.filter((p) => p.status === 'pending').length
 
   return (
@@ -70,7 +81,18 @@ export default async function AdminPage({
           ))}
         </nav>
 
-        {tab === 'individuales' ? (
+        {tab === 'estadisticas' ? (
+          <>
+            <div>
+              <h1 className="text-lg font-semibold tracking-tight">Estadísticas</h1>
+              <p className="text-muted-foreground text-sm">
+                Métricas de uso del producto — para entender el comportamiento de los usuarios y
+                para la propuesta comercial.
+              </p>
+            </div>
+            <AdminAnalyticsPanel data={analytics} />
+          </>
+        ) : tab === 'individuales' ? (
           <>
             <div>
               <h1 className="text-lg font-semibold tracking-tight">Alumnos independientes</h1>
