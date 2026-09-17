@@ -103,7 +103,8 @@ export function AdminProfessorsPanel({ professors }: { professors: AdminProfesso
                       <p className="text-muted-foreground text-xs">
                         {p.email ?? 'sin email'} · {p.studentCount} alumno
                         {p.studentCount === 1 ? '' : 's'} · {p.planCount} plan
-                        {p.planCount === 1 ? '' : 'es'}
+                        {p.planCount === 1 ? '' : 'es'} · {p.formCount} formulario
+                        {p.formCount === 1 ? '' : 's'}
                       </p>
                     </div>
                     <Badge className={STATUS[p.status].cls}>{STATUS[p.status].label}</Badge>

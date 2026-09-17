@@ -31,6 +31,7 @@ export type AdminProfessor = {
   status: 'pending' | 'active' | 'suspended'
   studentCount: number
   planCount: number
+  formCount: number
   createdAt: string
 }
 
@@ -55,10 +56,11 @@ export async function getAdminProfessors(): Promise<AdminProfessor[]> {
 
   const ids = list.map((p) => p.id)
 
-  // Conteos (el admin tiene policy de lectura sobre student_professors y plans).
-  const [{ data: rels }, { data: plans }] = await Promise.all([
+  // Conteos (el admin tiene policy de lectura sobre student_professors, plans y forms).
+  const [{ data: rels }, { data: plans }, { data: forms }] = await Promise.all([
     supabase.from('student_professors').select('professor_id').in('professor_id', ids),
     supabase.from('plans').select('professor_id').in('professor_id', ids),
+    supabase.from('forms').select('professor_id').in('professor_id', ids),
   ])
   const countBy = (arr: { professor_id: string | null }[] | null) => {
     const m = new Map<string, number>()
@@ -69,6 +71,7 @@ export async function getAdminProfessors(): Promise<AdminProfessor[]> {
   }
   const studentCounts = countBy(rels)
   const planCounts = countBy(plans)
+  const formCounts = countBy(forms)
 
   // Emails desde Auth (no están en profiles) — service role.
   const admin = createServiceRoleClient()
@@ -90,6 +93,7 @@ export async function getAdminProfessors(): Promise<AdminProfessor[]> {
     status: p.status,
     studentCount: studentCounts.get(p.id) ?? 0,
     planCount: planCounts.get(p.id) ?? 0,
+    formCount: formCounts.get(p.id) ?? 0,
     createdAt: p.created_at,
   }))
 }
