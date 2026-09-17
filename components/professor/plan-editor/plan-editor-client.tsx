@@ -152,8 +152,17 @@ export function PlanEditorClient({
   const addExerciseToDay = useCallback(
     (dayId: string, ex: LibraryDragPayload) => {
       const cat = catalog.exercises.find((c) => c.id === ex.id)
-      const patternOrMuscleId =
-        planType === 'PATTERN' ? (cat?.patternId ?? null) : (cat?.muscleId ?? null)
+      // Mixto/Específico de deporte/Personalizado: el ejercicio puede tener
+      // patrón y/o músculo cargados en la biblioteca — se usa el que
+      // tenga (patrón primero), no se fuerza uno solo como en Músculo/
+      // Patrones (ver <ExerciseCombobox> para el mismo criterio al elegir
+      // manualmente).
+      const isFlexible = planType === 'MIXED' || planType === 'SPORT_SPECIFIC' || planType === 'CUSTOM'
+      const patternOrMuscleId = isFlexible
+        ? (cat?.patternId ?? cat?.muscleId ?? null)
+        : planType === 'PATTERN'
+          ? (cat?.patternId ?? null)
+          : (cat?.muscleId ?? null)
       const groupLabel = patternOrMuscleId ? (groupIdToName.get(patternOrMuscleId) ?? '') : ''
       setDayDraft(dayId)((prev) => [
         ...prev,
