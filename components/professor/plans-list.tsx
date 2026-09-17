@@ -41,7 +41,7 @@ export function PlansList({
   students = [],
 }: {
   plans: ProfessorPlan[]
-  /** Alumnos activos del profesor — para "Duplicar a otro alumno" por fila. */
+  /** Alumnos activos del profesor — para "Duplicar plan" por fila. */
   students?: OtherStudent[]
 }) {
   const [query, setQuery] = useState('')
@@ -90,7 +90,11 @@ export function PlansList({
           <ul className="divide-border divide-y">
             {filtered.map((plan) => {
               const badge = getRenewalBadge(plan.startDate, plan.endDate)
-              const otherStudents = students.filter((s) => s.id !== plan.studentId)
+              // Incluir el alumno actual para permitir duplicar al mismo alumno
+              const allStudents = [
+                { id: plan.studentId, fullName: plan.studentName },
+                ...students.filter((s) => s.id !== plan.studentId),
+              ]
               return (
                 <li key={plan.id} className="flex items-center gap-1">
                   <Link
@@ -121,7 +125,7 @@ export function PlansList({
                     <DuplicateToStudentDialog
                       planId={plan.id}
                       planName={plan.name}
-                      students={otherStudents}
+                      students={allStudents}
                       variant="icon"
                     />
                   </div>

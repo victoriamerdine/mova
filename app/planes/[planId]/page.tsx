@@ -37,9 +37,11 @@ export default async function PlanEditorPage({
     actor.role === 'professor' ? getMyStudents(actor.id) : Promise.resolve([]),
   ])
 
-  const otherStudents = myStudents
-    .filter((s) => s.status === 'active' && s.id !== plan.studentId)
-    .map((s) => ({ id: s.id, fullName: s.fullName }))
+  // Incluir el alumno actual para permitir duplicar al mismo alumno
+  const allStudents = [
+    { id: plan.studentId, fullName: plan.studentName },
+    ...myStudents.filter((s) => s.status === 'active' && s.id !== plan.studentId).map((s) => ({ id: s.id, fullName: s.fullName })),
+  ]
 
   const editor = (
     <main className="flex flex-1 flex-col gap-4 px-6 py-6">
@@ -69,7 +71,7 @@ export default async function PlanEditorPage({
         catalog={catalog}
         loadTargets={loadTargets}
         showAiPanel={actor.role === 'professor'}
-        otherStudents={otherStudents}
+        otherStudents={allStudents}
       />
     </main>
   )

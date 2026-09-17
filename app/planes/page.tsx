@@ -139,7 +139,7 @@ export default async function PlansPage({
             <h1 className="text-lg font-semibold tracking-tight">Planes</h1>
             <p className="text-muted-foreground text-sm">
               Todos los planes que armaste, de todos tus alumnos. Tocá uno para abrir el editor, o
-              duplicalo a otro alumno desde el ícono de copiar.
+              duplicalo desde el ícono de copiar para crear variantes o reutilizar con otro alumno.
             </p>
           </div>
 

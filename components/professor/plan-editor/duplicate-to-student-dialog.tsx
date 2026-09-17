@@ -11,10 +11,10 @@ import { duplicatePlanToStudent } from '@/app/planes/[planId]/actions'
 export type OtherStudent = { id: string; fullName: string }
 
 /**
- * Duplica el plan actual hacia OTRO alumno — plantilla reutilizada, sin
- * comentarios/registros del alumno original (esos quedan atados al
- * workout_id viejo, que la copia no toca). Redirige al editor del plan
- * nuevo al terminar.
+ * Duplica el plan actual hacia OTRO alumno o al MISMO alumno — plantilla
+ * reutilizada, sin comentarios/registros del alumno original (esos quedan
+ * atados al workout_id viejo, que la copia no toca). Redirige al editor del
+ * plan nuevo al terminar.
  */
 export function DuplicateToStudentDialog({
   planId,
@@ -48,7 +48,6 @@ export function DuplicateToStudentDialog({
     })
   }
 
-  if (students.length === 0) return null
 
   return (
     <>
@@ -60,8 +59,8 @@ export function DuplicateToStudentDialog({
             e.stopPropagation()
             setOpen(true)
           }}
-          title="Duplicar a otro alumno"
-          aria-label="Duplicar a otro alumno"
+          title="Duplicar plan"
+          aria-label="Duplicar plan"
           className="text-muted-foreground hover:bg-muted hover:text-foreground flex size-8 shrink-0 items-center justify-center rounded-md"
         >
           <Copy className="size-4" />
@@ -69,7 +68,7 @@ export function DuplicateToStudentDialog({
       ) : (
         <Button type="button" variant="outline" className="h-8" onClick={() => setOpen(true)}>
           <Copy data-icon="inline-start" />
-          Duplicar a otro alumno
+          Duplicar plan
         </Button>
       )}
 
@@ -77,7 +76,7 @@ export function DuplicateToStudentDialog({
         <div
           role="dialog"
           aria-modal="true"
-          aria-label="Duplicar plan a otro alumno"
+          aria-label="Duplicar plan"
           className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-900/60 p-4 backdrop-blur-sm"
           onClick={(e) => {
             e.preventDefault()
@@ -90,7 +89,7 @@ export function DuplicateToStudentDialog({
             className="bg-card flex w-full max-w-md flex-col gap-4 rounded-2xl p-5 shadow-2xl"
           >
             <div className="flex items-center justify-between gap-3">
-              <h2 className="text-sm font-semibold">Duplicar plan a otro alumno</h2>
+              <h2 className="text-sm font-semibold">Duplicar plan</h2>
               <button
                 type="button"
                 onClick={() => setOpen(false)}
@@ -105,7 +104,8 @@ export function DuplicateToStudentDialog({
             <p className="text-muted-foreground text-xs">
               Copia toda la estructura del plan (semanas, días, bloques y ejercicios) para el
               alumno que elijas. No copia el avance ni los comentarios de "{planName}" — el nuevo
-              queda sin ninguna sesión registrada.
+              queda sin ninguna sesión registrada. Podés duplicarlo al mismo alumno para crear
+              variantes del plan.
             </p>
 
             {error ? <p className="bg-destructive/10 text-destructive rounded-lg px-3 py-2 text-sm">{error}</p> : null}
