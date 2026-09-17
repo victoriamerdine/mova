@@ -706,6 +706,20 @@ export function PlanEditorClient({
               />
             </div>
           ) : null}
+
+          {/* Botón de guardar al final */}
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            {dirty ? (
+              <span className="text-warning-foreground text-xs font-medium">● Cambios sin guardar</span>
+            ) : savedAt ? (
+              <span className="text-primary text-xs">Guardado ✓</span>
+            ) : null}
+            {saveError ? <span className="text-destructive text-xs">{saveError}</span> : null}
+            <Button size="sm" onClick={handleSavePlan} disabled={saving || !dirty} className="ml-auto">
+              <Save data-icon="inline-start" />
+              {saving ? 'Guardando…' : 'Guardar plan'}
+            </Button>
+          </div>
         </div>
       )}
       </div>
