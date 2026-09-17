@@ -3,7 +3,7 @@ import { notFound, redirect } from 'next/navigation'
 import { ArrowLeft, Paperclip } from 'lucide-react'
 
 import { StudentShell } from '@/components/student/student-shell'
-import { formatAnswer } from '@/components/forms/submission-detail'
+import { formatAnswer } from '@/lib/forms/format-answer'
 import { getCurrentStudent } from '@/lib/supabase/queries/student-plan'
 import { getSubmissionDetail } from '@/lib/supabase/queries/forms'
 import { signOut } from '@/app/login/actions'

@@ -1852,7 +1852,14 @@ profe").
   `form_submissions: el alumno logueado ve las propias` ya alcanza) y el
   detalle de sus propias respuestas, de solo lectura (reusa
   `formatAnswer` de `<SubmissionDetail>`, sin las acciones de
-  aplicar/asociar que son del profesor).
+  aplicar/asociar que son del profesor). Migración `20260828000051`: hasta
+  esta feature, `forms` y `form_versions` solo eran legibles por el
+  profesor dueño — el join anidado (`forms(name)`, `form_versions
+  (structure)`) desde la sesión del alumno volvía null en silencio por
+  RLS (no un error, un "Formulario"/"0 preguntas" vacío). Se agregaron dos
+  policies de SELECT acotadas a la propia submission del alumno
+  (`exists (... form_submissions ... student_id = auth.uid())`), sin
+  abrir lectura general de esas tablas.
 
 **Avance del alumno visto por el profesor**:
 

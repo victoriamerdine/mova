@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react'
 
 import { updateMySchedule } from '@/app/alumno/actions'
-import { WEEKDAY_DISPLAY_ORDER, WEEKDAY_LABELS_SHORT } from '@/lib/calendar-recurrence'
+import { WEEKDAY_DISPLAY_ORDER, WEEKDAY_LABELS_SHORT, fmtTime } from '@/lib/calendar-recurrence'
 
 type Day = { weekday: number; time: string | null }
 
@@ -50,7 +50,9 @@ function ScheduleSection({
   initialDays: Day[]
 }) {
   const [open, setOpen] = useState(false)
-  const [days, setDays] = useState<Day[]>(initialDays)
+  const [days, setDays] = useState<Day[]>(
+    initialDays.map((d) => ({ weekday: d.weekday, time: fmtTime(d.time) })),
+  )
   const [pending, startTransition] = useTransition()
   const [msg, setMsg] = useState<string | null>(null)
 
@@ -70,7 +72,7 @@ function ScheduleSection({
       : initialDays
           .slice()
           .sort((a, b) => WEEKDAY_DISPLAY_ORDER.indexOf(a.weekday) - WEEKDAY_DISPLAY_ORDER.indexOf(b.weekday))
-          .map((d) => `${WEEKDAY_LABELS_SHORT[d.weekday]}${d.time ? ` ${d.time}` : ''}`)
+          .map((d) => `${WEEKDAY_LABELS_SHORT[d.weekday]}${d.time ? ` ${fmtTime(d.time)}` : ''}`)
           .join(', ')
 
   return (

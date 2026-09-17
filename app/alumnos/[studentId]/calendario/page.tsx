@@ -7,6 +7,7 @@ import { MonthCalendar, type CalendarItem } from '@/components/calendar/month-ca
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentProfessor } from '@/lib/supabase/queries/professor-dashboard'
 import { getStudentCalendarItems } from '@/lib/supabase/queries/competitions'
+import { fmtTime } from '@/lib/calendar-recurrence'
 import { markScheduleViewed } from '@/app/alumnos/[studentId]/actions'
 
 const TYPE_LABEL: Record<string, string> = {
@@ -59,7 +60,8 @@ export default async function StudentCalendarForProfessorPage({
     id: r.id,
     date: r.date,
     label: TYPE_LABEL[r.type] ?? r.type,
-    sublabel: [r.time, r.sportName, r.location, r.notes].filter(Boolean).join(' · ') || undefined,
+    sublabel:
+      [fmtTime(r.time), r.sportName, r.location, r.notes].filter(Boolean).join(' · ') || undefined,
     recurrenceId: r.recurrenceId,
   }))
 

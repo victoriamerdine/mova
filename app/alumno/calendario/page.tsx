@@ -7,6 +7,7 @@ import { MyScheduleEditor } from '@/components/student/my-schedule-editor'
 import { StudentShell } from '@/components/student/student-shell'
 import { getCurrentStudent } from '@/lib/supabase/queries/student-plan'
 import { getStudentCalendarItems, getStudentRecurrences } from '@/lib/supabase/queries/competitions'
+import { fmtTime } from '@/lib/calendar-recurrence'
 import { signOut } from '@/app/login/actions'
 
 const TYPE_LABEL: Record<string, string> = {
@@ -38,7 +39,8 @@ export default async function StudentCalendarPage() {
     id: r.id,
     date: r.date,
     label: TYPE_LABEL[r.type] ?? r.type,
-    sublabel: [r.time, r.sportName, r.location, r.notes].filter(Boolean).join(' · ') || undefined,
+    sublabel:
+      [fmtTime(r.time), r.sportName, r.location, r.notes].filter(Boolean).join(' · ') || undefined,
     recurrenceId: r.recurrenceId,
   }))
 
