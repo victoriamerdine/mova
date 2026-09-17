@@ -1637,12 +1637,15 @@ en todas las páginas):
 
 - `<MetricCards>` — Alumnos activos, Planes activos, **Sesiones (7 días)**
   (`workout_sessions` completadas por sus alumnos, RLS).
-- `<RecentActivity>` — últimas sesiones completadas de todos sus alumnos
-  (alumno · día · plan · N registros · valoración · nota), link a la ficha.
 - `<RenewalsPanel>` — planes activos por vencer/vencidos
   (`getRenewalBadge` de `lib/plan-renewal.ts`; solo <7 días o vencido).
 - `<StudentsTable>` — lista de alumnos; **cada fila navega a
   `/alumnos/[id]`** (row `onClick` + el nombre es un `<Link>` real).
+- `<RecentActivity>` — al final del dashboard y **contraída por
+  defecto** (`<details>`, mismo patrón que "Avance y comentarios" en la
+  ficha del alumno) — últimas sesiones completadas de todos sus alumnos
+  (alumno · día · plan · N registros · valoración · nota), link a la
+  ficha. No es lo primero que ve el profesor al entrar.
 
 **Alumnos** (`/alumnos`, `/alumnos/[id]`):
 

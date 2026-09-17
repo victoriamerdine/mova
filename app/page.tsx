@@ -48,15 +48,11 @@ export default async function ProfessorDashboardPage() {
         <main className="flex flex-1 flex-col gap-6 px-6 py-6">
           <MetricCards metrics={metrics} />
 
-          <section
-            aria-label="Actividad y renovaciones"
-            className="grid gap-4 xl:grid-cols-[1.85fr_1fr]"
-          >
-            <RecentActivity entries={activity} />
-            <RenewalsPanel items={renewals} />
-          </section>
+          <RenewalsPanel items={renewals} />
 
           <StudentsTable students={students} />
+
+          <RecentActivity entries={activity} />
         </main>
       </div>
     </div>
