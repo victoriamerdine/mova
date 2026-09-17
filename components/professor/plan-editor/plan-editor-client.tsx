@@ -90,6 +90,16 @@ export function PlanEditorClient({
   const [savedAt, setSavedAt] = useState<number | null>(null)
   const [saving, startSaving] = useTransition()
 
+  // Tipo del plan: controlado (no defaultValue) para que el selector de
+  // ejercicio (Patrón/Músculo) reaccione al toque, sin esperar a guardar —
+  // y para que el <select> no "vuelva" al valor viejo después de guardar
+  // (un <select defaultValue> no controlado no se resincroniza solo con
+  // el prop `plan` nuevo que llega por revalidatePath).
+  const [planType, setPlanType] = useState(plan.planType)
+  useEffect(() => {
+    setPlanType(plan.planType)
+  }, [plan.planType])
+
   const badge = getRenewalBadge(plan.startDate, plan.endDate)
 
   // `plan` (y por lo tanto `plan.days`) solo cambia de identidad cuando el
@@ -143,7 +153,7 @@ export function PlanEditorClient({
     (dayId: string, ex: LibraryDragPayload) => {
       const cat = catalog.exercises.find((c) => c.id === ex.id)
       const patternOrMuscleId =
-        plan.planType === 'PATTERN' ? (cat?.patternId ?? null) : (cat?.muscleId ?? null)
+        planType === 'PATTERN' ? (cat?.patternId ?? null) : (cat?.muscleId ?? null)
       const groupLabel = patternOrMuscleId ? (groupIdToName.get(patternOrMuscleId) ?? '') : ''
       setDayDraft(dayId)((prev) => [
         ...prev,
@@ -157,7 +167,7 @@ export function PlanEditorClient({
         },
       ])
     },
-    [catalog.exercises, plan.planType, setDayDraft, groupIdToName],
+    [catalog.exercises, planType, setDayDraft, groupIdToName],
   )
 
   function dropHandlers(dayId: string) {
@@ -320,7 +330,8 @@ export function PlanEditorClient({
             <span className="text-muted-foreground text-xs font-medium">Tipo</span>
             <select
               name="planType"
-              defaultValue={plan.planType}
+              value={planType}
+              onChange={(e) => setPlanType(e.target.value as PlanForEditor['planType'])}
               className="border-input h-8 rounded-lg border bg-transparent px-2.5 text-sm outline-none dark:bg-input/30"
             >
               {PLAN_TYPE_OPTIONS.map((opt) => (
@@ -660,7 +671,7 @@ export function PlanEditorClient({
                         key={day.id}
                         blocks={draftsByDay[day.id] ?? []}
                         onBlocksChange={setDayDraft(day.id)}
-                        planType={plan.planType}
+                        planType={planType}
                         catalog={catalog}
                       />
                     ) : null}
@@ -681,7 +692,7 @@ export function PlanEditorClient({
                 key={currentDay.id}
                 blocks={draftsByDay[currentDay.id] ?? []}
                 onBlocksChange={setDayDraft(currentDay.id)}
-                planType={plan.planType}
+                planType={planType}
                 catalog={catalog}
               />
             </div>
