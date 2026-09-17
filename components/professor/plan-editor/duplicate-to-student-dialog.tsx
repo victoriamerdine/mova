@@ -20,10 +20,13 @@ export function DuplicateToStudentDialog({
   planId,
   planName,
   students,
+  variant = 'button',
 }: {
   planId: string
   planName: string
   students: OtherStudent[]
+  /** 'icon' = botón compacto, para usar en una fila de lista (ver <PlansList>). */
+  variant?: 'button' | 'icon'
 }) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
@@ -49,10 +52,26 @@ export function DuplicateToStudentDialog({
 
   return (
     <>
-      <Button type="button" variant="outline" className="h-8" onClick={() => setOpen(true)}>
-        <Copy data-icon="inline-start" />
-        Duplicar a otro alumno
-      </Button>
+      {variant === 'icon' ? (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            setOpen(true)
+          }}
+          title="Duplicar a otro alumno"
+          aria-label="Duplicar a otro alumno"
+          className="text-muted-foreground hover:bg-muted hover:text-foreground flex size-8 shrink-0 items-center justify-center rounded-md"
+        >
+          <Copy className="size-4" />
+        </button>
+      ) : (
+        <Button type="button" variant="outline" className="h-8" onClick={() => setOpen(true)}>
+          <Copy data-icon="inline-start" />
+          Duplicar a otro alumno
+        </Button>
+      )}
 
       {open ? (
         <div
@@ -60,7 +79,11 @@ export function DuplicateToStudentDialog({
           aria-modal="true"
           aria-label="Duplicar plan a otro alumno"
           className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-900/60 p-4 backdrop-blur-sm"
-          onClick={() => !pending && setOpen(false)}
+          onClick={(e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            if (!pending) setOpen(false)
+          }}
         >
           <div
             onClick={(e) => e.stopPropagation()}

@@ -12,7 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input'
 import { AiDraftPanel } from '@/components/professor/ai-draft-panel'
 import { PendingDraftsPanel } from '@/components/professor/pending-drafts-panel'
-import { getCurrentPlanActor } from '@/lib/supabase/queries/professor-dashboard'
+import { getCurrentPlanActor, getMyStudents } from '@/lib/supabase/queries/professor-dashboard'
 import { getPlansForIndividual, getPlansForProfessor } from '@/lib/supabase/queries/plans'
 import { createOwnPlan } from '@/app/planes/actions'
 import { getPendingDrafts } from '@/app/planes/draft-actions'
@@ -118,7 +118,13 @@ export default async function PlansPage({
     )
   }
 
-  const plans = await getPlansForProfessor(actor.id)
+  const [plans, myStudents] = await Promise.all([
+    getPlansForProfessor(actor.id),
+    getMyStudents(actor.id),
+  ])
+  const students = myStudents
+    .filter((s) => s.status === 'active')
+    .map((s) => ({ id: s.id, fullName: s.fullName }))
 
   return (
     <div className="bg-background flex min-h-svh">
@@ -132,11 +138,12 @@ export default async function PlansPage({
           <div>
             <h1 className="text-lg font-semibold tracking-tight">Planes</h1>
             <p className="text-muted-foreground text-sm">
-              Todos los planes que armaste, de todos tus alumnos. Tocá uno para abrir el editor.
+              Todos los planes que armaste, de todos tus alumnos. Tocá uno para abrir el editor, o
+              duplicalo a otro alumno desde el ícono de copiar.
             </p>
           </div>
 
-          <PlansList plans={plans} />
+          <PlansList plans={plans} students={students} />
         </main>
       </div>
     </div>

@@ -1743,20 +1743,26 @@ Soportar:
   de carga del alumno (`calculateVolumeByGroup`, `lib/volume-calc.ts`).
 - **`<AiAnalyzeWeek>`**: análisis de la distribución de la semana (Módulo
   de IA §3).
-- **Duplicar a otro alumno** (`<DuplicateToStudentDialog>`, botón en
-  "Datos generales del plan"): copia el plan ENTERO (fases/semanas/días/
-  bloques/ítems/prescripciones) para reutilizarlo con otro alumno del
-  mismo profesor — pensado para plantillas ("plan musculo") que se arman
-  una vez y se reasignan. Un solo RPC (`duplicate_plan_to_student`,
-  migración `20260828000049`, atómico) reutiliza `duplicate_workout` por
-  dentro, igual que "duplicar semana"/"duplicar día". **Nunca copia
+- **Duplicar a otro alumno** (`<DuplicateToStudentDialog>`): copia el plan
+  ENTERO (fases/semanas/días/bloques/ítems/prescripciones) para
+  reutilizarlo con otro alumno del mismo profesor — pensado para
+  plantillas ("plan musculo") que se arman una vez y se reasignan.
+  Disponible en dos lugares con el mismo componente (`variant="button"` /
+  `variant="icon"`): botón completo en "Datos generales del plan" (dentro
+  del editor) y, para no obligar a abrir cada plan, un ícono de copiar
+  **por fila en `/planes`** (`<PlansList>` — el trigger vive fuera del
+  `<Link>` de la fila, con `stopPropagation`, así no navega al editor al
+  tocarlo). Un solo RPC (`duplicate_plan_to_student`, migración
+  `20260828000049`, atómico) reutiliza `duplicate_workout` por dentro,
+  igual que "duplicar semana"/"duplicar día". **Nunca copia
   avance/comentarios**: `workout_sessions`/`workout_performance` quedan
   atados al `workout_id` original (que no se toca) — los workouts de la
   copia son filas nuevas, siempre sin ninguna sesión registrada. RLS
   exige que el profesor sea dueño de los dos alumnos (origen y destino);
   `professor_id` de la copia es quien la crea, no el del plan original.
   Solo para profesores (un individuo no tiene "otro alumno" al que
-  asignarle nada).
+  asignarle nada) — en `/planes` el ícono no aparece si el profesor no
+  tiene ningún otro alumno activo.
 
 ### Pendiente
 
