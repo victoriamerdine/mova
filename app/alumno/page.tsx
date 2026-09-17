@@ -1,24 +1,48 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { ClipboardList } from 'lucide-react'
+import { BarChart3, CalendarDays, ChevronRight, ClipboardList, Dumbbell } from 'lucide-react'
 
 import { StudentShell } from '@/components/student/student-shell'
-import { StudentWeekView } from '@/components/student/student-week-view'
 import { createClient } from '@/lib/supabase/server'
-import {
-  getCurrentStudent,
-  getStudentActivePlans,
-  getStudentWeek,
-} from '@/lib/supabase/queries/student-plan'
+import { getCurrentStudent, getStudentActivePlans } from '@/lib/supabase/queries/student-plan'
 import { signOut } from '@/app/login/actions'
 
 export const dynamic = 'force-dynamic'
 
-export default async function AlumnoPage({
-  searchParams,
+function HubCard({
+  href,
+  icon: Icon,
+  title,
+  subtitle,
 }: {
-  searchParams: Promise<{ plan?: string; week?: string }>
+  href: string
+  icon: React.ComponentType<{ className?: string }>
+  title: string
+  subtitle: string
 }) {
+  return (
+    <Link
+      href={href}
+      className="border-border bg-card hover:bg-muted/50 flex items-center gap-3 rounded-2xl border p-4 transition-colors"
+    >
+      <span className="bg-primary/10 text-primary flex size-11 shrink-0 items-center justify-center rounded-xl">
+        <Icon className="size-5" />
+      </span>
+      <span className="flex-1">
+        <span className="block text-sm font-semibold">{title}</span>
+        <span className="text-muted-foreground block text-xs">{subtitle}</span>
+      </span>
+      <ChevronRight className="text-muted-foreground size-4 shrink-0" />
+    </Link>
+  )
+}
+
+/**
+ * Home del alumno: punto de entrada único desde donde elige qué ver — plan,
+ * estadísticas o calendario (que ya incluye todos sus registros/historial,
+ * ver Fase 9). El plan en sí vive en /alumno/plan.
+ */
+export default async function AlumnoHomePage() {
   const student = await getCurrentStudent()
   if (!student) {
     // proxy.ts ya cubre "sin sesión". Acá: un profesor que entró por error.
@@ -29,53 +53,44 @@ export default async function AlumnoPage({
     redirect(user ? '/' : '/login')
   }
 
-  const { plan: planParam, week: weekParam } = await searchParams
   const plans = await getStudentActivePlans(student.id)
-
-  const backToPlans =
-    student.role === 'individual' ? (
-      <Link
-        href="/planes"
-        className="text-muted-foreground hover:text-foreground -mb-1 flex items-center gap-1.5 text-sm"
-      >
-        <ClipboardList className="size-4" />
-        Mis planes
-      </Link>
-    ) : null
-
-  if (plans.length === 0) {
-    return (
-      <StudentShell signOut={signOut}>
-        {backToPlans}
-        <p className="text-primary text-xs font-bold tracking-widest uppercase">Tu entrenamiento</p>
-        <h1 className="text-2xl font-semibold tracking-tight">
-          Hola {student.fullName.split(' ')[0]}
-        </h1>
-        <div className="text-muted-foreground rounded-2xl border border-dashed p-8 text-center text-sm">
-          {student.role === 'individual'
-            ? 'Todavía no armaste un plan activo. Creá uno en "Mis planes" y va a aparecer acá.'
-            : 'Todavía no tenés un plan activo. Cuando tu profe te asigne uno, va a aparecer acá.'}
-        </div>
-      </StudentShell>
-    )
-  }
-
-  const activePlan = plans.find((p) => p.id === planParam) ?? plans[0]
-  const week = await getStudentWeek(
-    student.id,
-    activePlan.id,
-    weekParam ? Number(weekParam) : undefined,
-  )
+  const planSubtitle =
+    plans.length === 0
+      ? 'Todavía no tenés un plan activo'
+      : plans.length === 1
+        ? plans[0].name
+        : `${plans.length} planes activos`
 
   return (
     <StudentShell signOut={signOut}>
-      {backToPlans}
-      <StudentWeekView
-        studentName={student.fullName}
-        plans={plans}
-        activePlanId={activePlan.id}
-        week={week}
-      />
+      <p className="text-primary text-xs font-bold tracking-widest uppercase">Inicio</p>
+      <h1 className="text-2xl font-semibold tracking-tight">Hola {student.fullName.split(' ')[0]}</h1>
+
+      {student.role === 'individual' ? (
+        <Link
+          href="/planes"
+          className="text-muted-foreground hover:text-foreground -mt-3 flex items-center gap-1.5 text-sm"
+        >
+          <ClipboardList className="size-4" />
+          Mis planes
+        </Link>
+      ) : null}
+
+      <div className="flex flex-col gap-3">
+        <HubCard href="/alumno/plan" icon={Dumbbell} title="Mi plan" subtitle={planSubtitle} />
+        <HubCard
+          href="/alumno/progreso"
+          icon={BarChart3}
+          title="Mis estadísticas"
+          subtitle="Carga, volumen y evolución"
+        />
+        <HubCard
+          href="/alumno/calendario"
+          icon={CalendarDays}
+          title="Mi calendario"
+          subtitle="Eventos y todo lo que registraste"
+        />
+      </div>
     </StudentShell>
   )
 }

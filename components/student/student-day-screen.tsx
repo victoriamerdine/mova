@@ -8,7 +8,7 @@ export function StudentDayScreen({ day }: { day: StudentDay }) {
   return (
     <>
       <Link
-        href="/alumno"
+        href="/alumno/calendario"
         className="text-muted-foreground hover:text-foreground -mb-1 flex items-center gap-1 text-sm"
       >
         <ArrowLeft className="size-4" />
