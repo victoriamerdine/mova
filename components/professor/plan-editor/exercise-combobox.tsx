@@ -4,7 +4,7 @@ import { useMemo, useRef, useState } from 'react'
 import { Search } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
-import type { PlanBuilderCatalog } from '@/lib/supabase/queries/plan-editor'
+import type { CatalogOption, PlanBuilderCatalog } from '@/lib/supabase/queries/plan-editor'
 
 function normalize(value: string): string {
   return value
@@ -39,7 +39,21 @@ export function ExerciseCombobox({
   const wrapperRef = useRef<HTMLDivElement>(null)
 
   const usesPattern = planType === 'PATTERN'
-  const groupOptions = usesPattern ? catalog.patterns : catalog.muscles
+  // Mixto / Específico de deporte / Personalizado: el profesor elige
+  // libremente entre patrón O músculo por ejercicio, no uno solo para
+  // todo el plan — se ofrecen los dos catálogos juntos, marcados, en vez
+  // de forzar uno. Solo Músculo y Patrones quedan atados a su propio
+  // catálogo (para eso existen como tipo).
+  const isFlexible = planType === 'MIXED' || planType === 'SPORT_SPECIFIC' || planType === 'CUSTOM'
+  const groupOptions: (CatalogOption & { kind: 'pattern' | 'muscle' })[] = isFlexible
+    ? [
+        ...catalog.patterns.map((p) => ({ ...p, kind: 'pattern' as const })),
+        ...catalog.muscles.map((m) => ({ ...m, kind: 'muscle' as const })),
+      ]
+    : (usesPattern ? catalog.patterns : catalog.muscles).map((g) => ({
+        ...g,
+        kind: usesPattern ? ('pattern' as const) : ('muscle' as const),
+      }))
 
   const filteredGroups = useMemo(() => {
     const q = normalize(value.patternOrMuscleLabel.trim())
@@ -50,15 +64,17 @@ export function ExerciseCombobox({
   const filteredExercises = useMemo(() => {
     const byGroup = catalog.exercises.filter((ex) =>
       value.patternOrMuscleId
-        ? usesPattern
-          ? ex.patternId === value.patternOrMuscleId
-          : ex.muscleId === value.patternOrMuscleId
+        ? isFlexible
+          ? ex.patternId === value.patternOrMuscleId || ex.muscleId === value.patternOrMuscleId
+          : usesPattern
+            ? ex.patternId === value.patternOrMuscleId
+            : ex.muscleId === value.patternOrMuscleId
         : true,
     )
     const q = normalize(query.trim())
     const bySearch = q ? byGroup.filter((ex) => normalize(ex.name).includes(q)) : byGroup
     return bySearch.slice(0, 50)
-  }, [catalog.exercises, value.patternOrMuscleId, usesPattern, query])
+  }, [catalog.exercises, value.patternOrMuscleId, isFlexible, usesPattern, query])
 
   function setGroupText(text: string) {
     // Si el texto coincide exacto con una opción del catálogo, guardamos su
@@ -79,8 +95,8 @@ export function ExerciseCombobox({
           }}
           onFocus={() => setGroupOpen(true)}
           onBlur={() => window.setTimeout(() => setGroupOpen(false), 150)}
-          placeholder={usesPattern ? 'Patrón (libre)…' : 'Músculo (libre)…'}
-          aria-label={usesPattern ? 'Patrón' : 'Músculo'}
+          placeholder={isFlexible ? 'Patrón o músculo (libre)…' : usesPattern ? 'Patrón (libre)…' : 'Músculo (libre)…'}
+          aria-label={isFlexible ? 'Patrón o músculo' : usesPattern ? 'Patrón' : 'Músculo'}
           className="border-input focus-within:border-ring focus-within:ring-ring/50 h-8 w-full rounded-lg border bg-transparent px-2 text-xs outline-none focus-within:ring-3 dark:bg-input/30"
         />
         {groupOpen && filteredGroups.length > 0 ? (
@@ -95,11 +111,16 @@ export function ExerciseCombobox({
                     setGroupOpen(false)
                   }}
                   className={cn(
-                    'hover:bg-accent hover:text-accent-foreground w-full rounded-md px-2 py-1.5 text-left text-xs',
+                    'hover:bg-accent hover:text-accent-foreground flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left text-xs',
                     g.id === value.patternOrMuscleId && 'bg-accent text-accent-foreground',
                   )}
                 >
-                  {g.name}
+                  <span>{g.name}</span>
+                  {isFlexible ? (
+                    <span className="text-muted-foreground shrink-0 text-[10px] tracking-wide uppercase">
+                      {g.kind === 'pattern' ? 'Patrón' : 'Músculo'}
+                    </span>
+                  ) : null}
                 </button>
               </li>
             ))}

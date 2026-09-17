@@ -1737,7 +1737,13 @@ Soportar:
   ejercicio (`<ExerciseCombobox>` — patrón/músculo + texto libre o de la
   biblioteca), prescripción (series/reps/carga/intensidad/pausa + campos
   de resistencia colapsables), preview de video, arrastrar para reordenar
-  o mover entre bloques.
+  o mover entre bloques. **Tipo `MIXED`/`SPORT_SPECIFIC`/`CUSTOM`**: el
+  selector de grupo no fuerza un solo catálogo — combina patrones y
+  músculos en una sola lista (cada opción marcada "PATRÓN"/"MÚSCULO"), el
+  profesor elige libremente por ejercicio; solo `MUSCLE`/`PATTERN` quedan
+  atados a su propio catálogo (para eso existen como tipo). Al arrastrar
+  un ejercicio de la biblioteca en estos tres tipos, `addExerciseToDay`
+  usa el patrón si el ejercicio tiene uno cargado, si no el músculo.
 - **Biblioteca** (`<ExerciseLibraryPanel>`): en desktop, panel fijo a la
   derecha (buscar + arrastrar o ＋); en **mobile**, botón flotante
   "Biblioteca" que abre una hoja inferior con la misma búsqueda y ＋ por
