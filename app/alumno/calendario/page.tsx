@@ -3,10 +3,12 @@ import { redirect } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
 
 import { MonthCalendar, type CalendarItem } from '@/components/calendar/month-calendar'
+import { MyScheduleEditor } from '@/components/student/my-schedule-editor'
 import { StudentShell } from '@/components/student/student-shell'
 import { DIFFICULTY_LABEL } from '@/lib/student-difficulty'
 import { getCurrentStudent, getStudentHistory } from '@/lib/supabase/queries/student-plan'
-import { getStudentCalendarItems } from '@/lib/supabase/queries/competitions'
+import { getStudentCalendarItems, getStudentRecurrences } from '@/lib/supabase/queries/competitions'
+import { fmtTime } from '@/lib/calendar-recurrence'
 import { signOut } from '@/app/login/actions'
 
 const TYPE_LABEL: Record<string, string> = {
@@ -19,6 +21,8 @@ const TYPE_LABEL: Record<string, string> = {
   evento: 'Evento',
   descanso: 'Descanso',
   recuperacion: 'Recuperación',
+  entreno_preferido: 'Entreno acá',
+  otra_disciplina: 'Otra disciplina',
 }
 
 /** "45 min" o "1 h 5 min". */
@@ -34,16 +38,18 @@ export const dynamic = 'force-dynamic'
 
 /**
  * Calendario consolidado del alumno: eventos/competencias que cargó el
- * profesor (Fase 9) + lo que realmente entrenó, de TODOS sus planes
- * (`getStudentHistory` ya no filtra por plan — reemplaza a la vista
- * separada que tenía /alumno/historial).
+ * profesor (Fase 9) + sus propios días de entreno preferido / otra
+ * disciplina (editables acá mismo) + lo que realmente entrenó, de TODOS
+ * sus planes (`getStudentHistory` ya no filtra por plan — reemplaza a la
+ * vista separada que tenía /alumno/historial).
  */
 export default async function StudentCalendarPage() {
   const student = await getCurrentStudent()
   if (!student) redirect('/login')
 
-  const [eventRows, historyRows] = await Promise.all([
+  const [eventRows, recurrences, historyRows] = await Promise.all([
     getStudentCalendarItems(student.id),
+    getStudentRecurrences(student.id),
     getStudentHistory(student.id),
   ])
 
@@ -51,9 +57,17 @@ export default async function StudentCalendarPage() {
     id: r.id,
     date: r.date,
     label: TYPE_LABEL[r.type] ?? r.type,
-    sublabel: [r.sportName, r.location, r.notes].filter(Boolean).join(' · ') || undefined,
+    sublabel:
+      [fmtTime(r.time), r.sportName, r.location, r.notes].filter(Boolean).join(' · ') || undefined,
     recurrenceId: r.recurrenceId,
   }))
+
+  const preferredDays = recurrences
+    .filter((r) => r.type === 'entreno_preferido')
+    .map((r) => ({ weekday: r.weekday, time: r.time }))
+  const otherDisciplineDays = recurrences
+    .filter((r) => r.type === 'otra_disciplina')
+    .map((r) => ({ weekday: r.weekday, time: r.time }))
 
   const historyItems: CalendarItem[] = historyRows.map((h) => ({
     id: h.sessionId,
@@ -85,11 +99,14 @@ export default async function StudentCalendarPage() {
       </Link>
       <h1 className="text-xl font-semibold tracking-tight">Mi calendario</h1>
       <p className="text-muted-foreground text-xs">
-        Lo que cargó tu profesor (partidos, tests, descanso…) y lo que realmente entrenaste, de
-        todos tus planes. Tocá un día para ver el detalle.
+        Lo que cargó tu profesor (partidos, tests, descanso…), tus días de entreno preferido y de
+        otras disciplinas, y lo que realmente entrenaste, de todos tus planes. Tocá un día para ver
+        el detalle.
       </p>
 
       <MonthCalendar items={items} emptyLabel="Todavía no tenés nada en el calendario." />
+
+      <MyScheduleEditor preferredDays={preferredDays} otherDisciplineDays={otherDisciplineDays} />
     </StudentShell>
   )
 }

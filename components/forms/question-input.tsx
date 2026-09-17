@@ -6,7 +6,8 @@ import { Paperclip, Upload } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { cn } from '@/lib/utils'
-import type { SnapshotQuestion } from '@/lib/forms/types'
+import type { SnapshotQuestion, WeeklyScheduleDay } from '@/lib/forms/types'
+import { WEEKDAY_DISPLAY_ORDER, WEEKDAY_LABELS_SHORT } from '@/lib/calendar-recurrence'
 
 type FileValue = { path: string; filename: string; size: number; mime: string }
 
@@ -149,6 +150,9 @@ export function QuestionInput({
       )
     }
 
+    case 'weekly_schedule':
+      return <WeeklyScheduleInput value={value} onChange={onChange} />
+
     case 'file':
       return <FileInput question={question} value={value} onChange={onChange} token={token} />
 
@@ -260,6 +264,60 @@ function FileInput({
         hasta {question.config.maxSizeMB || 10} MB
       </p>
       {err ? <p className="text-destructive text-xs">{err}</p> : null}
+    </div>
+  )
+}
+
+function WeeklyScheduleInput({
+  value,
+  onChange,
+}: {
+  value: unknown
+  onChange: (v: unknown) => void
+}) {
+  const days = (Array.isArray(value) ? value : []) as WeeklyScheduleDay[]
+
+  function dayFor(weekday: number) {
+    return days.find((d) => d.weekday === weekday) ?? null
+  }
+
+  function toggle(weekday: number, checked: boolean) {
+    if (!checked) {
+      onChange(days.filter((d) => d.weekday !== weekday))
+      return
+    }
+    onChange([...days, { weekday, time: null }])
+  }
+
+  function setTime(weekday: number, time: string) {
+    onChange(days.map((d) => (d.weekday === weekday ? { ...d, time: time || null } : d)))
+  }
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      {WEEKDAY_DISPLAY_ORDER.map((weekday) => {
+        const cur = dayFor(weekday)
+        return (
+          <div key={weekday} className="border-input flex items-center gap-3 rounded-xl border px-3 py-2">
+            <label className="flex flex-1 items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={cur != null}
+                onChange={(e) => toggle(weekday, e.target.checked)}
+              />
+              {WEEKDAY_LABELS_SHORT[weekday]}
+            </label>
+            {cur ? (
+              <input
+                type="time"
+                value={cur.time ?? ''}
+                onChange={(e) => setTime(weekday, e.target.value)}
+                className="border-input h-7 rounded-md border bg-transparent px-1.5 text-sm outline-none dark:bg-input/30"
+              />
+            ) : null}
+          </div>
+        )
+      })}
     </div>
   )
 }

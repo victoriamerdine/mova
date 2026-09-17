@@ -1623,6 +1623,14 @@ en todas las páginas):
   `/alumnos/[id]?avance=1#avance` — abre esa ficha con "Avance y
   comentarios" ya expandido; abrir la ficha (`markStudentProgressViewed`,
   fire-and-forget) apaga el aviso de ese alumno hasta la próxima sesión.
+  Una **segunda señal**, "el alumno cambió sus días de entreno"
+  (`students.schedule_updated_at` vs. `student_professors.
+  last_schedule_viewed_at`, migración `20260828000050`), se agrega
+  aparte —no comparte columna con la de progreso, para no apagar un aviso
+  al ver el otro— vía `getScheduleNotifications`, mezclada en la misma
+  respuesta de `GET /api/notifications` con un campo `kind`. Un ítem de
+  este tipo lleva a `/alumnos/[id]/calendario` (ver Fase 9) y se apaga con
+  `markScheduleViewed` al abrir esa página.
 
 **Dashboard** (`/`, `getDashboardMetrics` + `getRecentActivity` +
 `getPlansToRenew` + `getMyStudents`):
@@ -1859,7 +1867,22 @@ entrenamiento de hoy" ahora apuntan a `/alumno/plan` en vez de al Home.
   La duración = `completed_at − started_at`
   (`StudentHistoryEntry.durationSec`). `/alumno/historial` redirige ahí.
 - Acciones (`app/alumno/actions.ts`): `startDaySession`, `logExercise`,
-  `finishDay(workoutId, feelingNote, difficulty)`.
+  `finishDay(workoutId, feelingNote, difficulty)`, `updateMySchedule`
+  (Fase 9).
+- **Formularios** (`/alumno/formularios`, `/alumno/formularios/[id]`):
+  el alumno ve los formularios que respondió (`getMySubmissions` —
+  variante de `getStudentSubmissions` sin el gate de profesor, RLS
+  `form_submissions: el alumno logueado ve las propias` ya alcanza) y el
+  detalle de sus propias respuestas, de solo lectura (reusa
+  `formatAnswer` de `<SubmissionDetail>`, sin las acciones de
+  aplicar/asociar que son del profesor). Migración `20260828000051`: hasta
+  esta feature, `forms` y `form_versions` solo eran legibles por el
+  profesor dueño — el join anidado (`forms(name)`, `form_versions
+  (structure)`) desde la sesión del alumno volvía null en silencio por
+  RLS (no un error, un "Formulario"/"0 preguntas" vacío). Se agregaron dos
+  policies de SELECT acotadas a la propia submission del alumno
+  (`exists (... form_submissions ... student_id = auth.uid())`), sin
+  abrir lectura general de esas tablas.
 
 **Avance del alumno visto por el profesor**:
 
@@ -1995,6 +2018,42 @@ quedó como un simple `redirect('/alumno/calendario')` (no se borró la URL,
 por si había links guardados) y `components/student/history-calendar.tsx`
 se eliminó (reemplazado por `<MonthCalendar>`).
 
+**Días de entreno preferido / otra disciplina — el ALUMNO escribe su
+propio calendario** (migración `20260828000050`): excepción deliberada a
+"el profesor carga el calendario" — acá el alumno es la autoridad sobre
+su disponibilidad, el profesor solo se entera.
+
+- Dos tipos nuevos en `competitions`/`competition_recurrences`:
+  `entreno_preferido` (días que prefiere entrenar el plan de MOVA) y
+  `otra_disciplina` (días que entrena otro deporte/actividad). Se agregó
+  `time` a `competition_recurrences` (antes solo `competitions` lo tenía).
+- **RLS**: nueva policy permissive `competition_recurrences: el alumno
+  gestiona su disponibilidad` — el alumno puede insertar/editar/borrar
+  SOLO sus propias filas de esos dos tipos (`is_own_student(student_id)
+  and type in (...)`); coexiste con la policy del profesor ("for all",
+  las permissive se combinan con OR), que sigue intacta para el resto de
+  tipos.
+- **El alumno edita** desde `/alumno/calendario` (`<MyScheduleEditor>`,
+  dos secciones colapsables, grilla de 7 días + hora opcional por
+  sección) → `updateMySchedule(purpose, days)`
+  (`app/alumno/actions.ts`): reemplaza el conjunto entero para ese
+  propósito (mismo criterio que `logExercise`: borra y reescribe) y
+  marca `students.schedule_updated_at` (alimenta la campanita del
+  profesor, ver Fase 5).
+- **El profesor ve el calendario tal cual el alumno** en
+  `/alumnos/[studentId]/calendario` (nuevo, `MinimalHeader` + el mismo
+  `<MonthCalendar>` con `getStudentCalendarItems`, de solo lectura) —
+  link "ver su calendario tal cual él lo ve" desde la tarjeta
+  "Calendario" de la ficha. Abrir esa página apaga el aviso de la
+  campanita (`markScheduleViewed`).
+- **Desde un formulario**: nuevo tipo de pregunta `weekly_schedule`
+  (§ver SISTEMA DE FORMULARIOS) — el profesor arma la pregunta, el
+  alumno la responde, y desde "Respuestas" el profesor puede "Aplicar al
+  calendario" (`applyScheduleToCalendar`, mismo criterio de reemplazar el
+  conjunto entero; a diferencia de `updateMySchedule`, esta vía NO marca
+  `schedule_updated_at` — es el profesor aplicando, no hace falta
+  avisarle a sí mismo).
+
 ### Pendiente
 
 - Filtrar el calendario del profesor por alumno o por tipo (hoy: todo
@@ -2120,10 +2179,10 @@ responde por un link con token.
 - `form_sections` → `form_questions` → `form_question_options`. `form_id`
   denormalizado en todas las hijas para que las policies sean un simple
   `can_manage_form(form_id)`.
-- `form_questions.type`: 16 valores en el CHECK. El registry vive en la app
+- `form_questions.type`: 17 valores en el CHECK. El registry vive en la app
   (`lib/forms/question-types.ts`) — agregar un tipo = una entrada ahí + el
   CHECK + el input del alumno, sin cambiar el resto del esquema. Hoy
-  disponibles 15; `video` diferido.
+  disponibles 16; `video` diferido.
 - `form_rules` — lógica condicional **como datos**:
   `{ when: [{ questionId, op, value }], match: all|any, action:
   show|hide|require|skip_to, target: { kind: question|section, id } }`.
@@ -2224,6 +2283,19 @@ cualquier profesor.
 **Tests**: `pnpm test` (vitest) — 76 tests de lógica pura, incluye
 `lib/forms/rules` (evaluación, obligatoria oculta no se exige, formulario
 modificado) y `lib/forms/question-types` (invariantes del registry).
+
+**Tipo `weekly_schedule`** ("Días de la semana + hora", grupo "Horario"):
+grilla de 7 días con checkbox + hora opcional por día. `value` en
+`form_answers` es un **array crudo** `{ weekday, time }[]` (no envuelto en
+un objeto) — a propósito: así `isAnswered()` de `lib/forms/rules.ts` (que
+solo mira `Object.keys(value).length`) trata un array vacío como "sin
+responder" sin necesitar un caso especial para este tipo. Un único config
+`calendarPurpose` (`entreno_preferido` | `otra_disciplina`, un `select`
+genérico del registry) le dice al profesor a qué se aplica en el
+calendario — el mismo tipo de pregunta se usa dos veces con etiquetas
+distintas ("¿Qué días entrenás otra disciplina?" / "¿Qué días preferís
+entrenar acá?"), no hacen falta dos tipos separados. Ver Fase 9 para cómo
+la respuesta llega al calendario del alumno.
 
 ### Pendiente
 

@@ -313,6 +313,10 @@ export default async function StudentDetailPage({
                 <Link href="/calendario" className="underline underline-offset-2">
                   el calendario general
                 </Link>
+                . Los días de entreno preferido y otras disciplinas los carga el alumno — podés{' '}
+                <Link href={`/alumnos/${studentId}/calendario`} className="underline underline-offset-2">
+                  ver su calendario tal cual él lo ve
+                </Link>
                 .
               </CardDescription>
             </CardHeader>

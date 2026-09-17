@@ -452,3 +452,55 @@ export async function getStudentSubmissions(studentId: string): Promise<StudentS
     createdAt: s.created_at,
   }))
 }
+
+/**
+ * Formularios que el propio alumno logueado respondió — sección
+ * "Formularios" de la app del alumno. A diferencia de
+ * `getStudentSubmissions` (para el profesor), no filtra por profesor: RLS
+ * (`form_submissions: el alumno logueado ve las propias`,
+ * `student_id = auth.uid()`) ya alcanza.
+ */
+export async function getMySubmissions(studentId: string): Promise<StudentSubmission[]> {
+  const supabase = await createClient()
+
+  const { data, error } = await supabase
+    .from('form_submissions')
+    .select(
+      `
+      id, form_id, status, created_at, completed_at,
+      forms(name),
+      form_versions(structure),
+      form_answers(id)
+    `,
+    )
+    .eq('student_id', studentId)
+    .in('status', ['started', 'completed'])
+    .order('completed_at', { ascending: false, nullsFirst: false })
+    .order('created_at', { ascending: false })
+
+  if (error || !data) return []
+
+  return (data as unknown as {
+    id: string
+    form_id: string
+    status: StudentSubmission['status']
+    created_at: string
+    completed_at: string | null
+    forms: { name: string } | null
+    form_versions: { structure: { sections: { questions: unknown[] }[] } } | null
+    form_answers: { id: string }[]
+  }[]).map((s) => ({
+    id: s.id,
+    formId: s.form_id,
+    formName: s.forms?.name ?? 'Formulario',
+    status: s.status,
+    answered: s.form_answers?.length ?? 0,
+    total:
+      s.form_versions?.structure?.sections?.reduce(
+        (n, sec) => n + (sec.questions?.length ?? 0),
+        0,
+      ) ?? 0,
+    completedAt: s.completed_at,
+    createdAt: s.created_at,
+  }))
+}

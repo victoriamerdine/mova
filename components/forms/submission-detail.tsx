@@ -9,34 +9,15 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { applyAnswersToStudent, linkSubmissionToStudent } from '@/app/formularios/actions'
-import type { SnapshotQuestion } from '@/lib/forms/types'
+import {
+  applyAnswersToStudent,
+  applyScheduleToCalendar,
+  linkSubmissionToStudent,
+} from '@/app/formularios/actions'
+import type { SnapshotQuestion, WeeklyScheduleDay } from '@/lib/forms/types'
 import type { SubmissionDetail as Detail } from '@/lib/supabase/queries/forms'
-
-function formatAnswer(q: SnapshotQuestion, value: unknown): string {
-  if (value == null || value === '') return '—'
-  if (typeof value === 'boolean') return value ? 'Sí' : 'No'
-  if (Array.isArray(value)) {
-    return value
-      .map((v) => q.options.find((o) => o.value === v)?.label ?? String(v))
-      .join(', ')
-  }
-  if (typeof value === 'object' && value && 'path' in value && 'filename' in value) {
-    return String((value as { filename: string }).filename)
-  }
-  if (typeof value === 'object' && 'value' in value) {
-    const o = value as { value: unknown; unit?: string }
-    return `${o.value} ${o.unit ?? ''}`.trim()
-  }
-  if (q.type === 'single_select') {
-    return q.options.find((o) => o.value === value)?.label ?? String(value)
-  }
-  if (q.type === 'birth_date' && typeof value === 'string') {
-    const age = Math.floor((Date.now() - new Date(value).getTime()) / 31_557_600_000)
-    return Number.isFinite(age) && age > 0 && age < 130 ? `${value} (${age} años)` : String(value)
-  }
-  return String(value)
-}
+import { WEEKDAY_DISPLAY_ORDER, WEEKDAY_LABELS_SHORT } from '@/lib/calendar-recurrence'
+import { formatAnswer } from '@/lib/forms/format-answer'
 
 const HIGHLIGHT_RE =
   /objetivo|deporte|nivel|experienc|disponib|equipo|equipamiento|lesi[oó]n|restricc|horario|frecuenc|edad|nacim/i
@@ -232,6 +213,22 @@ export function SubmissionDetail({
         </Card>
       )}
 
+      {detail.studentId
+        ? allQuestions
+            .filter((q) => q.type === 'weekly_schedule' && detail.answers[q.id] != null)
+            .map((q) => (
+              <ScheduleApplyCard
+                key={q.id}
+                formId={detail.formId}
+                submissionId={detail.id}
+                studentId={detail.studentId!}
+                question={q}
+                answer={detail.answers[q.id]}
+                onApplied={show}
+              />
+            ))
+        : null}
+
       <Card className="gap-0 py-5">
         <CardHeader className="px-5">
           <CardTitle className="text-sm">Respuestas completas</CardTitle>
@@ -289,6 +286,101 @@ function AnswerValue({
     )
   }
   return <>{formatAnswer(q, value)}</>
+}
+
+const PURPOSE_LABEL: Record<string, string> = {
+  entreno_preferido: 'días que prefiere entrenar',
+  otra_disciplina: 'días de otra disciplina',
+}
+
+function ScheduleApplyCard({
+  formId,
+  submissionId,
+  studentId,
+  question,
+  answer,
+  onApplied,
+}: {
+  formId: string
+  submissionId: string
+  studentId: string
+  question: SnapshotQuestion
+  answer: unknown
+  onApplied: (msg: string) => void
+}) {
+  const [pending, startTransition] = useTransition()
+  const [err, setErr] = useState<string | null>(null)
+  const [days, setDays] = useState<WeeklyScheduleDay[]>(
+    Array.isArray(answer) ? (answer as WeeklyScheduleDay[]) : [],
+  )
+
+  const purpose = question.config.calendarPurpose ?? 'entreno_preferido'
+
+  function dayFor(weekday: number) {
+    return days.find((d) => d.weekday === weekday) ?? null
+  }
+  function toggle(weekday: number, checked: boolean) {
+    setDays(checked ? [...days, { weekday, time: null }] : days.filter((d) => d.weekday !== weekday))
+  }
+  function setTime(weekday: number, time: string) {
+    setDays(days.map((d) => (d.weekday === weekday ? { ...d, time: time || null } : d)))
+  }
+
+  return (
+    <Card className="gap-0 py-5">
+      <CardHeader className="px-5">
+        <CardTitle className="text-sm">Aplicar al calendario</CardTitle>
+        <CardDescription className="text-xs">
+          {question.label} — se guarda como {PURPOSE_LABEL[purpose] ?? purpose}. Revisá y confirmá.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-3 px-5">
+        {err ? <p className="text-destructive text-xs">{err}</p> : null}
+        <div className="flex flex-col gap-1.5">
+          {WEEKDAY_DISPLAY_ORDER.map((weekday) => {
+            const cur = dayFor(weekday)
+            return (
+              <div key={weekday} className="border-input flex items-center gap-3 rounded-xl border px-3 py-1.5">
+                <label className="flex flex-1 items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={cur != null}
+                    onChange={(e) => toggle(weekday, e.target.checked)}
+                  />
+                  {WEEKDAY_LABELS_SHORT[weekday]}
+                </label>
+                {cur ? (
+                  <input
+                    type="time"
+                    value={cur.time ?? ''}
+                    onChange={(e) => setTime(weekday, e.target.value)}
+                    className="border-input h-7 rounded-md border bg-transparent px-1.5 text-sm outline-none dark:bg-input/30"
+                  />
+                ) : null}
+              </div>
+            )
+          })}
+        </div>
+        <Button
+          size="sm"
+          className="w-fit"
+          disabled={pending}
+          onClick={() =>
+            startTransition(async () => {
+              const res = await applyScheduleToCalendar(formId, submissionId, studentId, purpose, days)
+              if (res.error) setErr(res.error)
+              else {
+                setErr(null)
+                onApplied('Calendario actualizado.')
+              }
+            })
+          }
+        >
+          Aplicar al calendario
+        </Button>
+      </CardContent>
+    </Card>
+  )
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
