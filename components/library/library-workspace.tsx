@@ -10,6 +10,7 @@ import { FilterBar } from '@/components/library/filter-bar'
 import { ExerciseCard } from '@/components/library/exercise-card'
 import { ExerciseDetailDialog } from '@/components/library/exercise-detail-dialog'
 import { ExerciseFormDialog } from '@/components/library/exercise-form-dialog'
+import { AddTaxonomyDialog } from '@/components/library/add-taxonomy-dialog'
 import { ChangeRequestsDialog } from '@/components/library/change-requests-dialog'
 import { CsvImportDialog } from '@/components/library/csv-import-dialog'
 import { deleteExercise, markVideoReviewed, type CsvImportSummary } from '@/app/biblioteca/actions'
@@ -41,6 +42,7 @@ export function LibraryWorkspace({
   const [form, setForm] = useState<{ mode: 'create' | 'edit'; initial?: LibraryItem } | null>(null)
   const [reviewsOpen, setReviewsOpen] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
+  const [taxonomyOpen, setTaxonomyOpen] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
   const [deleting, startDeleting] = useTransition()
   const [markingReviewed, startMarkingReviewed] = useTransition()
@@ -228,6 +230,17 @@ export function LibraryWorkspace({
             ) : null}
             {canManage ? (
               <Button
+                variant="outline"
+                size="sm"
+                className="bg-card"
+                onClick={() => setTaxonomyOpen(true)}
+              >
+                <Plus data-icon="inline-start" />
+                Patrón o músculo
+              </Button>
+            ) : null}
+            {canManage ? (
+              <Button
                 variant={selectMode ? 'default' : 'outline'}
                 size="sm"
                 className={selectMode ? '' : 'bg-card'}
@@ -381,6 +394,18 @@ export function LibraryWorkspace({
           onClose={() => setReviewsOpen(false)}
           onResolved={(msg) => {
             setReviewsOpen(false)
+            setToast(msg)
+            router.refresh()
+            window.setTimeout(() => setToast(null), 3500)
+          }}
+        />
+      ) : null}
+
+      {taxonomyOpen ? (
+        <AddTaxonomyDialog
+          catalog={catalog}
+          onClose={() => setTaxonomyOpen(false)}
+          onSaved={(msg) => {
             setToast(msg)
             router.refresh()
             window.setTimeout(() => setToast(null), 3500)

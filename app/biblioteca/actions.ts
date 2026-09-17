@@ -151,6 +151,53 @@ export async function createExercise(
   return { id: row.id }
 }
 
+/**
+ * Alta de un patrón o músculo nuevo en el catálogo — compartido entre
+ * todos los profesores (sin dueño, igual criterio que `sports`), con un
+ * deporte opcional si es específico de uno (`sport_id`, nullable =
+ * universal). Chequeo de unicidad simple por nombre normalizado — a
+ * diferencia de los ejercicios, patrones y músculos son un puñado de
+ * entradas gruesas de taxonomía, no hace falta detección de duplicados
+ * por similitud.
+ */
+async function createTaxonomyEntry(
+  table: 'patterns' | 'muscles',
+  name: string,
+  sportId: string | null,
+): Promise<Result> {
+  const professor = await getCurrentLibraryActor()
+  if (!professor) redirect('/login')
+
+  const trimmed = name.trim()
+  if (!trimmed) return { error: 'Necesita un nombre.' }
+
+  const supabase = await createClient()
+  const { data: existing } = await supabase
+    .from(table)
+    .select('id, display_name')
+    .ilike('canonical_name', trimmed)
+    .maybeSingle()
+  if (existing) return { error: `Ya existe "${existing.display_name}".` }
+
+  const { data: row, error } = await supabase
+    .from(table)
+    .insert({ canonical_name: trimmed, display_name: trimmed, sport_id: sportId || null })
+    .select('id')
+    .single()
+  if (error || !row) return { error: error?.message ?? 'No se pudo agregar.' }
+
+  revalidatePath('/biblioteca')
+  return { id: row.id }
+}
+
+export async function createPattern(name: string, sportId: string | null): Promise<Result> {
+  return createTaxonomyEntry('patterns', name, sportId)
+}
+
+export async function createMuscle(name: string, sportId: string | null): Promise<Result> {
+  return createTaxonomyEntry('muscles', name, sportId)
+}
+
 export async function updateExercise(id: string, input: ExerciseFormInput): Promise<Result> {
   const professor = await getCurrentLibraryActor()
   if (!professor) redirect('/login')
