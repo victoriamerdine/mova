@@ -23,6 +23,7 @@ import {
 import { LoadPanel } from '@/components/professor/plan-editor/load-panel'
 import { AiAnalyzeWeek } from '@/components/professor/plan-editor/ai-analyze-week'
 import { PhaseControls } from '@/components/professor/plan-editor/phase-controls'
+import { SportSelect } from '@/components/professor/sport-select'
 import {
   DuplicateToStudentDialog,
   type OtherStudent,
@@ -352,18 +353,7 @@ export function PlanEditorClient({
           </label>
           <label className="flex flex-col gap-1.5">
             <span className="text-muted-foreground text-xs font-medium">Deporte (opcional)</span>
-            <select
-              name="sportId"
-              defaultValue={plan.sportId ?? ''}
-              className="border-input h-8 rounded-lg border bg-transparent px-2.5 text-sm outline-none dark:bg-input/30"
-            >
-              <option value="">—</option>
-              {catalog.sports.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
+            <SportSelect sports={catalog.sports} defaultValue={plan.sportId ?? ''} />
           </label>
           <label className="flex flex-col gap-1.5">
             <span className="text-muted-foreground text-xs font-medium">Inicio</span>

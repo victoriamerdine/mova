@@ -91,6 +91,7 @@ const SPORTS = [
   'Running',
   'Pádel',
   'Karate',
+  'Crossfit',
   'Ciclismo',
   'Natación',
   'Tenis',
