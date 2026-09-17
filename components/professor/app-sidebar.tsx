@@ -2,6 +2,7 @@ import Link from 'next/link'
 import {
   BarChart3,
   CalendarDays,
+  CircleHelp,
   ClipboardList,
   ClipboardCheck,
   LayoutDashboard,
@@ -90,6 +91,16 @@ export function AppSidebar({
           </Link>
         ))}
       </nav>
+
+      <div className="border-sidebar-border border-t p-3">
+        <Link
+          href="/profesores"
+          className="text-sidebar-foreground/70 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground flex items-center gap-3 rounded-md px-2.5 py-2 text-sm font-medium transition-colors"
+        >
+          <CircleHelp className="size-4.5 shrink-0" />
+          <span className="truncate">Guía rápida</span>
+        </Link>
+      </div>
     </aside>
   )
 }

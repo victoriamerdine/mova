@@ -15,6 +15,7 @@ import { CompetitionsCard } from '@/components/professor/competitions-card'
 import { StudentProgressPanel } from '@/components/professor/student-progress-panel'
 import { SuspendStudentButton } from '@/components/professor/suspend-student-button'
 import { StudentFormsCard } from '@/components/forms/student-forms-card'
+import { SportSelect } from '@/components/professor/sport-select'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -230,18 +231,7 @@ export default async function StudentDetailPage({
                 </label>
                 <label className="flex flex-col gap-1.5">
                   <span className="text-muted-foreground text-xs font-medium">Deporte</span>
-                  <select
-                    name="sportId"
-                    className="border-input h-8 rounded-lg border bg-transparent px-2.5 text-sm outline-none dark:bg-input/30"
-                    defaultValue=""
-                  >
-                    <option value="">—</option>
-                    {sports.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.name}
-                      </option>
-                    ))}
-                  </select>
+                  <SportSelect sports={sports} />
                 </label>
                 <Button type="submit" className="h-8">
                   <Plus data-icon="inline-start" />
