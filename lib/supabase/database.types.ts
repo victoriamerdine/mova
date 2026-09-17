@@ -53,11 +53,20 @@ export type Database = {
           canonical_name: string
           display_name: string
           sort_order: number | null
+          sport_id: string | null
           created_at: string
         }
         Insert: Partial<Database['public']['Tables']['muscles']['Row']>
         Update: Partial<Database['public']['Tables']['muscles']['Row']>
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: 'muscles_sport_id_fkey'
+            columns: ['sport_id']
+            isOneToOne: false
+            referencedRelation: 'sports'
+            referencedColumns: ['id']
+          },
+        ]
       }
       sports: {
         Row: {
@@ -363,11 +372,20 @@ export type Database = {
           canonical_name: string
           display_name: string
           sort_order: number | null
+          sport_id: string | null
           created_at: string
         }
         Insert: Partial<Database['public']['Tables']['patterns']['Row']>
         Update: Partial<Database['public']['Tables']['patterns']['Row']>
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: 'patterns_sport_id_fkey'
+            columns: ['sport_id']
+            isOneToOne: false
+            referencedRelation: 'sports'
+            referencedColumns: ['id']
+          },
+        ]
       }
       stimulus_types: {
         Row: {

@@ -202,8 +202,8 @@ export async function getPendingChangeRequestsForOwner(): Promise<ChangeRequest[
 export const getLibraryExercises = getLibraryItems
 
 export type LibraryCatalog = {
-  patterns: { id: string; name: string }[]
-  muscles: { id: string; name: string }[]
+  patterns: { id: string; name: string; sportId: string | null; sportName: string | null }[]
+  muscles: { id: string; name: string; sportId: string | null; sportName: string | null }[]
   sports: { id: string; name: string }[]
   capacities: { id: string; name: string }[]
 }
@@ -212,14 +212,21 @@ export async function getLibraryCatalog(): Promise<LibraryCatalog> {
   const supabase = await createClient()
   const [{ data: patterns }, { data: muscles }, { data: sports }, { data: capacities }] =
     await Promise.all([
-      supabase.from('patterns').select('id, display_name').order('sort_order'),
-      supabase.from('muscles').select('id, display_name').order('sort_order'),
+      supabase.from('patterns').select('id, display_name, sport_id, sports(name)').order('sort_order'),
+      supabase.from('muscles').select('id, display_name, sport_id, sports(name)').order('sort_order'),
       supabase.from('sports').select('id, name').eq('status', 'active').order('name'),
       supabase.from('training_capacities').select('id, name').order('name'),
     ])
+  const withSport = (rows: { id: string; display_name: string; sport_id: string | null; sports: { name: string } | null }[] | null) =>
+    (rows ?? []).map((r) => ({
+      id: r.id,
+      name: r.display_name,
+      sportId: r.sport_id,
+      sportName: r.sports?.name ?? null,
+    }))
   return {
-    patterns: (patterns ?? []).map((p) => ({ id: p.id, name: p.display_name })),
-    muscles: (muscles ?? []).map((m) => ({ id: m.id, name: m.display_name })),
+    patterns: withSport(patterns as unknown as { id: string; display_name: string; sport_id: string | null; sports: { name: string } | null }[]),
+    muscles: withSport(muscles as unknown as { id: string; display_name: string; sport_id: string | null; sports: { name: string } | null }[]),
     sports: (sports ?? []).map((s) => ({ id: s.id, name: s.name })),
     capacities: (capacities ?? []).map((c) => ({ id: c.id, name: c.name })),
   }

@@ -1556,7 +1556,22 @@ Hecho:
     validación de datos (listas desplegables) en patrón, músculo,
     dificultad y deporte, tomadas del catálogo real, más una hoja "Listas".
     Link "Descargar plantilla Excel" en la ventana de importación — el
-    profesor la completa, la guarda como CSV y la sube.
+    profesor la completa, la guarda como CSV y la sube;
+  - **agregar patrones y músculos nuevos** (`<AddTaxonomyDialog>`, botón
+    "Patrón o músculo" en la barra superior de `/biblioteca`): hasta ahora
+    `patterns`/`muscles` eran catálogos de solo lectura (sembrados una
+    vez). El profesor elige Patrón o Músculo, un nombre, y opcionalmente
+    un **deporte** si es específico de uno (`sport_id`, nullable =
+    universal — mismo criterio que `activities.sport_id`/`plans.sport_id`,
+    no una tabla puente N:N como `exercise_sports`, porque un patrón o
+    músculo no es "de varios deportes a la vez"). Catálogo **compartido,
+    sin dueño** (igual que `sports`) — lo que agrega un profesor lo puede
+    usar cualquier otro de inmediato; no hay UPDATE/DELETE expuesto
+    (otros profesores ya pueden estar usando esas filas). Chequeo de
+    unicidad simple por nombre (`ilike` sobre `canonical_name`) — a
+    diferencia de los ejercicios, son catálogos chicos y gruesos, no hace
+    falta detección de duplicados por similitud. Migración
+    `20260828000053`.
 - El thumbnail de las tarjetas del listado es apaisado (16:9) para reducir
   el scroll; el detalle muestra el video vertical.
 - Migraciones: `20260828000021` (gestión directa por el profesor),
