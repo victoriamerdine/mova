@@ -4,12 +4,15 @@ import {
   ArrowRight,
   Library,
   LineChart,
-  Users,
+  Bell,
   Sparkles,
   ShieldCheck,
   PlayCircle,
   Layers,
   MessageCircle,
+  Copy,
+  ClipboardList,
+  CalendarDays,
 } from 'lucide-react'
 
 import { MovaLogo } from '@/components/brand/mova-logo'
@@ -29,14 +32,32 @@ const FEATURES = [
   {
     icon: Library,
     title: 'Biblioteca de ejercicios',
-    body: 'Más de 1.360 ejercicios con video, filtrados por músculo, patrón, capacidad, deporte y equipamiento. Buscás, elegís, listo.',
+    body: 'Más de 1.360 ejercicios con video, filtrados por músculo, patrón, capacidad, deporte y equipamiento. Y si te falta un patrón o músculo, lo agregás vos.',
     stat: '+1.360 ejercicios con video',
   },
   {
     icon: Layers,
-    title: 'Editor de planes',
-    body: 'Bloques individuales, combinados o en circuito. Arrastrás ejercicios desde la biblioteca y duplicás una semana entera en un clic.',
-    stat: 'Individual · Combinado · Circuito',
+    title: 'Editor de planes flexible',
+    body: 'Músculo, Patrón, Mixto, Específico de deporte o Personalizado — en los tipos flexibles elegís patrón o músculo libremente, ejercicio por ejercicio.',
+    stat: '5 tipos de plan',
+  },
+  {
+    icon: Copy,
+    title: 'Duplicar y reutilizar planes',
+    body: 'Armá una plantilla una vez y reasignásela a otro alumno en un clic, sin tocar el avance del original.',
+    stat: 'Un clic, otro alumno',
+  },
+  {
+    icon: ClipboardList,
+    title: 'Formularios de evaluación',
+    body: 'Mandale una evaluación por link, sin que necesite cuenta. Aplicás sus respuestas al perfil del alumno cuando vos lo confirmás.',
+    stat: '8 plantillas listas',
+  },
+  {
+    icon: CalendarDays,
+    title: 'Calendario y disponibilidad',
+    body: 'Partidos, carreras, descansos y los días que el alumno prefiere entrenar, en un calendario compartido — incluso eventos que se repiten cada semana.',
+    stat: 'Compartido con el alumno',
   },
   {
     icon: LineChart,
@@ -51,16 +72,16 @@ const FEATURES = [
     stat: 'Registro en 3 campos',
   },
   {
-    icon: Users,
-    title: 'Seguimiento del profesor',
-    body: 'Un panel con la actividad de todos tus alumnos: quién entrenó, qué planes vencen y qué avisó en la última sesión.',
+    icon: Bell,
+    title: 'Seguimiento con avisos',
+    body: 'Una campanita te avisa qué alumnos entrenaron o cambiaron su disponibilidad — sin tener que entrar a revisar uno por uno.',
     stat: 'Actividad · Vencimientos',
   },
   {
     icon: Sparkles,
     title: 'Asistente de IA',
-    body: 'Buscá y recomendá ejercicios en lenguaje natural, o pedile un análisis de la semana. Nunca decide por vos.',
-    stat: 'Buscar · Recomendar · Analizar',
+    body: 'Buscá y recomendá ejercicios en lenguaje natural, analizá una semana o pedile un borrador de plan completo. Vos siempre aprobás antes de aplicar.',
+    stat: 'Buscar · Recomendar · Analizar · Generar',
   },
 ]
 
@@ -149,8 +170,9 @@ export default function ProfesoresGuidePage() {
               </div>
             </div>
             <p className="border-primary text-muted-foreground border-l-2 py-1 pl-4 text-sm text-pretty lg:mb-1">
-              Hoy en producción: biblioteca con más de 1.360 ejercicios, editor de planes, app del
-              alumno, seguimiento y un asistente de IA.
+              Hoy en producción: biblioteca con más de 1.360 ejercicios, editor de planes
+              multideporte, formularios de evaluación, calendario, seguimiento con avisos y un
+              asistente de IA que también arma borradores de plan.
             </p>
           </div>
         </section>
@@ -199,7 +221,7 @@ export default function ProfesoresGuidePage() {
               Todo lo que necesitás para armar y seguir un plan
             </h2>
             <p className="text-muted-foreground mt-3 text-pretty">
-              Seis piezas que ya están funcionando en MOVA — no es una promesa de roadmap.
+              Nueve piezas que ya están funcionando en MOVA — no es una promesa de roadmap.
             </p>
           </div>
 
