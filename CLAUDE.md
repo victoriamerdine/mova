@@ -1717,7 +1717,16 @@ Soportar:
 `components/professor/plan-editor/*`):
 
 - Datos del plan (nombre, tipo `MUSCLE`/`PATTERN`/`MIXED`/…, inicio/fin),
-  badge de renovación (`getRenewalBadge`).
+  badge de renovación (`getRenewalBadge`). El `<select>` de Tipo es
+  **controlado** (`useState` seedeado desde `plan.planType`, resincronizado
+  por `useEffect` cuando cambia el prop tras `revalidatePath`) — un
+  `defaultValue` no controlado no se resincroniza solo con props nuevos y
+  además "vuelve" al valor viejo cuando React resetea el form tras la
+  action, aunque el dato ya haya quedado guardado bien. Ese mismo estado
+  (no `plan.planType`) es lo que baja a `<DayEditor>`/`<ExerciseCombobox>`
+  y a `addExerciseToDay` — así el selector de Patrón/Músculo de cada
+  ejercicio (nuevo o existente) reacciona al toque, sin esperar a
+  "Guardar datos".
 - **Semanas**: selector, añadir / duplicar / eliminar. **Fases**
   (`plan_phases`, `<PhaseControls>`): opcionales; el selector de semana se
   agrupa por fase. El plan es un ciclo que repite (ver Fase 7).
