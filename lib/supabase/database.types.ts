@@ -574,6 +574,13 @@ export type Database = {
             referencedRelation: 'profiles'
             referencedColumns: ['id']
           },
+          {
+            foreignKeyName: 'students_primary_sport_id_fkey'
+            columns: ['primary_sport_id']
+            isOneToOne: false
+            referencedRelation: 'sports'
+            referencedColumns: ['id']
+          },
         ]
       }
       student_professors: {
