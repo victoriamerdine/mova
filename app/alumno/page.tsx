@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { BarChart3, CalendarDays, ChevronRight, ClipboardList, Dumbbell } from 'lucide-react'
+import { BarChart3, CalendarDays, ChevronRight, ClipboardList, Dumbbell, UserRound } from 'lucide-react'
 
 import { StudentShell } from '@/components/student/student-shell'
 import { createClient } from '@/lib/supabase/server'
@@ -39,8 +39,9 @@ function HubCard({
 
 /**
  * Home del alumno: punto de entrada único desde donde elige qué ver — plan,
- * estadísticas o calendario (que ya incluye todos sus registros/historial,
- * ver Fase 9). El plan en sí vive en /alumno/plan.
+ * estadísticas, calendario (que ya incluye todos sus registros/historial,
+ * ver Fase 9) o su información (perfil que cargó el profesor). El plan en
+ * sí vive en /alumno/plan.
  */
 export default async function AlumnoHomePage() {
   const student = await getCurrentStudent()
@@ -89,6 +90,12 @@ export default async function AlumnoHomePage() {
           icon={CalendarDays}
           title="Mi calendario"
           subtitle="Eventos y todo lo que registraste"
+        />
+        <HubCard
+          href="/alumno/perfil"
+          icon={UserRound}
+          title="Mi información"
+          subtitle="Los datos que tiene tu profesor sobre vos"
         />
       </div>
     </StudentShell>

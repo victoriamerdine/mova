@@ -533,3 +533,43 @@ export async function getStudentWeek(
     days,
   }
 }
+
+export type MyProfile = {
+  level: string | null
+  primarySportName: string | null
+  availability: string | null
+  equipmentAccess: string | null
+  notes: string | null
+}
+
+/**
+ * Perfil del alumno visto por él mismo — de solo lectura en la UI (lo
+ * carga el profesor, ver "Aplicar al perfil del alumno" en el sistema de
+ * formularios). RLS ya lo permite (`students: el alumno ve y edita su
+ * propia fila`, `id = auth.uid()`), esto solo arma la forma para la
+ * pantalla "Mi información" del Home (Fase 7).
+ */
+export async function getMyProfile(studentId: string): Promise<MyProfile | null> {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('students')
+    .select('level, availability, equipment_access, notes, sports(name)')
+    .eq('id', studentId)
+    .maybeSingle()
+
+  if (!data) return null
+  const row = data as unknown as {
+    level: string | null
+    availability: string | null
+    equipment_access: string | null
+    notes: string | null
+    sports: { name: string } | null
+  }
+  return {
+    level: row.level,
+    primarySportName: row.sports?.name ?? null,
+    availability: row.availability,
+    equipmentAccess: row.equipment_access,
+    notes: row.notes,
+  }
+}
