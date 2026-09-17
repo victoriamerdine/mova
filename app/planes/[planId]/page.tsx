@@ -7,7 +7,7 @@ import { DashboardHeader } from '@/components/professor/dashboard-header'
 import { MinimalHeader } from '@/components/minimal-header'
 import { PlanEditorClient } from '@/components/professor/plan-editor/plan-editor-client'
 import { StudentFormsCard } from '@/components/forms/student-forms-card'
-import { getCurrentPlanActor } from '@/lib/supabase/queries/professor-dashboard'
+import { getCurrentPlanActor, getMyStudents } from '@/lib/supabase/queries/professor-dashboard'
 import { getStudentSubmissions } from '@/lib/supabase/queries/forms'
 import {
   getPlanBuilderCatalog,
@@ -31,10 +31,15 @@ export default async function PlanEditorPage({
 
   if (!plan) notFound()
 
-  const [loadTargets, formSubmissions] = await Promise.all([
+  const [loadTargets, formSubmissions, myStudents] = await Promise.all([
     getStudentLoadTargets(plan.studentId),
     actor.role === 'individual' ? Promise.resolve([]) : getStudentSubmissions(plan.studentId),
+    actor.role === 'professor' ? getMyStudents(actor.id) : Promise.resolve([]),
   ])
+
+  const otherStudents = myStudents
+    .filter((s) => s.status === 'active' && s.id !== plan.studentId)
+    .map((s) => ({ id: s.id, fullName: s.fullName }))
 
   const editor = (
     <main className="flex flex-1 flex-col gap-4 px-6 py-6">
@@ -64,6 +69,7 @@ export default async function PlanEditorPage({
         catalog={catalog}
         loadTargets={loadTargets}
         showAiPanel={actor.role === 'professor'}
+        otherStudents={otherStudents}
       />
     </main>
   )

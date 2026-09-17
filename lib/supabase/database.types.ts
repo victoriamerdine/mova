@@ -1269,6 +1269,10 @@ export type Database = {
         Args: { p_source_week_id: string; p_new_number: number; p_new_name: string }
         Returns: string
       }
+      duplicate_plan_to_student: {
+        Args: { p_source_plan_id: string; p_target_student_id: string; p_new_name: string }
+        Returns: string
+      }
       publish_form: {
         Args: { p_form_id: string }
         Returns: string
