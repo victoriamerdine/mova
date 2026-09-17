@@ -50,7 +50,7 @@ export default async function PlansPage({
             <h1 className="text-lg font-semibold tracking-tight">Mis planes</h1>
             <p className="text-muted-foreground text-sm">Entrenás solo — acá armás tu propio plan.</p>
             <Link
-              href="/alumno"
+              href="/alumno/plan"
               className="text-muted-foreground hover:text-foreground mt-1 inline-flex items-center gap-1.5 text-sm"
             >
               <Dumbbell className="size-4" />

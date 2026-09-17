@@ -5,21 +5,32 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ChevronLeft, ChevronRight, X } from 'lucide-react'
 
-import { addMonths, buildMonthGrid, dateKey, monthTitle } from '@/lib/calendar-grid'
+import { addMonths, buildMonthGrid, dateKey, localDateKey, monthTitle } from '@/lib/calendar-grid'
 
 const WEEKDAYS = ['L', 'M', 'M', 'J', 'V', 'S', 'D']
 
 export type CalendarItem = {
   id: string
-  /** "YYYY-MM-DD" */
+  /** "YYYY-MM-DD" — ignorado si viene `completedAtRaw`. */
   date: string
   label: string
   sublabel?: string
   href?: string
-  /** Color del punto/badge — por defecto usa el color primario. */
+  /** Color del punto/badge: primary (default) = programado, muted = ya realizado. */
   tone?: 'primary' | 'muted'
   /** Presente si es una ocurrencia de una serie recurrente — habilita "Cancelar esta fecha". */
   recurrenceId?: string
+  /**
+   * Timestamp real (ej. `workout_sessions.completed_at`) para ítems donde
+   * el día depende de la hora real, no de un `date` de Postgres ya fijo —
+   * se agrupa por el día LOCAL del que mira el calendario (a propósito:
+   * este componente es cliente, así que usa el huso horario del alumno).
+   */
+  completedAtRaw?: string
+}
+
+function itemDateKey(item: CalendarItem): string {
+  return item.completedAtRaw ? localDateKey(item.completedAtRaw) : item.date
 }
 
 function todayKey() {
@@ -64,9 +75,10 @@ export function MonthCalendar({
   const byDate = useMemo(() => {
     const map = new Map<string, CalendarItem[]>()
     for (const item of items) {
-      const list = map.get(item.date)
+      const key = itemDateKey(item)
+      const list = map.get(key)
       if (list) list.push(item)
-      else map.set(item.date, [item])
+      else map.set(key, [item])
     }
     return map
   }, [items])
@@ -137,6 +149,8 @@ export function MonthCalendar({
                   )
                 }
 
+                const allMuted = dayItems.every((it) => it.tone === 'muted')
+
                 return (
                   <button
                     key={di}
@@ -147,12 +161,19 @@ export function MonthCalendar({
                       'relative flex aspect-square items-center justify-center rounded-lg text-sm font-semibold transition-colors ' +
                       (isSel
                         ? 'bg-primary text-primary-foreground ring-primary ring-2'
-                        : 'bg-primary/15 text-primary hover:bg-primary/25')
+                        : allMuted
+                          ? 'bg-muted text-muted-foreground hover:bg-muted/70'
+                          : 'bg-primary/15 text-primary hover:bg-primary/25')
                     }
                   >
                     {cell.day}
                     {dayItems.length > 1 ? (
-                      <span className="bg-primary text-primary-foreground absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] leading-none">
+                      <span
+                        className={
+                          'absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] leading-none ' +
+                          (allMuted ? 'bg-muted-foreground text-background' : 'bg-primary text-primary-foreground')
+                        }
+                      >
                         {dayItems.length}
                       </span>
                     ) : null}

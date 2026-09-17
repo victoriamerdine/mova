@@ -131,7 +131,7 @@ export async function finishDay(
 
   revalidatePath('/alumno')
   revalidatePath(`/alumno/dia/${workoutId}`)
-  revalidatePath('/alumno/historial')
+  revalidatePath('/alumno/calendario')
   return { sessionId }
 }
 

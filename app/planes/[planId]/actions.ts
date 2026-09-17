@@ -376,3 +376,41 @@ export async function savePlanDays(planId: string, days: SaveDayPayload[]) {
   revalidatePath(`/planes/${planId}`)
   return { error: null }
 }
+
+/**
+ * Duplica el plan entero hacia OTRO alumno — pensado para reutilizar una
+ * plantilla ya armada ("plan musculo") con un alumno nuevo. Un solo RPC
+ * (`duplicate_plan_to_student`, migración `20260828000049`), atómico.
+ * Nunca copia `workout_sessions`/`workout_performance` del alumno
+ * original: los workouts de la copia son filas nuevas, sin ningún
+ * registro — RLS además exige que el profesor sea dueño de los DOS
+ * alumnos (origen y destino).
+ */
+export async function duplicatePlanToStudent(
+  planId: string,
+  targetStudentId: string,
+  newName: string,
+): Promise<{ error: string | null; planId?: string }> {
+  const actor = await getCurrentPlanActor()
+  if (!actor) redirect('/login')
+  if (actor.role !== 'professor') return { error: 'Solo un profesor puede duplicar un plan a otro alumno.' }
+
+  const trimmed = newName.trim()
+  if (!trimmed) return { error: 'El plan necesita un nombre.' }
+  if (!targetStudentId) return { error: 'Elegí a qué alumno asignarlo.' }
+
+  const supabase = await createClient()
+  const { data: newPlanId, error } = await supabase.rpc('duplicate_plan_to_student', {
+    p_source_plan_id: planId,
+    p_target_student_id: targetStudentId,
+    p_new_name: trimmed,
+  })
+
+  if (error || !newPlanId) {
+    return { error: error?.message ?? 'No se pudo duplicar el plan.' }
+  }
+
+  revalidatePath('/planes')
+  revalidatePath(`/alumnos/${targetStudentId}`)
+  return { error: null, planId: newPlanId }
+}

@@ -1740,6 +1740,20 @@ Soportar:
   de carga del alumno (`calculateVolumeByGroup`, `lib/volume-calc.ts`).
 - **`<AiAnalyzeWeek>`**: análisis de la distribución de la semana (Módulo
   de IA §3).
+- **Duplicar a otro alumno** (`<DuplicateToStudentDialog>`, botón en
+  "Datos generales del plan"): copia el plan ENTERO (fases/semanas/días/
+  bloques/ítems/prescripciones) para reutilizarlo con otro alumno del
+  mismo profesor — pensado para plantillas ("plan musculo") que se arman
+  una vez y se reasignan. Un solo RPC (`duplicate_plan_to_student`,
+  migración `20260828000049`, atómico) reutiliza `duplicate_workout` por
+  dentro, igual que "duplicar semana"/"duplicar día". **Nunca copia
+  avance/comentarios**: `workout_sessions`/`workout_performance` quedan
+  atados al `workout_id` original (que no se toca) — los workouts de la
+  copia son filas nuevas, siempre sin ninguna sesión registrada. RLS
+  exige que el profesor sea dueño de los dos alumnos (origen y destino);
+  `professor_id` de la copia es quien la crea, no el del plan original.
+  Solo para profesores (un individuo no tiene "otro alumno" al que
+  asignarle nada).
 
 ### Pendiente
 
@@ -1769,9 +1783,21 @@ acepta tanto `role='student'` (alumno gestionado por un profesor) como
 `students.id`, así que RLS (`is_own_student`) ya los trataba igual; solo
 hacía falta destrabar el gate de la aplicación. El individuo arma su plan
 en `/planes` y lo ejecuta acá — link "Ir a mi entrenamiento de hoy" desde
-`/planes`, y "Mis planes" de vuelta desde `/alumno`. El mensaje de "sin
-plan activo" cambia según el rol (para el individuo no menciona "tu
-profe").
+`/planes` hacia `/alumno/plan`, y "Mis planes" de vuelta desde
+`/alumno`/`/alumno/plan`. El mensaje de "sin plan activo" cambia según el
+rol (para el individuo no menciona "tu profe").
+
+**Home** (`/alumno`): punto de entrada único — saluda al alumno y muestra
+3 tarjetas grandes para elegir a dónde ir: **Mi plan** (`/alumno/plan`,
+con el nombre del plan activo o "N planes activos" como subtítulo —
+`getStudentActivePlans`, ya liviana, sin traer contenido del plan),
+**Mis estadísticas** (`/alumno/progreso`) y **Mi calendario**
+(`/alumno/calendario`, que ya incluye todos los registros — ver Fase 9).
+Antes `/alumno` renderizaba directamente la semana en curso; esa vista se
+movió a `/alumno/plan` (mismo componente `<StudentWeekView>`, sin
+cambios) para que el Home quede como landing real. `/alumno/dia/[id]`
+(solo se llega ahí desde el calendario) y `/planes` → "Ir a mi
+entrenamiento de hoy" ahora apuntan a `/alumno/plan` en vez de al Home.
 
 **Modelo de ejecución** (migraciones `20260828000034`, `…038`):
 
@@ -1834,15 +1860,12 @@ profe").
   cuenta como "hizo todo lo que tocaba". Tras terminar, el bloque de
   valoración/nota se reemplaza por el aviso "Sesión registrada" con el
   total de tiempo.
-- Historial: `/alumno/historial` (`getStudentHistory`, hasta 180
-  sesiones) — **calendario mensual** (`<HistoryCalendar>`): un grid por
-  mes con sesiones, lunes primero, más nuevo arriba; se resaltan los días
-  entrenados (badge con la cantidad si entrenó >1 vez ese día, anillo en
-  hoy). Tocar un día despliega —bajo esa semana, ancho completo, con
-  flechita al día— el resumen: cada sesión con **duración** (si llega a un
-  minuto), N registros, la valoración y la nota, + link a
-  `/alumno/dia/[workoutId]`. La duración = `completed_at − started_at`
-  (`StudentHistoryEntry.durationSec`).
+- Historial: `getStudentHistory` (hasta 180 sesiones, sin filtrar por
+  plan) alimenta el **calendario consolidado** en `/alumno/calendario`
+  (ver Fase 9) — cada sesión con **duración** (si llega a un minuto), N
+  registros, la valoración y la nota, + link a `/alumno/dia/[workoutId]`.
+  La duración = `completed_at − started_at`
+  (`StudentHistoryEntry.durationSec`). `/alumno/historial` redirige ahí.
 - Acciones (`app/alumno/actions.ts`): `startDaySession`, `logExercise`,
   `finishDay(workoutId, feelingNote, difficulty)`, `updateMySchedule`
   (Fase 9).
@@ -1978,6 +2001,23 @@ vez de borrar la serie; borrar la serie entera si borra la regla
   de `<CompetitionsCard>` (ahí NO se expanden — se listan las series
   aparte, no ocurrencia por ocurrencia, para no saturar la tarjeta).
 
+**Calendario consolidado del alumno** (unifica el antiguo
+`/alumno/historial` dentro de `/alumno/calendario`): la página junta, en
+paralelo, `getStudentCalendarItems` (lo que cargó el profesor) y
+`getStudentHistory` (lo que el alumno realmente entrenó, de TODOS sus
+planes — `getStudentHistory` ya no filtraba por plan, no hizo falta
+tocarla). `<CalendarItem>` suma `tone?: 'primary' | 'muted'` (verde =
+programado, gris = realizado) y `completedAtRaw?: string` para los ítems
+de historial: `completedAtRaw` es un timestamp real
+(`workout_sessions.completed_at`), así que el día de calendario en el que
+cae se calcula con `localDateKey()` (`lib/calendar-grid.ts`) — usa el huso
+horario del NAVEGADOR del alumno, nunca el del servidor, porque
+`<MonthCalendar>` es un componente cliente y agrupar por día del lado del
+servidor daría el día equivocado según dónde corra Vercel. `/alumno/historial`
+quedó como un simple `redirect('/alumno/calendario')` (no se borró la URL,
+por si había links guardados) y `components/student/history-calendar.tsx`
+se eliminó (reemplazado por `<MonthCalendar>`).
+
 **Días de entreno preferido / otra disciplina — el ALUMNO escribe su
 propio calendario** (migración `20260828000050`): excepción deliberada a
 "el profesor carga el calendario" — acá el alumno es la autoridad sobre
@@ -2016,9 +2056,6 @@ su disponibilidad, el profesor solo se entera.
 
 ### Pendiente
 
-- El calendario no muestra entrenamientos/sesiones realizadas — eso ya
-  vive en `/alumno/historial` (Fase 7) y en la analítica (Fase 8); unificar
-  ambas vistas queda para más adelante si hace falta.
 - Filtrar el calendario del profesor por alumno o por tipo (hoy: todo
   junto, un mes a la vez).
 
