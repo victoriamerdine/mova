@@ -73,7 +73,7 @@ export default async function StudentCalendarPage() {
     id: h.sessionId,
     date: '',
     completedAtRaw: h.completedAt,
-    label: `Hiciste: ${h.workoutName}`,
+    label: `Hiciste: ${h.workoutName} · ${h.planName}`,
     sublabel: [
       h.durationSec != null ? fmtDuration(h.durationSec) : null,
       `${h.loggedCount} registro${h.loggedCount === 1 ? '' : 's'}`,

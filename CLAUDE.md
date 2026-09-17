@@ -1874,10 +1874,14 @@ criterio de "el profesor mantiene el control" del resto de la app.
   total de tiempo.
 - Historial: `getStudentHistory` (hasta 180 sesiones, sin filtrar por
   plan) alimenta el **calendario consolidado** en `/alumno/calendario`
-  (ver Fase 9) — cada sesión con **duración** (si llega a un minuto), N
-  registros, la valoración y la nota, + link a `/alumno/dia/[workoutId]`.
-  La duración = `completed_at − started_at`
-  (`StudentHistoryEntry.durationSec`). `/alumno/historial` redirige ahí.
+  (ver Fase 9) — cada sesión con **el nombre del plan** (necesario:
+  con más de un plan activo, dos días de planes distintos pueden
+  llamarse igual — "Día 1" — así que el título del ítem del calendario
+  es `Hiciste: <día> · <plan>`, join `workouts → plan_weeks → plans`),
+  **duración** (si llega a un minuto), N registros, la valoración y la
+  nota, + link a `/alumno/dia/[workoutId]`. La duración = `completed_at
+  − started_at` (`StudentHistoryEntry.durationSec`). `/alumno/historial`
+  redirige ahí.
 - Acciones (`app/alumno/actions.ts`): `startDaySession`, `logExercise`,
   `finishDay(workoutId, feelingNote, difficulty)`, `updateMySchedule`
   (Fase 9).
