@@ -348,6 +348,10 @@ export type StudentHistoryEntry = {
   sessionId: string
   workoutId: string
   workoutName: string
+  /** A qué plan pertenece el día — un alumno puede tener más de un plan
+   *  activo, y dos días de planes distintos pueden llamarse igual
+   *  ("Día 1"), así que el calendario necesita distinguirlos. */
+  planName: string
   completedAt: string
   feelingNote: string | null
   difficulty: SessionDifficulty | null
@@ -362,7 +366,7 @@ export async function getStudentHistory(studentId: string): Promise<StudentHisto
   const { data } = await supabase
     .from('workout_sessions')
     .select(
-      'id, workout_id, started_at, completed_at, feeling_note, difficulty, workouts(name), workout_performance(id)',
+      'id, workout_id, started_at, completed_at, feeling_note, difficulty, workouts(name, plan_weeks(plans(name))), workout_performance(id)',
     )
     .eq('student_id', studentId)
     .not('completed_at', 'is', null)
@@ -376,7 +380,7 @@ export async function getStudentHistory(studentId: string): Promise<StudentHisto
     completed_at: string
     feeling_note: string | null
     difficulty: SessionDifficulty | null
-    workouts: { name: string } | null
+    workouts: { name: string; plan_weeks: { plans: { name: string } | null } | null } | null
     workout_performance: { id: string }[]
   }[]).map((s) => {
     const secs = s.started_at
@@ -386,6 +390,7 @@ export async function getStudentHistory(studentId: string): Promise<StudentHisto
       sessionId: s.id,
       workoutId: s.workout_id,
       workoutName: s.workouts?.name ?? 'Sesión',
+      planName: s.workouts?.plan_weeks?.plans?.name ?? 'Plan',
       completedAt: s.completed_at,
       feelingNote: s.feeling_note,
       difficulty: s.difficulty,
