@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation'
 
 import { createClient } from '@/lib/supabase/server'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
+import { getSiteUrl } from '@/lib/site-url'
 import { getCurrentProfessor } from '@/lib/supabase/queries/professor-dashboard'
 import { isValidUsername, normalizeUsername, usernameToSyntheticEmail } from '@/lib/auth/student-username'
 
@@ -24,6 +25,7 @@ export async function inviteStudent(formData: FormData) {
   // existe en la API normal — ver lib/supabase/service-role.ts.
   const admin = createServiceRoleClient()
   const { data: invited, error: inviteError } = await admin.auth.admin.inviteUserByEmail(email, {
+    redirectTo: `${await getSiteUrl()}/login`,
     data: { full_name: fullName, role: 'student' },
   })
 
