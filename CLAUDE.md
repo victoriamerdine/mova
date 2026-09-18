@@ -1664,10 +1664,25 @@ en todas las páginas):
 
 **Alumnos** (`/alumnos`, `/alumnos/[id]`):
 
-- Invitar por **email** (link mágico de Supabase) o por **usuario y
-  contraseña** (email sintético `@alumno.mova.invalid`, sin correo real —
-  ver `lib/auth/student-username.ts`). Listar, sacar (borra la relación
+- Invitar por **email** o por **usuario y contraseña** (email sintético
+  `@alumno.mova.invalid`, sin correo real — ver
+  `lib/auth/student-username.ts`). Listar, sacar (borra la relación
   `student_professors`).
+- **Invitación por email → elegir contraseña** (`/definir-contrasena`,
+  pública): `inviteStudent` manda `inviteUserByEmail` con `redirectTo` a
+  esa pantalla (URL derivada del request con `getSiteUrl()`, ver
+  `lib/site-url.ts`). El link vuelve con la sesión de la invitación en el
+  **hash** (`#access_token=…&refresh_token=…`, flujo implícito) —
+  `<SetPasswordForm>` los lee y llama `setSession`, porque el cliente de
+  `@supabase/ssr` es solo-PKCE y descarta esa URL en silencio. Al guardar
+  la contraseña (`auth.updateUser`) corre `activateInvitation`: pasa
+  `student_professors.status` de `invited` a `active` con service role
+  (acotado al id de la sesión y a filas `invited`) — hasta esto
+  `is_professor_of()` exige `active`, o sea que el profesor no veía ni
+  podía armarle nada a un alumno invitado, y nada lo activaba. Link
+  vencido/usado → pantalla "Este link venció o ya se usó". Si el alumno
+  se traba, el profesor puede fijarle una contraseña con "Restablecer
+  contraseña" (`resetStudentPassword`).
 - Ficha del alumno: formularios respondidos (`<StudentFormsCard>`),
   recomendaciones IA, objetivos de carga por patrón
   (`<LoadTargetsForm>`), **Acceso del alumno** (`<StudentAccessCard>`),
@@ -1826,6 +1841,13 @@ en `/planes` y lo ejecuta acá — link "Ir a mi entrenamiento de hoy" desde
 `/alumno`/`/alumno/plan`. El mensaje de "sin plan activo" cambia según el
 rol (para el individuo no menciona "tu profe").
 
+**Alumno individual: entra por acá.** Login y `/` mandan a `role='student'`
+**y** `role='individual'` a `/alumno` (antes el individual caía directo en
+`/planes`). Lo que lo distingue de un alumno con profesor: (1) en el Home
+tiene la tarjeta **"Crear plan"** → `/planes` (donde arma y administra sus
+planes); (2) en **Mi información** edita sus datos en vez de solo leerlos
+(ver abajo).
+
 **Home** (`/alumno`): punto de entrada único — saluda al alumno y muestra
 4 tarjetas grandes para elegir a dónde ir: **Mi plan** (`/alumno/plan`,
 con el nombre del plan activo o "N planes activos" como subtítulo —
@@ -1846,6 +1868,17 @@ perfil del alumno" del sistema de formularios), de solo lectura para el
 alumno. RLS ya alcanzaba (`students: el alumno ve y edita su propia
 fila`, `id = auth.uid()`) — la UI simplemente no expone edición, mismo
 criterio de "el profesor mantiene el control" del resto de la app.
+**Excepción: el alumno individual** (sin profesor, nadie más carga esos
+datos — de otro modo serían cinco campos vacíos para siempre):
+`<IndividualProfileForm>` edita **nombre, email y teléfono** +
+**el mismo perfil de entrenamiento** (alimenta a la IA cuando arma un
+borrador) y tiene **Cambiar contraseña** (`<PasswordSection>`, compartido
+con `/cuenta` del profesor). Actions `updateMyIndividualProfile` /
+`changeMyPassword` en `app/alumno/actions.ts`, ambas con guard de rol: un
+alumno con profesor no las puede usar (su acceso lo maneja el profesor).
+El email cambia al instante vía Auth admin sobre su mismo id — igual que
+en `/cuenta` del profesor, sin mail de confirmación. Regla de largo de
+contraseña única en `lib/auth/password-rules.ts` (8).
 
 **Modelo de ejecución** (migraciones `20260828000034`, `…038`):
 

@@ -26,8 +26,7 @@ export async function login(formData: FormData) {
   // (si fuera a "/" caería en un loop: getCurrentProfessor lo rechaza).
   const role = (data.user?.user_metadata as { role?: string } | undefined)?.role
   if (role === 'admin') redirect('/admin')
-  if (role === 'student') redirect('/alumno')
-  if (role === 'individual') redirect('/planes')
+  if (role === 'student' || role === 'individual') redirect('/alumno')
   if (role === 'professor') {
     const { data: prof } = await supabase
       .from('professors')
