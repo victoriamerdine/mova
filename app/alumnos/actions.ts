@@ -25,7 +25,9 @@ export async function inviteStudent(formData: FormData) {
   // existe en la API normal — ver lib/supabase/service-role.ts.
   const admin = createServiceRoleClient()
   const { data: invited, error: inviteError } = await admin.auth.admin.inviteUserByEmail(email, {
-    redirectTo: `${await getSiteUrl()}/login`,
+    // El link trae la sesión de la invitación: /definir-contrasena le hace
+    // elegir su contraseña y activa la relación con el profesor.
+    redirectTo: `${await getSiteUrl()}/definir-contrasena`,
     data: { full_name: fullName, role: 'student' },
   })
 

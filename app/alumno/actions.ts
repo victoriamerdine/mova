@@ -4,6 +4,8 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 
 import { createClient } from '@/lib/supabase/server'
+import { createServiceRoleClient } from '@/lib/supabase/service-role'
+import { validateNewPassword } from '@/lib/auth/password-rules'
 import { getCurrentStudent } from '@/lib/supabase/queries/student-plan'
 import { isDifficulty } from '@/lib/student-difficulty'
 import type { Database } from '@/lib/supabase/database.types'
@@ -186,4 +188,98 @@ export async function updateMySchedule(
 
   revalidatePath('/alumno/calendario')
   return { error: null }
+}
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+/** Solo el alumno individual (autocoacheado) edita sus datos y contraseña
+ *  acá: uno gestionado por un profesor no — sus datos los carga el
+ *  profesor y su acceso lo maneja él. */
+async function requireIndividual() {
+  const student = await requireStudent()
+  return student.role === 'individual' ? student : null
+}
+
+/**
+ * El individual edita sus datos personales (nombre, email, teléfono) y su
+ * perfil de entrenamiento (los mismos campos que a un alumno le carga el
+ * profesor — sin profesor nadie más los puede completar, y alimentan a la
+ * IA cuando arma un borrador). Nombre y `students` van por RLS (edita su
+ * propia fila); el email cambia al instante vía Auth admin sobre su MISMO
+ * id, igual que en /cuenta del profesor.
+ */
+export async function updateMyIndividualProfile(input: {
+  fullName: string
+  email: string
+  phone: string
+  primarySportId: string
+  level: string
+  availability: string
+  equipmentAccess: string
+  notes: string
+}): Promise<{ error?: string }> {
+  const me = await requireIndividual()
+  if (!me) return { error: 'Esta opción es solo para cuentas independientes.' }
+
+  const fullName = input.fullName.trim()
+  const email = input.email.trim().toLowerCase()
+  if (!fullName) return { error: 'El nombre no puede quedar vacío.' }
+  if (!EMAIL_RE.test(email)) return { error: 'El email no es válido.' }
+
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (email !== (user?.email?.toLowerCase() ?? null)) {
+    const service = createServiceRoleClient()
+    const { error: authErr } = await service.auth.admin.updateUserById(me.id, {
+      email,
+      email_confirm: true,
+      user_metadata: { ...(user?.user_metadata ?? {}), email, full_name: fullName },
+    })
+    if (authErr) return { error: 'Ese email ya está en uso por otra cuenta.' }
+  } else {
+    await supabase.auth.updateUser({ data: { full_name: fullName } })
+  }
+
+  const { error: pErr } = await supabase.from('profiles').update({ full_name: fullName }).eq('id', me.id)
+  if (pErr) return { error: pErr.message }
+
+  const { error: sErr } = await supabase
+    .from('students')
+    .update({
+      phone: input.phone.trim() || null,
+      primary_sport_id: input.primarySportId || null,
+      level: input.level.trim() || null,
+      availability: input.availability.trim() || null,
+      equipment_access: input.equipmentAccess.trim() || null,
+      notes: input.notes.trim() || null,
+    })
+    .eq('id', me.id)
+  if (sErr) return { error: sErr.message }
+
+  revalidatePath('/alumno')
+  revalidatePath('/alumno/perfil')
+  return {}
+}
+
+export async function changeMyPassword(newPassword: string): Promise<{ error?: string }> {
+  const me = await requireIndividual()
+  if (!me) return { error: 'Esta opción es solo para cuentas independientes.' }
+
+  const invalid = validateNewPassword(newPassword)
+  if (invalid) return { error: invalid }
+
+  const supabase = await createClient()
+  const { error } = await supabase.auth.updateUser({ password: newPassword })
+  if (error) {
+    return {
+      error:
+        error.code === 'same_password'
+          ? 'Elegí una contraseña distinta a la actual.'
+          : error.message,
+    }
+  }
+  return {}
 }

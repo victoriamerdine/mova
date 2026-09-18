@@ -541,7 +541,9 @@ export async function getStudentWeek(
 
 export type MyProfile = {
   level: string | null
+  primarySportId: string | null
   primarySportName: string | null
+  phone: string | null
   availability: string | null
   equipmentAccess: string | null
   notes: string | null
@@ -558,13 +560,15 @@ export async function getMyProfile(studentId: string): Promise<MyProfile | null>
   const supabase = await createClient()
   const { data } = await supabase
     .from('students')
-    .select('level, availability, equipment_access, notes, sports(name)')
+    .select('level, primary_sport_id, phone, availability, equipment_access, notes, sports(name)')
     .eq('id', studentId)
     .maybeSingle()
 
   if (!data) return null
   const row = data as unknown as {
     level: string | null
+    primary_sport_id: string | null
+    phone: string | null
     availability: string | null
     equipment_access: string | null
     notes: string | null
@@ -572,7 +576,9 @@ export async function getMyProfile(studentId: string): Promise<MyProfile | null>
   }
   return {
     level: row.level,
+    primarySportId: row.primary_sport_id,
     primarySportName: row.sports?.name ?? null,
+    phone: row.phone,
     availability: row.availability,
     equipmentAccess: row.equipment_access,
     notes: row.notes,

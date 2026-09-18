@@ -67,18 +67,16 @@ export default async function AlumnoHomePage() {
       <p className="text-primary text-xs font-bold tracking-widest uppercase">Inicio</p>
       <h1 className="text-2xl font-semibold tracking-tight">Hola {student.fullName.split(' ')[0]}</h1>
 
-      {student.role === 'individual' ? (
-        <Link
-          href="/planes"
-          className="text-muted-foreground hover:text-foreground -mt-3 flex items-center gap-1.5 text-sm"
-        >
-          <ClipboardList className="size-4" />
-          Mis planes
-        </Link>
-      ) : null}
-
       <div className="flex flex-col gap-3">
         <HubCard href="/alumno/plan" icon={Dumbbell} title="Mi plan" subtitle={planSubtitle} />
+        {student.role === 'individual' ? (
+          <HubCard
+            href="/planes"
+            icon={ClipboardList}
+            title="Crear plan"
+            subtitle="Armá y administrá tus propios planes"
+          />
+        ) : null}
         <HubCard
           href="/alumno/progreso"
           icon={BarChart3}
@@ -95,7 +93,11 @@ export default async function AlumnoHomePage() {
           href="/alumno/perfil"
           icon={UserRound}
           title="Mi información"
-          subtitle="Los datos que tiene tu profesor sobre vos"
+          subtitle={
+            student.role === 'individual'
+              ? 'Tus datos, tu perfil de entrenamiento y tu contraseña'
+              : 'Los datos que tiene tu profesor sobre vos'
+          }
         />
       </div>
     </StudentShell>

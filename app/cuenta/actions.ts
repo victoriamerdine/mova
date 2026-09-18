@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation'
 
 import { createClient } from '@/lib/supabase/server'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
+import { validateNewPassword } from '@/lib/auth/password-rules'
 import { getCurrentProfessor } from '@/lib/supabase/queries/professor-dashboard'
 
 type Result = { error?: string }
@@ -88,9 +89,8 @@ export async function updateMyProfile(input: {
 
 export async function updateMyPassword(newPassword: string): Promise<Result> {
   await requireProfessor()
-  if (typeof newPassword !== 'string' || newPassword.length < 8) {
-    return { error: 'La contraseña necesita al menos 8 caracteres.' }
-  }
+  const invalid = validateNewPassword(newPassword)
+  if (invalid) return { error: invalid }
   const supabase = await createClient()
   const { error } = await supabase.auth.updateUser({ password: newPassword })
   if (error) return { error: error.message }
