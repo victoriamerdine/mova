@@ -3,6 +3,7 @@
 import { redirect } from 'next/navigation'
 
 import { createClient } from '@/lib/supabase/server'
+import { getSiteUrl } from '@/lib/site-url'
 
 export async function signup(formData: FormData) {
   const email = String(formData.get('email') ?? '')
@@ -23,6 +24,7 @@ export async function signup(formData: FormData) {
   }
 
   const supabase = await createClient()
+  const siteUrl = await getSiteUrl()
 
   // profiles/professors/students se crean solos vía trigger
   // (public.handle_new_user, supabase/migrations/20260828000011...) a
@@ -34,6 +36,9 @@ export async function signup(formData: FormData) {
     email,
     password,
     options: {
+      // Sin esto, el link del email de confirmación apunta al "Site URL"
+      // configurado en Supabase (hoy localhost), no a donde se registró.
+      emailRedirectTo: `${siteUrl}/login?message=${encodeURIComponent('Email confirmado. Ya podés iniciar sesión.')}`,
       data:
         role === 'professor'
           ? { full_name: fullName, role, document_id: documentId, phone, address }
