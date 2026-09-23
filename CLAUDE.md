@@ -1545,7 +1545,7 @@ Hecho:
     «ejercicio existente» / crear nuevo / omitir); las filas que caen sobre
     un ejercicio de otro dueño se marcan "a revisión" y entran como
     solicitud;
-  - tagueo por deporte: `sports` (catálogo, 12 deportes) + `exercise_sports`
+  - tagueo por deporte: `sports` (catálogo, 20 deportes) + `exercise_sports`
     (N:N). Chips multi-select en el formulario del ejercicio; filtro
     "Deporte" en la biblioteca; badges de deporte en tarjeta y detalle;
     columna `deportes` en el CSV (nombres separados por coma). Los deportes
