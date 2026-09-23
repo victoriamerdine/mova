@@ -97,6 +97,7 @@ const SPORTS = [
   'Natación',
   'Tenis',
   'Rugby',
+  'Hockey',
   'Básquet',
   'Vóley',
   'Triatlón',
