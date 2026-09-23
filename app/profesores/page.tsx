@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 
 import { MovaLogo } from '@/components/brand/mova-logo'
+import { DragDemo } from '@/components/guide/drag-demo'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -210,6 +211,23 @@ export default function ProfesoresGuidePage() {
               ))}
             </div>
           </div>
+        </section>
+
+        {/* Demo: armar una sesión arrastrando desde la biblioteca */}
+        <section className="border-border/70 border-b py-12 sm:py-16">
+          <div className="max-w-prose">
+            <span className="text-primary text-xs font-semibold tracking-widest uppercase">
+              Mirá cómo se arma
+            </span>
+            <h2 className="mt-2 text-2xl font-semibold text-balance sm:text-3xl">
+              Armá una sesión arrastrando ejercicios desde la biblioteca
+            </h2>
+            <p className="text-muted-foreground mt-3 text-pretty">
+              Buscás, agarrás el ejercicio y lo soltás en el día. Después le ponés series, carga y
+              pausa. Así de rápido.
+            </p>
+          </div>
+          <DragDemo className="mt-8" />
         </section>
 
         {/* Features */}
